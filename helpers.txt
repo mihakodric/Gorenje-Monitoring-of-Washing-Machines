@@ -1,6 +1,6 @@
 Vpis v git:
-git config --global user.name "Nina"
-git config --global user.email "mail@gmail.com"
+git config --global user.name "Nina Pregrad"
+git config --global user.email "pregrad.nina@gmail.com"
 
 
 Izpis iz git-a
