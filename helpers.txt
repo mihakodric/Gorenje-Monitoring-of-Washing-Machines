@@ -1,0 +1,11 @@
+Vpis v git:
+git config --global user.name "Nina"
+git config --global user.email "mail@gmail.com"
+
+
+Izpis iz git-a
+git config --global --unset user.name
+git config --global --unset user.email
+
+Instalirani extensi:
+
