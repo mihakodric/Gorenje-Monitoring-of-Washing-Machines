@@ -2,7 +2,7 @@
 
 #define LIS2DW12_ADDR 0x19  // I2C naslov senzorja
 
-// Registar za začetek branja pospeškov, na kateri registar hrani
+// Registar za začetek branja pospeškov, tu se začnejo shranjevati podatki
 #define OUT_X_L 0x28
 
 void setup() { //void se požene le enkrat
