@@ -2,7 +2,7 @@
 
 #define LIS2DW12_ADDR 0x19  // I2C naslov senzorja
 
-// Registar za začetek branja pospeškov, tu se začnejo shranjevati podatki
+// Register za začetek branja pospeškov – od tu dalje preberemo 6 bajtov za X, Y in Z osi
 #define OUT_X_L 0x28
 
 void setup() { //void se požene le enkrat
@@ -11,9 +11,9 @@ void setup() { //void se požene le enkrat
 
   delay(100);
 
-  // Preverimo WHO_AM_I registar za potrditev komunikacije
+  // Preverimo WHO_AM_I register za potrditev komunikacije
   Wire.beginTransmission(LIS2DW12_ADDR); //da začne komunikacijo z napravo s tem naslovom
-  Wire.write(0x0F);  // WHO_AM_I registar, registar za prepoznavo
+  Wire.write(0x0F);  // WHO_AM_I register, register za prepoznavo
   Wire.endTransmission(); //zaključiš prenos podatkov
   Wire.requestFrom(LIS2DW12_ADDR, 1); //naj naprava pošlje eno vrednost- to bo who am i
   if (Wire.available()) { //če dobimo podatek
@@ -26,13 +26,13 @@ void setup() { //void se požene le enkrat
 
   // Nastavimo pospeškomer: ODR 100Hz, obseg ±2g
   Wire.beginTransmission(LIS2DW12_ADDR);
-  Wire.write(0x20); //registar za ODR
+  Wire.write(0x20); //register za ODR
   Wire.write(0x50);  // 0x50 = 0101 0000 (100Hz)
   Wire.endTransmission();
 
   // CTRL6 register (0x25) - nastavitev obsega ±2g
   Wire.beginTransmission(LIS2DW12_ADDR);
-  Wire.write(0x25);  //registar za obseg
+  Wire.write(0x25);  //register za obseg
   Wire.write(0x00);  // ±2g (default)
   Wire.endTransmission();
 
