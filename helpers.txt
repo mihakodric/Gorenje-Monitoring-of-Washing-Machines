@@ -9,3 +9,6 @@ git config --global --unset user.email
 
 Instalirani extensi:
 
+copilot
+C/C++ - vsi trije extensioni ---> potem pa inštaliraš še MSYS2 za windows (preko spleta)
+namestitev Arduino CLI (preko spleta, .msi) + namestitev esp32 plošče
