@@ -4,8 +4,8 @@ https://wiki.dfrobot.com/Gravity_Analog_AC_Current_Sensor__SKU_SEN0211_ - spletn
 pine povežemo tako:
 (esp32-senzor)
 
-rdeča žica je VCC--3.3v
-črna žica je GND--GND
+rdeča žica je VCC--3.3V,
+črna žica je GND--GND,
 rumena žica je signal--2
 
 
