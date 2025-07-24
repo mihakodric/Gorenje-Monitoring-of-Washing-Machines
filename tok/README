@@ -7,3 +7,10 @@ pine povežemo tako:
 rdeča žica je VCC--3.3v
 črna žica je GND--GND
 rumena žica je signal--2
+
+
+opombe: če hočemo, lahko uporabimo še LEDico, da preverimo, če deluje, v tem primeru jo lahko vežemo na enega od pinov, ali pa je že vgrajena 
+(možno da na pin2), in samo zamenjamo pina 2 in 13 v kodi (pojasnjeno z komentarji v kodi)
+Prav tako ta senzor še ni bil preizkušen, dosej je kazal le vrednosti 0A, ki jih je sicer redno pošiljal, vendar ni bilo poskušeno na le eni od žic v 
+kablu,zato tudi še ni mogel metati pravih vrednosti.
+
