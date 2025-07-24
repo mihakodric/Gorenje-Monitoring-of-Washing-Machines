@@ -4,8 +4,8 @@ https://wiki.dfrobot.com/SKU_SEN0551_Gravity_Water_Flow_Sensor_G3_4 - spletno me
 pine povežemo tako:
 (esp32-senzor)
 
-rdeča žica je VCC--5V
-črna žica je GND--GND
+rdeča žica je VCC--5V,
+črna žica je GND--GND,
 zelena žica je signal--27
 
 
