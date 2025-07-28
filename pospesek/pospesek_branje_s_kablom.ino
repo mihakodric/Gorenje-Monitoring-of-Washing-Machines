@@ -6,7 +6,7 @@
 #define OUT_X_L 0x28
 
 void setup() { //void se požene le enkrat
-  Serial.begin(115200); //baud rate, kako hitro zajema
+  Serial.begin(230400); //baud rate, kako hitro zajema
   Wire.begin(21, 22);  // SDA, SCL pin
 
   delay(100);
@@ -27,7 +27,7 @@ void setup() { //void se požene le enkrat
   // Nastavimo pospeškomer: ODR 100Hz, obseg ±2g
   Wire.beginTransmission(LIS2DW12_ADDR);
   Wire.write(0x20); //register za ODR
-  Wire.write(0x50);  // 0x50 = 0101 0000 (100Hz)
+  Wire.write(0x97);  // 0x50 = 0101 0000 (100Hz)
   Wire.endTransmission();
 
   // CTRL6 register (0x25) - nastavitev obsega ±2g
@@ -40,6 +40,12 @@ void setup() { //void se požene le enkrat
 }
 
 void loop() { //izvaja neprekinjeno
+
+  static unsigned long lastRead = 0;  //static- da si zapomni tudi ob naslednjih loopih, da teče naprej
+  unsigned long now = micros();  //šteje čas od prej do zdaj
+  if (now - lastRead < 625) return; // 1600 Hz = vsakih 625 mikrosekund
+  lastRead = now;
+  
   uint8_t data[6]; //spremenljivka data, ki je polje, veliko 6
 
   // Branje 6 bajtov pospeška X, Y, Z, za vsakega 2 bajta podatkov, skupaj tvorita 16-bitno številko
@@ -66,7 +72,9 @@ void loop() { //izvaja neprekinjeno
   float ay = y * sensitivity;
   float az = z * sensitivity;
 
-  Serial.print("X: ");
+  Serial.print("t = ");
+  Serial.print(now);
+  Serial.print(" us, X: ");
   Serial.print(ax, 3); //3 pove število decimalnih mest
   Serial.print(" g, Y: ");
   Serial.print(ay, 3);
@@ -74,5 +82,4 @@ void loop() { //izvaja neprekinjeno
   Serial.print(az, 3);
   Serial.println(" g");
 
-  delay(200); //kako pogosto, 1s je 1000
 }
