@@ -12,7 +12,7 @@ WebServer server(80); //privzeta povezava na port 80 v brskalniku
 
 float ax = 0, ay = 0, az = 0;
 
-const int BUFFER_SIZE = 4800;  
+const int BUFFER_SIZE = 3200;  
 struct Sample {                //v sample shranjuje čas, x, y, z
   unsigned long timestamp;
   float x, y, z;
