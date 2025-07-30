@@ -3,7 +3,7 @@
 pine povežemo tako:
 (esp32-senzor)
 
-VCC--3.3V,
-GND--GND,
-signal--4
+VCC--3.3V rdeča,
+GND--GND črna,
+signal--4 rumena
 
