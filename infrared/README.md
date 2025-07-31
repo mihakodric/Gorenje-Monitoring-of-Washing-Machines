@@ -1,4 +1,4 @@
- - spletno mesto
+https://wiki.seeedstudio.com/Grove-Infrared_Reflective_Sensor/ - spletno mesto
 
 pine povežemo tako:
 (esp32-senzor)
