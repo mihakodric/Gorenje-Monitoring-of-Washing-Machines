@@ -30,10 +30,10 @@ void setup() { //void se požene le enkrat
   Wire.write(0x97);  // 0x50 = 0101 0000 (100Hz)
   Wire.endTransmission();
 
-  // CTRL6 register (0x25) - nastavitev obsega ±2g
+  // CTRL6 register (0x25) - nastavitev obsega ±16g
   Wire.beginTransmission(LIS2DW12_ADDR);
   Wire.write(0x25);  //register za obseg
-  Wire.write(0x00);  // ±2g (default)
+  Wire.write(0x30);  // ±16g (default je ±2g; 0x00)
   Wire.endTransmission();
 
   delay(100);
@@ -66,7 +66,7 @@ void loop() { //izvaja neprekinjeno
   int16_t z = (int16_t)(data[5] << 8 | data[4]);
 
  
-  float sensitivity = 0.061 / 1000.0; // v mg/na enoto podatka
+  float sensitivity = 0.488 / 1000.0; // v mg/na enoto podatka
 
   float ax = x * sensitivity;
   float ay = y * sensitivity;
