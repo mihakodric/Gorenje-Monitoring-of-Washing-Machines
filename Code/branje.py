@@ -11,9 +11,9 @@ ime_baze = 'prebrani_podatki.db'
 url = 'http://10.180.137.123/buffer'
 serijski_port = 'COM3'  
 baud_rate = 9600
-mqtt_broker = 'localhost'
+mqtt_broker = '192.168.0.106'
 mqtt_port = 1883
-mqtt_tema = 'pospešek'
+mqtt_tema = 'pospesek'
 
 def ustvari_sql_bazo(ime_baze):
     povezava_do_baze = sqlite3.connect(ime_baze)
@@ -145,3 +145,4 @@ if __name__ == "__main__":
             print("Neveljaven način.")
 
         time.sleep(0.25)
+
