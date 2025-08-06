@@ -150,7 +150,7 @@ void setup() {
 
   Wire.beginTransmission(LIS2DW12_ADDR);
   Wire.write(0x25);
-  Wire.write(0x00);  // ±2g občutljivost
+  Wire.write(0x30);  // ±16g občutljivost ( default je ±2g občutljivost, 0x00)
   Wire.endTransmission();
 
   delay(100);
@@ -200,7 +200,7 @@ void loop() {
   int16_t y = (int16_t)(data[3] << 8 | data[2]);
   int16_t z = (int16_t)(data[5] << 8 | data[4]);
 
-  float sensitivity = 0.061 / 1000.0;
+  float sensitivity = 0.488 / 1000.0;
   ax = x * sensitivity;
   ay = y * sensitivity;
   az = z * sensitivity;
