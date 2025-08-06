@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <PubSubClient.h>
+#include <ArduinoOTA.h> 
 
 #define LIS2DW12_ADDR 0x19
 #define OUT_X_L 0x28
@@ -99,6 +100,27 @@ void setup() {
   } else {
     Serial.println("WiFi ni povezan.");
   }
+
+    ArduinoOTA.setHostname("esp32-pospesek");
+  ArduinoOTA.onStart([]() {
+    Serial.println("Zagon OTA posodobitve...");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nPosodobitev končana.");
+  });
+  ArduinoOTA.onProgress([](unsigned int napredek, unsigned int total) {
+    Serial.printf("Napredek: %u%%\r", (napredek / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Napaka OTA [%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Avtentikacija neuspešna");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Napaka na začetku");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Napaka pri povezavi");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Napaka pri prejemu");
+    else if (error == OTA_END_ERROR) Serial.println("Napaka pri zaključku");
+  });
+  ArduinoOTA.begin();
+  Serial.println("OTA pripravljeno.");
 
   client.setServer(mqtt_server, mqtt_port);
 
