@@ -1,6 +1,5 @@
 #include <Wire.h>
 #include <WiFi.h>
-#include <WebServer.h>
 #include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 4096
 #include <ArduinoOTA.h> 
 
@@ -10,11 +9,10 @@
 const char* ssid = "TP-Link_B0E0";
 const char* password = "89846834";
 
-const char* mqtt_server = "192.168.0.106";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
+const char* mqtt_server = "10.15.112.134";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
 const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
 const char* mqtt_tema = "pospesek";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
 
-WebServer server(80); //privzeta povezava na port 80 v brskalniku
 
 float ax = 0, ay = 0, az = 0;
 
@@ -124,34 +122,6 @@ void setup() {
 
   client.setServer(mqtt_server, mqtt_port);
 
-  server.on("/", []() {  //namesto v html pošiljanje v json formatu
-    String json = "{";
-    json += "\"timestamp_us\":" + String(micros()) + ",";
-    json += "\"ax_g\":" + String(ax, 3) + ",";
-    json += "\"ay_g\":" + String(ay, 3) + ",";
-    json += "\"az_g\":" + String(az, 3);
-    json += "}";
-    server.send(200, "application/json", json);
-  });
-
-  server.on("/buffer", []() {  //ob dostopu na buffer se izvede naslednja funkcija
-    String json = "[";
-    for (int i = 0; i < bufferIndex; i++) {
-      json += "{";
-      json += "\"timestamp_us\":" + String(buffer[i].timestamp) + ",";
-      json += "\"ax_g\":" + String(buffer[i].x, 3) + ",";
-      json += "\"ay_g\":" + String(buffer[i].y, 3) + ",";
-      json += "\"az_g\":" + String(buffer[i].z, 3);
-      json += "}";
-      if (i < bufferIndex - 1) json += ",";
-    }
-    json += "]";
-    server.send(200, "application/json", json); //tip vsebine je application/json
-    bufferIndex = 0;
-  });
-
-  server.begin();
-  Serial.println("Web strežnik zagnan.");
 
   Wire.beginTransmission(LIS2DW12_ADDR);
   Wire.write(0x0F);
@@ -179,28 +149,6 @@ void setup() {
 }
 
 void loop() {
-  server.handleClient();  // WiFi strežnik obravnava klice
-
-  //preverjanje ukaza preko serije
-  if (Serial.available() > 0) {
-    String ukaz = Serial.readStringUntil('\n');
-    ukaz.trim();
-    if (ukaz == "preberi_iz_bufferja") {
-      String json = "[";
-      for (int i = 0; i < bufferIndex; i++) {
-        json += "{";
-        json += "\"timestamp_us\":" + String(buffer[i].timestamp) + ",";
-        json += "\"ax_g\":" + String(buffer[i].x, 3) + ",";
-        json += "\"ay_g\":" + String(buffer[i].y, 3) + ",";
-        json += "\"az_g\":" + String(buffer[i].z, 3);
-        json += "}";
-        if (i < bufferIndex - 1) json += ",";
-      }
-      json += "]";
-      Serial.println(json);  // Pošlji JSON na serijo
-      bufferIndex = 0;       // Po pošiljanju resetiraj buffer
-    }
-  }
 
   static unsigned long lastRead = 0;  //static- da si zapomni tudi ob naslednjih loopih, da teče naprej
   unsigned long now = micros();  //šteje čas od prej do zdaj

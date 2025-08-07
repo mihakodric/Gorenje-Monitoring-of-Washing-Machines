@@ -11,7 +11,7 @@ ime_baze = 'prebrani_podatki.db'
 url = 'http://192.168.0.101/buffer'
 serijski_port = 'COM3'  
 baud_rate = 230400
-mqtt_broker = '192.168.0.106'
+mqtt_broker = '10.15.112.134'
 mqtt_port = 1883
 mqtt_tema = 'pospesek'
 
