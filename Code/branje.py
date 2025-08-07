@@ -8,10 +8,10 @@ import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
 ime_baze = 'prebrani_podatki.db'
-url = 'http://10.180.137.123/buffer'
-serijski_port = 'COM3'  
-baud_rate = 9600
-mqtt_broker = '192.168.0.106'
+url = 'http://192.168.0.101/buffer'
+serijski_port = 'COM4'  #nastavi svoj port 
+baud_rate = 230400
+mqtt_broker = '192.168.0.77' # nastavi svoj, v cmd ipconfig
 mqtt_port = 1883
 mqtt_tema = 'pospesek'
 
@@ -72,7 +72,6 @@ def poberi_podatke_wifi(url, ime_baze):
             vstavi_podatke(ime_baze, vzorci)
     except Exception as e:
         print(f'Napaka pri WiFi pobiranju: {e}')
-
 
 def poberi_iz_serije(port, baud, ime_baze):
     try:
