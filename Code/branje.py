@@ -4,7 +4,7 @@ import json
 import time
 import serial
 from datetime import datetime
-import paho.mqtt.client as mqtt 
+import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
 ime_baze = 'prebrani_podatki.db'
@@ -72,7 +72,6 @@ def poberi_podatke_wifi(url, ime_baze):
             vstavi_podatke(ime_baze, vzorci)
     except Exception as e:
         print(f'Napaka pri WiFi pobiranju: {e}')
-
 
 def poberi_iz_serije(port, baud, ime_baze):
     try:
