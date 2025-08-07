@@ -1,73 +1,124 @@
-/**!
- * @file pollMeasurement.ino
- * @brief Measures absolute range from 0 to above 10 cm 
- * @n Measurement of ambient light data
- * @copyright  Copyright (c) 2010 DFRobot Co.Ltd (http://www.dfrobot.com)
- * @licence     The MIT License (MIT)
- * @author [yangfeng]<feng.yang@dfrobot.com>
- * @version  V1.0
- * @date  2021-02-08
- * @get from https://www.dfrobot.com
- * @url  https://github.com/DFRobot/DFRobot_VL6180X
- */
-#include <DFRobot_VL6180X.h>
+#include "DFRobot_VL6180X.h"
+#include <WiFi.h>
+#include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 4096
 
-//Modify I2C address, invalid after power off
-//DFRobot_VL6180X VL6180X(/* iicAddr */0x29,/* TwoWire * */&Wire);
+const char* ssid = "TP-Link_B0E0";
+const char* password = "89846834";
+
+const char* mqtt_server = "192.168.0.106";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
+const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
+const char* mqtt_tema = "razdalja";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
+
+
+const int BUFFER_SIZE = 5;
+struct Sample {
+  unsigned long timestamp;
+  float range;
+};
+
+Sample buffer[BUFFER_SIZE];
+int bufferIndex = 0;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 DFRobot_VL6180X VL6180X;
+
+void povezi_MQTT() {
+  while (!client.connected()) {
+    if (client.connect("ESP32Client")) {
+      Serial.println("Povezan na MQTT.");
+    } else {
+      Serial.print("Ni povezano, rc = ");
+      Serial.println(client.state());
+      delay(5000);
+    }
+  }
+}
+
+void posljiBufferMQTT() {
+  if (bufferIndex == 0) return;
+
+  String json = "[";
+  for (int i = 0; i < bufferIndex; i++) {
+    json += "{";
+    json += "\"timestamp_us\":" + String(buffer[i].timestamp) + ",";
+    json += "\"range_mm\":" + String(buffer[i].range, 2);
+    json += "}";
+    if (i < bufferIndex - 1) json += ",";
+  }
+  json += "]";
+
+  if (!client.connected()) {
+    povezi_MQTT();
+  }
+
+  if (client.publish(mqtt_tema, json.c_str())) {
+    Serial.println("Buffer poslan preko MQTT.");
+    bufferIndex = 0;
+  } else {
+    Serial.println("Napaka pri pošiljanju preko MQTT.");
+  }
+}
 
 void setup() {
   Serial.begin(9600);
-  while(!(VL6180X.begin())){
-    Serial.println("Please check that the IIC device is properly connected!");
-    delay(1000);
+
+  if (!VL6180X.begin()) { //inicializacija senzorja
+    Serial.println("Napaka pri povezavi s senzorjem VL6180X!");
+    while (1) delay(1000); 
   }
-  /*Change IIC address*/
-  //VL6180X.setIICAddr(0×29);
+
+  WiFi.begin(ssid, password);
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    if (millis() - start > 15000) {
+      Serial.println("Neuspešna povezava na WiFi.");
+      break;
+    }
+    delay(500);
+    Serial.print(".");
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("WiFi povezan.");
+    Serial.print("ESP IP: ");
+    Serial.println(WiFi.localIP());
+  }
+
+  client.setServer(mqtt_server, mqtt_port);
 }
 
 void loop() {
-  /*Poll measurement of ambient light data*/
-  float lux = VL6180X.alsPoLLMeasurement();
-  String str ="ALS: "+String(lux)+" lux";
-  Serial.println(str);
-  delay(1000);
-  /*Poll measurement of distance*/
-  uint8_t range = VL6180X.rangePollMeasurement();
-  /*Get the judgment of the range value*/
+  static unsigned long lastRead = 0;
+  unsigned long now = micros();
+  if (now - lastRead < 1000000) return;  // 1 Hz branje 
+  lastRead = now;
+
+  Serial.print("t = ");
+  Serial.print(now);
+  Serial.print(" us, ");
+
+  uint8_t izmerjenaRazdalja = VL6180X.rangePollMeasurement();
   uint8_t status = VL6180X.getRangeResult();
-  String str1 = "Range: "+String(range) + " mm"; 
-  switch(status){   //preveri glede na kakšen status imamo, naredi naslednje
-  case VL6180X_NO_ERR:
-    Serial.println(str1);
-    break;
-  case VL6180X_EARLY_CONV_ERR:
-    Serial.println("RANGE ERR: ECE check failed !");
-    break;
-  case VL6180X_MAX_CONV_ERR:
-    Serial.println("RANGE ERR: System did not converge before the specified max!");
-    break;
-  case VL6180X_IGNORE_ERR:
-    Serial.println("RANGE ERR: Ignore threshold check failed !");
-    break;
-  case VL6180X_MAX_S_N_ERR:
-    Serial.println("RANGE ERR: Measurement invalidated!");
-    break;
-  case VL6180X_RAW_Range_UNDERFLOW_ERR:
-    Serial.println("RANGE ERR: RESULT_RANGE_RAW < 0!");
-    break;
-  case VL6180X_RAW_Range_OVERFLOW_ERR:
-    Serial.println("RESULT_RANGE_RAW is out of range !");
-    break;
-  case VL6180X_Range_UNDERFLOW_ERR:
-    Serial.println("RANGE ERR: RESULT__RANGE_VAL < 0 !");
-    break;
-  case VL6180X_Range_OVERFLOW_ERR:
-    Serial.println("RANGE ERR: RESULT__RANGE_VAL is out of range !");
-    break;
-  default:
-    Serial.println("RANGE ERR: Systerm err!");
-    break;
+
+  if (status == VL6180X_NO_ERR) {
+    Serial.print("Range: ");
+    Serial.print(izmerjenaRazdalja);
+    Serial.println(" mm");
+
+    if (bufferIndex < BUFFER_SIZE) {
+      buffer[bufferIndex].timestamp = now;
+      buffer[bufferIndex].range = izmerjenaRazdalja;
+      bufferIndex++;
+    }
+
+    if (bufferIndex >= BUFFER_SIZE) {
+      posljiBufferMQTT();
+    }
+  } else {
+    Serial.println("Napaka pri meritvi razdalje.");
   }
-  delay(1000);
+
+  client.loop(); 
 }
