@@ -1,9 +1,8 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 4096
-#include <ArduinoOTA.h> 
 
-#define LIS2DW12_ADDR 0x19
+#define LIS2DW12_ADDR 0x19  // I2C naslov senzorja
 #define OUT_X_L 0x28
 
 const char* ssid = "TP-Link_B0E0";
@@ -70,9 +69,11 @@ void posljiBufferMQTT() {
   }
 }
 
+
+
 void setup() {
-  Serial.begin(230400);
-  Wire.begin(21, 22);
+  Serial.begin(230400);  // boud rate - kako hitro zajema
+  Wire.begin(21, 22);   // SDA, SCL pin
 
   delay(1000);
 
@@ -99,50 +100,33 @@ void setup() {
     Serial.println("WiFi ni povezan.");
   }
 
-    ArduinoOTA.setHostname("esp32-pospesek");
-  ArduinoOTA.onStart([]() {
-    Serial.println("Zagon OTA posodobitve...");
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nPosodobitev končana.");
-  });
-  ArduinoOTA.onProgress([](unsigned int napredek, unsigned int total) {
-    Serial.printf("Napredek: %u%%\r", (napredek / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Napaka OTA [%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Avtentikacija neuspešna");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Napaka na začetku");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Napaka pri povezavi");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Napaka pri prejemu");
-    else if (error == OTA_END_ERROR) Serial.println("Napaka pri zaključku");
-  });
-  ArduinoOTA.begin();
-  Serial.println("OTA pripravljeno.");
 
   client.setServer(mqtt_server, mqtt_port);
 
 
-  Wire.beginTransmission(LIS2DW12_ADDR);
-  Wire.write(0x0F);
-  Wire.endTransmission();
-  Wire.requestFrom(LIS2DW12_ADDR, 1);
-  if (Wire.available()) {
-    uint8_t whoami = Wire.read();
-    Serial.print("WHO_AM_I = 0x");
-    Serial.println(whoami, HEX);
+ // Preverimo WHO_AM_I register za potrditev komunikacije
+  Wire.beginTransmission(LIS2DW12_ADDR); //da začne komunikacijo z napravo s tem naslovom
+  Wire.write(0x0F);  // WHO_AM_I register, register za prepoznavo
+  Wire.endTransmission(); //zaključiš prenos podatkov
+  Wire.requestFrom(LIS2DW12_ADDR, 1); //naj naprava pošlje eno vrednost- to bo who am i
+  if (Wire.available()) { //če dobimo podatek
+    uint8_t whoami = Wire.read(); //ga shrani v whoami, to je 8-bitni integer
+    Serial.print("WHO_AM_I = 0x"); //0x da nam je jasno, da je hexa.
+    Serial.println(whoami, HEX); //whoami vrednost v hexadecimalnem izpisu
   } else {
-    Serial.println("Napaka pri branju WHO_AM_I");
+    Serial.println("Error reading WHO_AM_I");
   }
 
+  // Nastavimo pospeškomer: ODR 100Hz, obseg ±2g
   Wire.beginTransmission(LIS2DW12_ADDR);
-  Wire.write(0x20);
-  Wire.write(0x83);  // 200 Hz, vsi osi enable
+  Wire.write(0x20); //register za ODR
+  Wire.write(0x97);  // 0x50 = 0101 0000 (100Hz)
   Wire.endTransmission();
 
+  // CTRL6 register (0x25) - nastavitev obsega ±16g
   Wire.beginTransmission(LIS2DW12_ADDR);
-  Wire.write(0x25);
-  Wire.write(0x30);  // ±16g občutljivost ( default je ±2g občutljivost, 0x00)
+  Wire.write(0x25);  //register za obseg
+  Wire.write(0x30);  // ±16g (default je ±2g; 0x00)
   Wire.endTransmission();
 
   delay(100);
@@ -152,25 +136,29 @@ void loop() {
 
   static unsigned long lastRead = 0;  //static- da si zapomni tudi ob naslednjih loopih, da teče naprej
   unsigned long now = micros();  //šteje čas od prej do zdaj
-  if (now - lastRead < 5000) return; // 1600 Hz = vsakih 625 mikrosekund
+  if (now - lastRead < 625) return; // 1600 Hz = vsakih 625 mikrosekund
   lastRead = now;
+  
+  uint8_t data[6]; //spremenljivka data, ki je polje, veliko 6
 
-  uint8_t data[6];
+  // Branje 6 bajtov pospeška X, Y, Z, za vsakega 2 bajta podatkov, skupaj tvorita 16-bitno številko
   Wire.beginTransmission(LIS2DW12_ADDR);
-  Wire.write(OUT_X_L | 0x80);
+  Wire.write(OUT_X_L | 0x80);  // Postavi MSB za avtomatsko inkrementacijo registra, se pravi da sam bere več zaporednih registrov- brez bi prebral le x, ne pa še y in z
   Wire.endTransmission();
+  Wire.requestFrom(LIS2DW12_ADDR, 6); //da pošlje podatke, prva dva sta za x high in low- za večjo natančnost,... in tako dalje
 
-  Wire.requestFrom(LIS2DW12_ADDR, 6);
-
-  for (int i = 0; i < 6; i++) {
-    data[i] = Wire.read();
+  for (int i = 0; i < 6; i++) { //kot v pythonu, i++ pristeje 1 po vsaki iteraciji
+    if (Wire.available()) {
+      data[i] = Wire.read(); //nalepi v seznam
+    }
   }
 
-  int16_t x = (int16_t)(data[1] << 8 | data[0]);
-  int16_t y = (int16_t)(data[3] << 8 | data[2]);
+
+  int16_t x = (int16_t)(data[1] << 8 | data[0]); //čisto desno- le formula dveh 8-bitnih števil nazaj v 16-bitno
+  int16_t y = (int16_t)(data[3] << 8 | data[2]); // oklepaj pred formulo samo nastavi tip spremenljivke
   int16_t z = (int16_t)(data[5] << 8 | data[4]);
 
-  float sensitivity = 0.488 / 1000.0;
+  float sensitivity = 0.488 / 1000.0;  // ?
   ax = x * sensitivity;
   ay = y * sensitivity;
   az = z * sensitivity;
