@@ -8,9 +8,9 @@ import paho.mqtt.client as mqtt
 
 
 ime_baze = 'prebrani_podatki.db'
-url = 'http://10.180.137.123/buffer'
+url = 'http://192.168.0.101/buffer'
 serijski_port = 'COM3'  
-baud_rate = 9600
+baud_rate = 230400
 mqtt_broker = '192.168.0.106'
 mqtt_port = 1883
 mqtt_tema = 'pospesek'
@@ -61,14 +61,15 @@ def vstavi_podatke(ime_baze, vzorci):
 
 def poberi_podatke_wifi(url, ime_baze):
     try:
-        zahtevek = requests.get(url, timeout=5)
-        zahtevek.raise_for_status()
-        vzorci = zahtevek.json()
-        if not isinstance(vzorci, list):
-            print('Napačna oblika podatkov (ni seznam).')
-            return
-        print(f'Prejeto {len(vzorci)} vzorcev prek WiFi.')
-        vstavi_podatke(ime_baze, vzorci)
+        while True:
+            zahtevek = requests.get(url, timeout=5)
+            zahtevek.raise_for_status()
+            vzorci = zahtevek.json()
+            if not isinstance(vzorci, list):
+                print('Napačna oblika podatkov (ni seznam).')
+                return
+            print(f'Prejeto {len(vzorci)} vzorcev prek WiFi.')
+            vstavi_podatke(ime_baze, vzorci)
     except Exception as e:
         print(f'Napaka pri WiFi pobiranju: {e}')
 
