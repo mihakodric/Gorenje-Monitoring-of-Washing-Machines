@@ -18,6 +18,7 @@ serijski_port = config['serijski_port']
 baud_rate = config['baud_rate']
 mqtt_broker = config['mqtt_broker']
 mqtt_port = config['mqtt_port']
+mqtt_topic = config['mqtt_topic']
 sensor_id = config['sensor_id']
 
 
@@ -40,15 +41,15 @@ def prejemanje(client, userdata, msg):
     except Exception as e:
         print(f'Napaka pri prejemanju podatkov prek MQTT: {e}')
 
-def poberi_podatke_mqtt(broker='localhost', port=1883, tema='pospesek'):
+def poberi_podatke_mqtt(broker='localhost', port=1883, topic='acceleration'):
     client = mqtt.Client()
     client.on_connect = povezovanje
     client.on_message = prejemanje
 
     try:
         client.connect(broker, port, 60)
-        client.subscribe(tema)
-        print(f'Povezovanje na MQTT broker {broker} na temi {tema}...')
+        client.subscribe(topic)
+        print(f'Povezovanje na MQTT broker {broker} na temi {topic}...')
         client.loop_forever()
     except Exception as e:
         print(f'Napaka pri povezovanju na MQTT: {e}')
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     print("Začenjam z zbiranjem podatkov prek MQTT...")
 
     try:
-        poberi_podatke_mqtt(mqtt_broker, mqtt_port, sensor_id)
+        poberi_podatke_mqtt(mqtt_broker, mqtt_port, mqtt_topic)
     except KeyboardInterrupt:
         print("\nZbiranje podatkov prek MQTT prekinjeno.")
 
