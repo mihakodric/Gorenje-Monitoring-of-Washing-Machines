@@ -1,0 +1,12 @@
+[
+    {
+    "timestamp_us": 172311240001,
+    "sensor_id": "dist_1",
+    "range_mm": 530
+    },
+    {
+    "timestamp_us": 172311240050,
+    "sensor_id": "dist_2",
+    "range_mm": 248
+    }
+]

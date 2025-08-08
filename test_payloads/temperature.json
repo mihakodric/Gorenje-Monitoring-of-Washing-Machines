@@ -1,0 +1,12 @@
+[
+    {
+    "timestamp_us": 172311241200,
+    "sensor_id": "temp_1",
+    "temp_c": 36.5
+    },
+    {
+    "timestamp_us": 172311241400,
+    "sensor_id": "temp_2",
+    "temp_c": 38.2
+    }
+]
