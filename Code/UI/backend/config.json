@@ -3,7 +3,7 @@
   "url": "http://192.168.0.101/buffer",
   "serijski_port": "COM3",
   "baud_rate": 230400,
-  "mqtt_broker": "10.15.112.134",
+  "mqtt_broker": "192.168.0.77",
   "mqtt_port": 1883,
-  "mqtt_tema": "pospesek"
+  "sensor_id": "pospesek"
 }

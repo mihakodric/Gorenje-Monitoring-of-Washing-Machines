@@ -1,6 +1,6 @@
 #include <Wire.h>
 #include <WiFi.h>
-#include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 4096
+#include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 5120
 
 #define LIS2DW12_ADDR 0x19  // I2C naslov senzorja
 #define OUT_X_L 0x28
@@ -8,9 +8,9 @@
 const char* ssid = "TP-Link_B0E0";
 const char* password = "89846834";
 
-const char* mqtt_server = "10.15.112.134";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
+const char* mqtt_server = "192.168.0.77";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
 const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
-const char* mqtt_tema = "pospesek";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
+const char* sensor_id = "pospesek";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
 
 
 float ax = 0, ay = 0, az = 0;
@@ -48,6 +48,7 @@ void posljiBufferMQTT() {
   for (int i = 0; i < bufferIndex; i++) {
     json += "{";
     json += "\"timestamp_us\":" + String(buffer[i].timestamp) + ",";
+    json += "\"sensor_id\":\"" + String(sensor_id) + "\",";
     json += "\"ax_g\":" + String(buffer[i].x, 3) + ",";
     json += "\"ay_g\":" + String(buffer[i].y, 3) + ",";
     json += "\"az_g\":" + String(buffer[i].z, 3);
@@ -60,7 +61,7 @@ void posljiBufferMQTT() {
     povezi_MQTT();
   }
 
-  boolean uspeh = client.publish(mqtt_tema, json.c_str());
+  boolean uspeh = client.publish(sensor_id, json.c_str());
   if (uspeh) {
     Serial.println("Buffer poslan preko MQTT.");
     bufferIndex = 0;

@@ -7,10 +7,10 @@ const char* ssid = "TP-Link_B0E0";
 const char* password = "89846834";
 const char* mqtt_server = "192.168.0.106";
 const int mqtt_port = 1883;
-const char* mqtt_tema = "razdalja";
+const char* sensor_id = "razdalja";
 
 DFRobot_VL6180X VL6180X;
-ClassMQTT mqttHandler(ssid, password, mqtt_server, mqtt_port, mqtt_tema, BUFFER_SIZE);
+ClassMQTT mqttHandler(ssid, password, mqtt_server, mqtt_port, sensor_id, BUFFER_SIZE);
 
 void setup() {
   Serial.begin(9600);

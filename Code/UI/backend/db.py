@@ -11,10 +11,11 @@ def ustvari_sql_bazo(ime_baze):
         CREATE TABLE IF NOT EXISTS podatki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             čas TEXT NOT NULL,
-            timestamp_us INTEGER NOT NULL,          
-            ax REAL NOT NULL,                       
-            ay REAL NOT NULL,                       
-            az REAL NOT NULL 
+            timestamp_us INTEGER NOT NULL,
+            sensor_id TEXT NOT NULL,          
+            direction REAL NOT NULL,                       
+            value REAL NOT NULL,                       
+            test_name REAL NOT NULL 
         )
     ''')
     povezava_do_baze.commit()
@@ -26,21 +27,17 @@ def vstavi_podatke(ime_baze, vzorci):
     orodje = povezava_do_baze.cursor()
     
     sql = '''
-        INSERT INTO podatki (čas, timestamp_us, ax, ay, az)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO podatki (čas, timestamp_us, sensor_id, direction, value, test_name)
+        VALUES (?, ?, ?, ?, ?, ?)
     '''
 
     seznam = []
     for vzorec in vzorci:
         try:
             trenutni_čas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            seznam.append((
-                trenutni_čas,
-                vzorec['timestamp_us'],
-                vzorec['ax_g'],
-                vzorec['ay_g'],
-                vzorec['az_g']
-            ))
+            seznam.append((trenutni_čas, vzorec['timestamp_us'], vzorec['sensor_id'], 'x', vzorec['ax_g'], 'test_1'))
+            seznam.append((trenutni_čas, vzorec['timestamp_us'], vzorec['sensor_id'], 'y', vzorec['ay_g'], 'test_1'))
+            seznam.append((trenutni_čas, vzorec['timestamp_us'], vzorec['sensor_id'], 'z', vzorec['az_g'], 'test_1'))
         except KeyError as e:
             print(f'Manjka ključ v podatkih: {e}')
             

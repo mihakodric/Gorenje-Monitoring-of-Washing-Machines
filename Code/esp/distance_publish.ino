@@ -7,7 +7,7 @@ const char* password = "89846834";
 
 const char* mqtt_server = "192.168.0.106";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
 const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
-const char* mqtt_tema = "razdalja";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
+const char* sensor_id = "razdalja";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
 
 
 const int BUFFER_SIZE = 5;
@@ -53,7 +53,7 @@ void posljiBufferMQTT() {
     povezi_MQTT();
   }
 
-  if (client.publish(mqtt_tema, json.c_str())) {
+  if (client.publish(sensor_id, json.c_str())) {
     Serial.println("Buffer poslan preko MQTT.");
     bufferIndex = 0;
   } else {

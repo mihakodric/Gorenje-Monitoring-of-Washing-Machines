@@ -1,11 +1,14 @@
 import json
+import os
 import time
 from db import ustvari_sql_bazo, vstavi_podatke
 import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
 # Branje nastavitev iz config.json
-with open('config.json', 'r') as config_file:
+base_path = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(base_path, 'config.json')
+with open(config_path, 'r') as config_file:
     config = json.load(config_file)
 
 # Dostop do vrednosti
@@ -15,7 +18,7 @@ serijski_port = config['serijski_port']
 baud_rate = config['baud_rate']
 mqtt_broker = config['mqtt_broker']
 mqtt_port = config['mqtt_port']
-mqtt_tema = config['mqtt_tema']
+sensor_id = config['sensor_id']
 
 
 
@@ -58,7 +61,7 @@ if __name__ == "__main__":
     print("Začenjam z zbiranjem podatkov prek MQTT...")
 
     try:
-        poberi_podatke_mqtt(mqtt_broker, mqtt_port, mqtt_tema)
+        poberi_podatke_mqtt(mqtt_broker, mqtt_port, sensor_id)
     except KeyboardInterrupt:
         print("\nZbiranje podatkov prek MQTT prekinjeno.")
 
