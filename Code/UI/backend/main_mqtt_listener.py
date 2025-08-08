@@ -24,6 +24,21 @@ mqtt_topics = config.get('mqtt_topics', [])
 
 
 def povezovanje(client, userdata, flags, rc):
+    """
+    Callback function executed when the MQTT client connects to the broker.
+
+    Subscribes to all topics specified in the global mqtt_topics list upon
+    successful connection.
+
+    Args:
+        client (mqtt.Client): The MQTT client instance.
+        userdata: User-defined data of any type.
+        flags (dict): Response flags sent by the broker.
+        rc (int): The connection result. 0 indicates success.
+
+    Returns:
+        None
+    """
     if rc == 0:
         print('Povezano na broker, MQTT.')
         for topic in mqtt_topics:
@@ -34,7 +49,23 @@ def povezovanje(client, userdata, flags, rc):
 
 
 
+
 def prejemanje(client, userdata, msg):
+    """
+    Callback function triggered when an MQTT message is received.
+
+    Processes the JSON payload, validates sensor_id presence, and inserts
+    the received sensor data into the SQLite database.
+
+    Args:
+        client (mqtt.Client): The MQTT client instance.
+        userdata: User-defined data of any type.
+        msg (mqtt.MQTTMessage): The received MQTT message, with attributes
+            topic (str) and payload (bytes).
+
+    Returns:
+        None
+    """
     try:
         podatki = json.loads(msg.payload.decode('utf-8'))
 
@@ -60,7 +91,23 @@ def prejemanje(client, userdata, msg):
         print(f'Napaka pri prejemanju podatkov prek MQTT: {e}')
 
 
+
+
 def poberi_podatke_mqtt(broker='localhost', port=1883):
+    """
+    Connects to the MQTT broker and starts the message loop to receive data.
+
+    Sets up MQTT client callbacks for connection and message reception,
+    connects to the specified broker and port, and runs indefinitely until
+    interrupted.
+
+    Args:
+        broker (str): Hostname or IP address of the MQTT broker. Defaults to 'localhost'.
+        port (int): Port number for the MQTT broker connection. Defaults to 1883.
+
+    Returns:
+        None
+    """
     client = mqtt.Client(protocol=mqtt.MQTTv311)
     client.on_connect = povezovanje
     client.on_message = prejemanje
@@ -73,7 +120,17 @@ def poberi_podatke_mqtt(broker='localhost', port=1883):
         print(f'Napaka pri povezovanju na MQTT: {e}')
             
 
+
+
 if __name__ == "__main__":
+    """
+    Main program entry point.
+
+    Creates the SQLite database if it does not exist and starts collecting sensor
+    data over MQTT using the configured broker and port.
+
+    Handles graceful exit on keyboard interrupt.
+    """
     print("Ustvarjanje baze podatkov...")
     ustvari_sql_bazo(ime_baze)
 

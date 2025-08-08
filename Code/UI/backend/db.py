@@ -5,6 +5,26 @@ from datetime import datetime
 
 
 def ustvari_sql_bazo(ime_baze):
+    """
+    Create an SQLite database and a table for storing sensor data.
+
+    If the database file does not exist, it will be created.  
+    The function creates a table named `podatki` with the following columns:
+        - id (INTEGER, primary key, autoincrement)
+        - čas (TEXT): human-readable timestamp of data insertion (format: YYYY-MM-DD HH:MM:SS)
+        - timestamp_us (INTEGER): raw timestamp from the sensor (microseconds)
+        - sensor_id (TEXT): identifier of the sensor (e.g., 'acc1', 'temp2')
+        - direction (REAL): axis or direction for accelerometer readings, or 'None' for scalar values
+        - value (REAL): measured sensor value
+        - test_name (REAL): test label (e.g., 'test_1')
+
+    Args:
+        ime_baze (str): Path or filename of the SQLite database file.
+
+    Returns:
+        None
+    """
+
     povezava_do_baze = sqlite3.connect(ime_baze)
     orodje = povezava_do_baze.cursor()
     orodje.execute('''
@@ -22,7 +42,36 @@ def ustvari_sql_bazo(ime_baze):
     povezava_do_baze.close()
 
 
+
+
 def vstavi_podatke(ime_baze, vzorci):
+    """
+    Insert multiple sensor data samples into the SQLite database.
+
+    The function processes each sensor reading dictionary in `vzorci` and inserts 
+    one or more rows into the `podatki` table depending on the sensor type:
+        - Accelerometer ('acc...'): inserts three rows (x, y, z) with `ax_g`, `ay_g`, `az_g`.
+        - Distance ('dist...'): inserts one row with `range_mm`.
+        - Temperature ('temp...'): inserts one row with `temp_c`.
+        - Current ('current...'): inserts one row with `current_a`.
+        - Flow ('flow...'): inserts one row with `flow`.
+        - Infrared ('infra...'): inserts one row with `yes_no`.
+
+    If a sensor ID is unrecognized, a message is printed.  
+    If a required key is missing in the data dictionary, an error message is printed.
+
+    Args:
+        ime_baze (str): Path or filename of the SQLite database file.
+        vzorci (list[dict]): List of dictionaries containing sensor data.
+            Each dictionary must contain:
+                - 'sensor_id' (str)
+                - 'timestamp_us' (int)
+            Plus sensor-specific keys depending on type.
+
+    Returns:
+        None
+    """
+
     povezava_do_baze = sqlite3.connect(ime_baze)
     orodje = povezava_do_baze.cursor()
     
