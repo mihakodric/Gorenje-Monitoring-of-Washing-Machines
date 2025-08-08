@@ -18,8 +18,7 @@ serijski_port = config['serijski_port']
 baud_rate = config['baud_rate']
 mqtt_broker = config['mqtt_broker']
 mqtt_port = config['mqtt_port']
-mqtt_topic = config['mqtt_topic']
-sensor_id = config['sensor_id']
+mqtt_topics = config.get('mqtt_topics', [])
 
 
 
@@ -27,29 +26,48 @@ sensor_id = config['sensor_id']
 def povezovanje(client, userdata, flags, rc):
     if rc == 0:
         print('Povezano na broker, MQTT.')
+        for topic in mqtt_topics:
+            client.subscribe(topic)
+            print(f'Naročeno na temo: {topic}')
     else:
         print(f'Napaka pri povezavi na broker, MQTT: {rc}')
+
+
 
 def prejemanje(client, userdata, msg):
     try:
         podatki = json.loads(msg.payload.decode('utf-8'))
-        if isinstance(podatki, list):
-            print(f'Prejeto {len(podatki)} vzorcev prek MQTT.')
-            vstavi_podatke(ime_baze, podatki)
+
+        if isinstance(podatki, dict):
+            # Ensure sensor_id is present in payload
+            if 'sensor_id' not in podatki:
+                print('Opozorilo: Manjka sensor_id v sporočilu.')
+                return
+            podatki = [podatki]  # Make a list for vstavi_podatke
+        elif isinstance(podatki, list):
+            for vzorec in podatki:
+                if 'sensor_id' not in vzorec:
+                    print('Opozorilo: Manjka sensor_id v enem od vzorcev.')
+                    return
         else:
-            print('Napačna oblika podatkov (ni seznam).')
+            print('Napačna oblika podatkov (ni seznam ali dict).')
+            return
+
+        print(f'Prejeto {len(podatki)} vzorcev prek MQTT iz teme {msg.topic}.')
+        vstavi_podatke(ime_baze, podatki)
+
     except Exception as e:
         print(f'Napaka pri prejemanju podatkov prek MQTT: {e}')
 
-def poberi_podatke_mqtt(broker='localhost', port=1883, topic='acceleration'):
-    client = mqtt.Client()
+
+def poberi_podatke_mqtt(broker='localhost', port=1883):
+    client = mqtt.Client(protocol=mqtt.MQTTv311)
     client.on_connect = povezovanje
     client.on_message = prejemanje
 
     try:
         client.connect(broker, port, 60)
-        client.subscribe(topic)
-        print(f'Povezovanje na MQTT broker {broker} na temi {topic}...')
+        print(f'Povezovanje na MQTT broker {broker}...')
         client.loop_forever()
     except Exception as e:
         print(f'Napaka pri povezovanju na MQTT: {e}')
@@ -62,7 +80,7 @@ if __name__ == "__main__":
     print("Začenjam z zbiranjem podatkov prek MQTT...")
 
     try:
-        poberi_podatke_mqtt(mqtt_broker, mqtt_port, mqtt_topic)
+        poberi_podatke_mqtt(mqtt_broker, mqtt_port)
     except KeyboardInterrupt:
         print("\nZbiranje podatkov prek MQTT prekinjeno.")
 

@@ -10,12 +10,12 @@ const char* ssid = "TP-Link_B0E0";
 const char* password = "89846834";
 const char* mqtt_server = "192.168.0.77";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
 const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
-const char* sensor_id = "pospesek";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
+const char* sensor_id = "acc_1";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
 const char* mqtt_topic = "acceleration";
 
 const int BUFFER_SIZE = 50;
 
-ClassMQTT mqtt(ssid, password, mqtt_server, mqtt_port, sensor_id, BUFFER_SIZE);
+ClassMQTT mqtt(ssid, password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
 
 float ax = 0, ay = 0, az = 0;
 

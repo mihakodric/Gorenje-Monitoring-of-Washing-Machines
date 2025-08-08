@@ -34,10 +34,43 @@ def vstavi_podatke(ime_baze, vzorci):
     seznam = []
     for vzorec in vzorci:
         try:
-            trenutni_čas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            seznam.append((trenutni_čas, vzorec['timestamp_us'], vzorec['sensor_id'], 'x', vzorec['ax_g'], 'test_1'))
-            seznam.append((trenutni_čas, vzorec['timestamp_us'], vzorec['sensor_id'], 'y', vzorec['ay_g'], 'test_1'))
-            seznam.append((trenutni_čas, vzorec['timestamp_us'], vzorec['sensor_id'], 'z', vzorec['az_g'], 'test_1'))
+            trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sensor = vzorec.get('sensor_id', '')
+            ts_us = vzorec['timestamp_us']
+
+            if sensor.startswith('acc'):
+                seznam.append((trenutni_cas, ts_us, sensor, 'x', vzorec['ax_g'], 'test_1'))
+                seznam.append((trenutni_cas, ts_us, sensor, 'y', vzorec['ay_g'], 'test_1'))
+                seznam.append((trenutni_cas, ts_us, sensor, 'z', vzorec['az_g'], 'test_1'))
+            
+            elif sensor.startswith('dist'):
+                value = vzorec.get('range_mm', None)
+                if value is not None:
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+        
+            elif sensor.startswith('temp'):
+                value = vzorec.get('temp_c', None)
+                if value is not None:
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+
+            elif sensor.startswith('current'):
+                value = vzorec.get('current_a', None)
+                if value is not None:
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))            
+
+            elif sensor.startswith('flow'):
+                value = vzorec.get('flow', None)
+                if value is not None:
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+
+            elif sensor.startswith('infra'):
+                value = vzorec.get('yes_no', None)
+                if value is not None:
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+
+            else:
+                print(f'Unknown sensor_id: {sensor}')
+
         except KeyError as e:
             print(f'Manjka ključ v podatkih: {e}')
             
