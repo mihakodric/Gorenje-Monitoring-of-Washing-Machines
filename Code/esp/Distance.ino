@@ -5,8 +5,8 @@
 
 const char* ssid = "TP-Link_B0E0";
 const char* password = "89846834";
-const char* mqtt_server = "192.168.0.106";
-const int mqtt_port = 1883;
+const char* mqtt_server = "192.168.0.77"; //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
+const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
 const char* sensor_id = "razdalja";
 
 DFRobot_VL6180X VL6180X;
@@ -42,9 +42,10 @@ void loop() {
     Serial.print(izmerjenaRazdalja);
     Serial.println(" mm");
 
-    // Tukaj sama definiraš format JSON objekta:
+    // Tukaj sam definiraš format JSON objekta:
     String json = "{";
     json += "\"timestamp_us\":" + String(now) + ",";
+    json += "\"sensor_id\":\"" + String(sensor_id) + "\",";
     json += "\"range_mm\":" + String(izmerjenaRazdalja);
     json += "}";
 

@@ -2,7 +2,7 @@
 #define CLASS_MQTT_H
 
 #include <WiFi.h>
-#include <PubSubClient.h>
+#include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 5120
 
 class ClassMQTT {
 public:
