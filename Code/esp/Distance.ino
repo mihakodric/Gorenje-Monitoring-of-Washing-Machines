@@ -46,6 +46,7 @@ void loop() {
     // Tukaj sam definiraš format JSON objekta:
     String json = "{";
     json += "\"timestamp_us\":" + String(now) + ",";
+    json += "\"mqtt_topic\":\"" + String(mqtt_topic) + "\",";
     json += "\"sensor_id\":\"" + String(sensor_id) + "\",";
     json += "\"range_mm\":" + String(izmerjenaRazdalja);
     json += "}";

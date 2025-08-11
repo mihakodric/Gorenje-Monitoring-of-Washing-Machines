@@ -16,7 +16,7 @@ def ustvari_sql_bazo(ime_baze):
         - sensor_id (TEXT): identifier of the sensor (e.g., 'acc1', 'temp2')
         - direction (REAL): axis or direction for accelerometer readings, or 'None' for scalar values
         - value (REAL): measured sensor value
-        - test_name (REAL): test label (e.g., 'test_1')
+        - test_name (REAL): test label (e.g., ime_testa)
 
     Args:
         ime_baze (str): Path or filename of the SQLite database file.
@@ -33,7 +33,7 @@ def ustvari_sql_bazo(ime_baze):
             čas TEXT NOT NULL,
             timestamp_us INTEGER NOT NULL,
             sensor_id TEXT NOT NULL,          
-            direction REAL NOT NULL,                       
+            direction TEXT NOT NULL,                       
             value REAL NOT NULL,                       
             test_name REAL NOT NULL 
         )
@@ -44,7 +44,7 @@ def ustvari_sql_bazo(ime_baze):
 
 
 
-def vstavi_podatke(ime_baze, vzorci):
+def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
     """
     Insert multiple sensor data samples into the SQLite database.
 
@@ -85,40 +85,41 @@ def vstavi_podatke(ime_baze, vzorci):
         try:
             trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sensor = vzorec.get('sensor_id', '')
+            topic = vzorec.get('mqtt_topic', '')
             ts_us = vzorec['timestamp_us']
 
-            if sensor.startswith('acc'):
-                seznam.append((trenutni_cas, ts_us, sensor, 'x', vzorec['ax_g'], 'test_1'))
-                seznam.append((trenutni_cas, ts_us, sensor, 'y', vzorec['ay_g'], 'test_1'))
-                seznam.append((trenutni_cas, ts_us, sensor, 'z', vzorec['az_g'], 'test_1'))
+            if topic == "acceleration":
+                seznam.append((trenutni_cas, ts_us, sensor, 'x', vzorec['ax_g'], ime_testa))
+                seznam.append((trenutni_cas, ts_us, sensor, 'y', vzorec['ay_g'], ime_testa))
+                seznam.append((trenutni_cas, ts_us, sensor, 'z', vzorec['az_g'], ime_testa))
             
-            elif sensor.startswith('dist'):
+            elif topic == "distance":
                 value = vzorec.get('range_mm', None)
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
         
-            elif sensor.startswith('temp'):
+            elif topic == "temperature":
                 value = vzorec.get('temp_c', None)
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
 
-            elif sensor.startswith('current'):
+            elif topic == "current":
                 value = vzorec.get('current_a', None)
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))            
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))            
 
-            elif sensor.startswith('flow'):
+            elif topic == "water_flow":
                 value = vzorec.get('flow', None)
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
 
-            elif sensor.startswith('infra'):
+            elif topic == "infrared":
                 value = vzorec.get('yes_no', None)
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, 'test_1'))
+                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
 
             else:
-                print(f'Unknown sensor_id: {sensor}')
+                print(f'Unknown topic: {topic}')
 
         except KeyError as e:
             print(f'Manjka ključ v podatkih: {e}')

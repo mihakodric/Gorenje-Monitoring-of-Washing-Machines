@@ -17,7 +17,7 @@ const int mqtt_port = 1883;                 //notebook odpremo z run as administ
 const char* sensor_id = "acc_1";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
 const char* mqtt_topic = "acceleration";
 
-const int BUFFER_SIZE = 50;
+const int BUFFER_SIZE = 10;
 
 ClassMQTT mqtt(ssid, password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
 
@@ -118,6 +118,7 @@ void loop() {
     for (int i = 0; i < BUFFER_SIZE; i++) {
       String jsonObj = "{";
       jsonObj += "\"timestamp_us\":" + String(samples[i].timestamp) + ",";
+      jsonObj += "\"mqtt_topic\":\"" + String(mqtt_topic) + "\",";
       jsonObj += "\"sensor_id\":\"" + String(sensor_id) + "\",";
       jsonObj += "\"ax_g\":" + String(samples[i].x, 3) + ",";
       jsonObj += "\"ay_g\":" + String(samples[i].y, 3) + ",";
