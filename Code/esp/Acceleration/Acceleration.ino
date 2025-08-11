@@ -2,7 +2,9 @@
 #include <WiFi.h>
 #include <ClassMQTT.h>
 #include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 4096
-// install library: LittleFS_esp32
+#include <LittleFS.h>  // install library: LittleFS_esp32
+#include "FS.h"
+#include <ArduinoJson.h>  // install library: ArduinoJson
 
 
 #define LIS2DW12_ADDR 0x19  // I2C naslov senzorja
