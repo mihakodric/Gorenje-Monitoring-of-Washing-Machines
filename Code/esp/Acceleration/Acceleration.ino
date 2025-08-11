@@ -1,25 +1,30 @@
+// program files/mosquitto/mosquitto.conf odpremo z notebook - run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
+// v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
+
+
 #include <Wire.h>
 #include <WiFi.h>
 #include <ClassMQTT.h>
-#include <PubSubClient.h> //na računalniku pod Rduino libraries v PubSubCliebt.h nastavimo: #define MQTT_MAX_PACKET_SIZE 4096
+#include <PubSubClient.h> //na računalniku pod Arduino libraries v PubSubClient.h nastavimo: #define MQTT_MAX_PACKET_SIZE 5120
 #include <LittleFS.h>  // install library: LittleFS_esp32
-#include "FS.h"
 #include <ArduinoJson.h>  // install library: ArduinoJson
 
 
 #define LIS2DW12_ADDR 0x19  // I2C naslov senzorja
 #define OUT_X_L 0x28
+#define BUFFER_SIZE 10
 
-const char* ssid = "TP-Link_B0E0";
-const char* password = "89846834";
-const char* mqtt_server = "192.168.0.77";  //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
-const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
-const char* sensor_id = "acc_1";         //v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
-const char* mqtt_topic = "acceleration";
 
-const int BUFFER_SIZE = 10;
 
-ClassMQTT mqtt(ssid, password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
+// Variables loaded from config.json
+String wifi_ssid;
+String wifi_password;
+String mqtt_server;
+int mqtt_port;
+String mqtt_topic;
+String sensor_id;
+
+ClassMQTT* mqtt = nullptr;
 
 float ax = 0, ay = 0, az = 0;
 
@@ -33,18 +38,80 @@ Sample samples[BUFFER_SIZE];    //polje, buffer, veliko do buffer_size
 int sampleIndex = 0;           //v katero mesto v bufferju shranjuje, na začetku na prvem
 
 
+// -------- Load Config --------
+bool loadConfig() {
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS mount failed");
+    return false;
+  }
+
+  if (!LittleFS.exists("/config.json")) {
+    Serial.println("Config file not found");
+    return false;
+  }
+
+  File file = LittleFS.open("/config.json", "r");
+  if (!file) {
+    Serial.println("Failed to open config file");
+    return false;
+  }
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error) {
+    Serial.print("JSON parse error: ");
+    Serial.println(error.f_str());
+    return false;
+  }
+
+  wifi_ssid     = doc["wifi_ssid"].as<String>();
+  wifi_password = doc["wifi_password"].as<String>();
+  mqtt_server   = doc["mqtt_server"].as<String>();
+  mqtt_port     = doc["mqtt_port"].as<int>();
+  mqtt_topic    = doc["mqtt_topic"].as<String>();
+  sensor_id     = doc["sensor_id"].as<String>();
+
+  Serial.println("Config loaded:");
+  Serial.println("WiFi SSID: " + wifi_ssid);
+  Serial.println("MQTT Server: " + mqtt_server);
+  Serial.println("MQTT Port: " + String(mqtt_port));
+  Serial.println("MQTT Topic: " + mqtt_topic);
+  Serial.println("Sensor ID: " + sensor_id);
+
+  return true;
+}
+
+
 
 void setup() {
   Serial.begin(230400);  // boud rate - kako hitro zajema
+  Serial.println("Booting...");
   Wire.begin(21, 22);   // SDA, SCL pin
 
-  delay(1000);
+  if (!loadConfig()) {
+    Serial.println("Failed to load config, stopping...");
+    while (true) { delay(1000); } // Halt
+  }
 
-  Serial.print("Povezujem na WiFi: ");
-  Serial.println(ssid);
+  // Configure MQTT with loaded values
+  mqtt = new ClassMQTT(
+    wifi_ssid.c_str(),
+    wifi_password.c_str(),
+    mqtt_server.c_str(),
+    mqtt_port,
+    mqtt_topic.c_str(),
+    BUFFER_SIZE
+  );
 
-  mqtt.setupWiFi();
-  mqtt.setupMQTT();
+  // delay(1000);
+
+  // Serial.print("Povezujem na WiFi: ");
+  // Serial.println(ssid);
+
+  mqtt->setupWiFi();
+  mqtt->setupMQTT();
 
 
  // Preverimo WHO_AM_I register za potrditev komunikacije
@@ -125,7 +192,7 @@ void loop() {
       jsonObj += "\"az_g\":" + String(samples[i].z, 3);
       jsonObj += "}";
 
-      mqtt.dodajVBuffer(jsonObj);
+      mqtt->dodajVBuffer(jsonObj);
     }
     sampleIndex = 0;
   }
@@ -139,5 +206,5 @@ void loop() {
   Serial.print(" g, Z: "); 
   Serial.println(az, 3);
 
-  mqtt.loop();
+  mqtt->loop();
 }
