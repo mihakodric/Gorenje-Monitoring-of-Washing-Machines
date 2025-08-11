@@ -1,6 +1,6 @@
 // program files/mosquitto/mosquitto.conf odpremo z notebook - run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
-// v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
-
+// prvič ko zaženemo ?? v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
+// config.json naložimo na esp: ArduinoIDE, Ctrl+Shift+P (search bar), Upload LittleFS to Pico/ESP8266/ESP32
 
 #include <Wire.h>
 #include <WiFi.h>
@@ -36,6 +36,8 @@ struct Sample {                //v sample shranjuje čas, x, y, z
 
 Sample samples[BUFFER_SIZE];    //polje, buffer, veliko do buffer_size
 int sampleIndex = 0;           //v katero mesto v bufferju shranjuje, na začetku na prvem
+
+
 
 
 // -------- Load Config --------
@@ -127,10 +129,10 @@ void setup() {
     Serial.println("Error reading WHO_AM_I");
   }
 
-  // Nastavimo pospeškomer: ODR 100Hz, obseg ±2g
+  // Nastavimo pospeškomer: ODR 200Hz, obseg ±2g
   Wire.beginTransmission(LIS2DW12_ADDR);
   Wire.write(0x20); //register za ODR
-  Wire.write(0x97);  // 0x50 = 0101 0000 (100Hz)
+  Wire.write(0x60);  // 0x50 = 100Hz, 0x60 = 200Hz
   Wire.endTransmission();
 
   // CTRL6 register (0x25) - nastavitev obsega ±16g
@@ -142,11 +144,14 @@ void setup() {
   delay(100);
 }
 
+
+
+
 void loop() {
 
   static unsigned long lastRead = 0;  //static- da si zapomni tudi ob naslednjih loopih, da teče naprej
   unsigned long now = micros();  //šteje čas od prej do zdaj
-  if (now - lastRead < 625) return; // 1600 Hz = vsakih 625 mikrosekund
+  if (now - lastRead < 5000) return; // 1/1600 Hz = vsakih 625 mikrosekund, 1/200 Hz = 5000 mikrosekund
   lastRead = now;
   
   uint8_t data[6]; //spremenljivka data, ki je polje, veliko 6
