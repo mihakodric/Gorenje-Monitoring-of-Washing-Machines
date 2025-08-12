@@ -5,6 +5,20 @@
  * @licence     The MIT License (MIT)
  */
 
+#include "ClassMQTT.h"
+#include <ArduinoJson.h>
+
+#define BUFFER_SIZE 10
+
+const char* wifi_ssid = "TP-Link_B0E0";
+const char* wifi_password = "89846834";
+const char* mqtt_server = "192.168.0.77"; //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
+const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
+const char* mqtt_topic = "current";
+const char* sensor_id = "current_1";
+
+ClassMQTT mqttClient(wifi_ssid, wifi_password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
+
 const int ACPin = 2;           // vhodni signal bo na pinu GPIO2
 #define ACTectionRange 20      // definiramo območje senzorja (v A)
 #define VREF 3.3               // referenčna napetost na esp32
@@ -36,17 +50,37 @@ float readACCurrentValue()  //funkcija, ki bo brala tok
 void setup() 
 {
   Serial.begin(115200);
+  mqttClient.setupWiFi();
+  mqttClient.setupMQTT();
   pinMode(13, OUTPUT);  //izhodni signal bo na pinu 13, da se prižge npr. LED, ni nujno, je pa lahko za preverjanje, da vidiš, če teče skozi tok, ker sveti
 }                        //če se zgodi, da hočemo imeti še LED, ga vežemo na 13, možno pa je, da je na našem esp-ju že avtomatsko vgrajen, možno, da na pin 2, v tem primeru samo zamenjamo 2 in 13 v kodi
 
 void loop() 
 {
+  static unsigned long lastRead = 0;
+  unsigned long now = millis();
+  if (now - lastRead < 500) return;  // 0.5 sekunde
+  lastRead = now;
+
   float ACCurrentValue = readACCurrentValue(); //bere tok
   Serial.print(ACCurrentValue, 3);
   Serial.println(" A");
 
-  digitalWrite(13, HIGH); //vklaplja in izklaplja LED
-  delay(500);
-  digitalWrite(13, LOW);
-  delay(500);
+  // digitalWrite(13, HIGH); //vklaplja in izklaplja LED
+  // delay(500);
+  // digitalWrite(13, LOW);
+  // delay(500);
+
+  // Use ArduinoJson to create JSON file
+  StaticJsonDocument<200> doc; // adjust size as needed
+  doc["timestamp_us"] = now;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["current_a"] = ACCurrentValue;
+
+  String json;
+  serializeJson(doc, json);
+
+  mqttClient.dodajVBuffer(json);
+  mqttClient.loop();
 }
