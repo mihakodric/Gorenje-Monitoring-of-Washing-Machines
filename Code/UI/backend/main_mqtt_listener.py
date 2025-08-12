@@ -13,9 +13,9 @@ with open(config_path, 'r') as config_file:
 
 # Dostop do vrednosti
 ime_baze = config['ime_baze']
-url = config['url']
-serijski_port = config['serijski_port']
-baud_rate = config['baud_rate']
+# url = config['url']
+# serijski_port = config['serijski_port']
+# baud_rate = config['baud_rate']
 mqtt_broker = config['mqtt_broker']
 mqtt_port = config['mqtt_port']
 mqtt_topics = config.get('mqtt_topics', [])

@@ -244,14 +244,17 @@ void loop() {
 
   if (sampleIndex >= buffer_size || (millis() - lastSend >= send_interval_ms)) {
     for (int i = 0; i < sampleIndex; i++) {
-      String jsonObj = "{";
-      jsonObj += "\"timestamp_us\":" + String(samples[i].timestamp) + ",";
-      jsonObj += "\"mqtt_topic\":\"" + String(mqtt_topic) + "\",";
-      jsonObj += "\"sensor_id\":\"" + String(sensor_id) + "\",";
-      jsonObj += "\"ax_g\":" + String(samples[i].x, 3) + ",";
-      jsonObj += "\"ay_g\":" + String(samples[i].y, 3) + ",";
-      jsonObj += "\"az_g\":" + String(samples[i].z, 3);
-      jsonObj += "}";
+      StaticJsonDocument<256> doc;  // Adjust size if needed
+
+      doc["timestamp_us"] = samples[i].timestamp;
+      doc["mqtt_topic"] = mqtt_topic;
+      doc["sensor_id"] = sensor_id;
+      doc["ax_g"] = samples[i].x;
+      doc["ay_g"] = samples[i].y;
+      doc["az_g"] = samples[i].z;
+
+      String jsonObj;
+      serializeJson(doc, jsonObj);  // Convert JSON document to String
 
       mqtt->dodajVBuffer(jsonObj);
     }
