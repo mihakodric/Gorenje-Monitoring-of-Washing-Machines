@@ -9,19 +9,34 @@
  * @url         https://github.com/DFRobot/DFRobot_MLX90614
  */
 #include <DFRobot_MLX90614.h>
+#include "ClassMQTT.h"
+#include <ArduinoJson.h>
 
+#define BUFFER_SIZE 5
+
+const char* wifi_ssid = "TP-Link_B0E0";
+const char* wifi_password = "89846834";
+const char* mqtt_server = "192.168.0.77"; //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
+const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
+const char* mqtt_topic = "temperature";
+const char* sensor_id = "temp_1";
+
+ClassMQTT mqttClient(wifi_ssid, wifi_password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
 DFRobot_MLX90614_I2C sensor;   // instantiate an object to drive our sensor
 
 void setup()
 {
   Serial.begin(115200);
 
+  mqttClient.setupWiFi();
+  mqttClient.setupMQTT();
+
   // initialize the sensor
   while( NO_ERR != sensor.begin() ){
     Serial.println("Communication with device failed, please check connection");
     delay(3000);
   }
-  Serial.println("Begin ok!");
+  Serial.println("Sensor started!");
 
   /**
    * adjust sensor sleep mode
@@ -35,8 +50,12 @@ void setup()
   delay(200);
 }
 
-void loop()
-{
+void loop() {
+  static unsigned long lastRead = 0;
+  unsigned long now = micros();
+  if (now - lastRead < 1000000) return;  // 1 Hz
+  lastRead = now;
+
   /**
    * get ambient temperature, unit is Celsius
    * return value range： -40.01 °C ~ 85 °C
@@ -51,16 +70,27 @@ void loop()
    */
   float objectTemp = sensor.getObjectTempCelsius();
 
+  // Use ArduinoJson to create JSON
+  StaticJsonDocument<200> doc; // adjust size as needed
+  doc["timestamp_us"] = now;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["ambient_temp_c"] = ambientTemp;
+  doc["object_temp_c"] = objectTemp;
+
+  String json;
+  serializeJson(doc, json);
+
   // print measured data in Celsius
   Serial.print("Ambient celsius : "); Serial.print(ambientTemp); Serial.println(" °C");
   Serial.print("Object celsius : ");  Serial.print(objectTemp);  Serial.println(" °C");
-
-  // print measured data in Fahrenheit
-  Serial.print("Ambient fahrenheit : "); Serial.print(ambientTemp*9/5 + 32); Serial.println(" F");
-  Serial.print("Object fahrenheit : ");  Serial.print(objectTemp*9/5 + 32);  Serial.println(" F");
-
   Serial.println();
-  delay(500);
+  // print measured data in Fahrenheit
+  // Serial.print("Ambient fahrenheit : "); Serial.print(ambientTemp*9/5 + 32); Serial.println(" F");
+  // Serial.print("Object fahrenheit : ");  Serial.print(objectTemp*9/5 + 32);  Serial.println(" F");
+
+  mqttClient.dodajVBuffer(json);
+  mqttClient.loop();
 }
 
 

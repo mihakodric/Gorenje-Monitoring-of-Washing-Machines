@@ -1,10 +1,11 @@
 #include "DFRobot_VL6180X.h"
+#include <ArduinoJson.h>
 #include "ClassMQTT.h"
 
 #define BUFFER_SIZE 5
 
-const char* ssid = "TP-Link_B0E0";
-const char* password = "89846834";
+const char* wifi_ssid = "TP-Link_B0E0";
+const char* wifi_password = "89846834";
 const char* mqtt_server = "192.168.0.77"; //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
 const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
 const char* mqtt_topic = "distance";
@@ -43,14 +44,16 @@ void loop() {
     Serial.print(izmerjenaRazdalja);
     Serial.println(" mm");
 
-    // Tukaj sam definiraš format JSON objekta:
-    String json = "{";
-    json += "\"timestamp_us\":" + String(now) + ",";
-    json += "\"mqtt_topic\":\"" + String(mqtt_topic) + "\",";
-    json += "\"sensor_id\":\"" + String(sensor_id) + "\",";
-    json += "\"range_mm\":" + String(izmerjenaRazdalja);
-    json += "}";
+    // Using ArduinoJson to format JSON objekt:
+    StaticJsonDocument<200> doc;  // adjust size if needed
 
+    doc["timestamp_us"] = now;
+    doc["mqtt_topic"] = mqtt_topic;
+    doc["sensor_id"] = sensor_id;
+    doc["range_mm"] = izmerjenaRazdalja;
+
+    String json;
+    serializeJson(doc, json);
     mqttHandler.dodajVBuffer(json);
 
   } else {

@@ -11,7 +11,7 @@ def ustvari_sql_bazo(ime_baze):
     If the database file does not exist, it will be created.  
     The function creates a table named `podatki` with the following columns:
         - id (INTEGER, primary key, autoincrement)
-        - čas (TEXT): human-readable timestamp of data insertion (format: YYYY-MM-DD HH:MM:SS)
+        - time (TEXT): human-readable timestamp of data insertion (format: YYYY-MM-DD HH:MM:SS)
         - timestamp_us (INTEGER): raw timestamp from the sensor (microseconds)
         - sensor_id (TEXT): identifier of the sensor (e.g., 'acc1', 'temp2')
         - direction (REAL): axis or direction for accelerometer readings, or 'None' for scalar values
@@ -30,7 +30,7 @@ def ustvari_sql_bazo(ime_baze):
     orodje.execute('''
         CREATE TABLE IF NOT EXISTS podatki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            čas TEXT NOT NULL,
+            time TEXT NOT NULL,
             timestamp_us INTEGER NOT NULL,
             sensor_id TEXT NOT NULL,          
             direction TEXT NOT NULL,                       
@@ -76,7 +76,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
     orodje = povezava_do_baze.cursor()
     
     sql = '''
-        INSERT INTO podatki (čas, timestamp_us, sensor_id, direction, value, test_name)
+        INSERT INTO podatki (time, timestamp_us, sensor_id, direction, value, test_name)
         VALUES (?, ?, ?, ?, ?, ?)
     '''
 
@@ -99,9 +99,8 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
                     seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
         
             elif topic == "temperature":
-                value = vzorec.get('temp_c', None)
-                if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
+                seznam.append((trenutni_cas, ts_us, sensor, 'Ambient', vzorec['ambient_temp_c'], ime_testa))
+                seznam.append((trenutni_cas, ts_us, sensor, 'Object', vzorec['object_temp_c'], ime_testa))
 
             elif topic == "current":
                 value = vzorec.get('current_a', None)
