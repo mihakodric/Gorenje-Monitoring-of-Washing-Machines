@@ -8,6 +8,6 @@
   "sensitivity": 0.000488,
   "buffer_size": 10,
   "sampling_frequency_Hz": 200,
-  "send_interval_ms": 5000,
+  "send_interval_ms": 5,
   "range_g": 16                   
 }

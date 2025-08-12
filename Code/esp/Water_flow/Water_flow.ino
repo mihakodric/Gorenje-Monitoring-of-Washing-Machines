@@ -41,7 +41,7 @@ void loop() {
 
     // Use ArduinoJson to create JSON
   StaticJsonDocument<200> doc; // adjust size as needed
-  doc["timestamp_us"] = now;
+  doc["timestamp_ms"] = now;
   doc["mqtt_topic"] = mqtt_topic;
   doc["sensor_id"] = sensor_id;
   doc["flow"] = waterFlow;

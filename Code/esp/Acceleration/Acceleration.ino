@@ -45,7 +45,7 @@ ClassMQTT* mqtt = nullptr;
 // Timers
 unsigned long lastRead = 0;
 unsigned long lastSend = 0;
-unsigned long sampleIntervalMicros = 0;
+unsigned long sampleIntervalMillis = 0;
 
 float ax = 0, ay = 0, az = 0;
 
@@ -172,7 +172,7 @@ void setup() {
   samples = new Sample[buffer_size];
 
     // Calculate sample interval
-  sampleIntervalMicros = 1000000UL / sampling_frequency;  // 1s/frekvenca
+  sampleIntervalMillis = 1000UL / sampling_frequency;  // 1s/frekvenca
 
   // Configure MQTT with loaded values
   mqtt = new ClassMQTT(
@@ -190,7 +190,7 @@ void setup() {
 
   setupAccelerometer();
 
-  lastRead = micros();
+  lastRead = millis();
   lastSend = millis();
 
   delay(100);
@@ -200,14 +200,14 @@ void setup() {
 
 
 void loop() {
-
-  unsigned long nowMicros = micros();
-  if (nowMicros - lastRead >= sampleIntervalMicros) {
-    lastRead += sampleIntervalMicros;
+  static unsigned long lastRead = 0;
+  unsigned long now = millis();
+  if (now - lastRead >= sampleIntervalMillis) {
+    lastRead += sampleIntervalMillis;
 
     // static unsigned long lastRead = 0;  //static- da si zapomni tudi ob naslednjih loopih, da teče naprej
     // unsigned long now = micros();  //šteje čas od prej do zdaj
-    // if (now - lastRead < 5000) return; // 1/1600 Hz = vsakih 625 mikrosekund, 1/200 Hz = 5000 mikrosekund
+    // if (now - lastRead < 5) return; // 1/1600 Hz = vsakih 625 mikrosekund, 1/200 Hz = 5000 mikrosekund
     // lastRead = now;
     
     uint8_t data[6]; //spremenljivka data, ki je polje, veliko 6
@@ -234,7 +234,7 @@ void loop() {
     az = z * sensitivity;
 
     if (sampleIndex < buffer_size) {
-      samples[sampleIndex].timestamp = nowMicros;
+      samples[sampleIndex].timestamp = now;
       samples[sampleIndex].x = ax;
       samples[sampleIndex].y = ay;
       samples[sampleIndex].z = az;
@@ -246,7 +246,7 @@ void loop() {
     for (int i = 0; i < sampleIndex; i++) {
       StaticJsonDocument<256> doc;  // Adjust size if needed
 
-      doc["timestamp_us"] = samples[i].timestamp;
+      doc["timestamp_ms"] = samples[i].timestamp;
       doc["mqtt_topic"] = mqtt_topic;
       doc["sensor_id"] = sensor_id;
       doc["ax_g"] = samples[i].x;
@@ -263,8 +263,8 @@ void loop() {
   }
 
   Serial.print("t = ");
-  Serial.print(nowMicros);
-  Serial.print(" us, X: "); 
+  Serial.print(now);
+  Serial.print(" ms, X: "); 
   Serial.print(ax, 3);
   Serial.print(" g, Y: "); 
   Serial.print(ay, 3);

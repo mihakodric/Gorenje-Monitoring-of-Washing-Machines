@@ -12,7 +12,7 @@ def ustvari_sql_bazo(ime_baze):
     The function creates a table named `podatki` with the following columns:
         - id (INTEGER, primary key, autoincrement)
         - time (TEXT): human-readable timestamp of data insertion (format: YYYY-MM-DD HH:MM:SS)
-        - timestamp_us (INTEGER): raw timestamp from the sensor (microseconds)
+        - timestamp_ms (INTEGER): raw timestamp from the sensor (milliseconds)
         - sensor_id (TEXT): identifier of the sensor (e.g., 'acc1', 'temp2')
         - direction (REAL): axis or direction for accelerometer readings, or 'None' for scalar values
         - value (REAL): measured sensor value
@@ -31,7 +31,7 @@ def ustvari_sql_bazo(ime_baze):
         CREATE TABLE IF NOT EXISTS podatki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             time TEXT NOT NULL,
-            timestamp_us INTEGER NOT NULL,
+            timestamp_ms INTEGER NOT NULL,
             sensor_id TEXT NOT NULL,          
             direction TEXT NOT NULL,                       
             value REAL NOT NULL,                       
@@ -65,7 +65,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
         vzorci (list[dict]): List of dictionaries containing sensor data.
             Each dictionary must contain:
                 - 'sensor_id' (str)
-                - 'timestamp_us' (int)
+                - 'timestamp_ms' (int)
             Plus sensor-specific keys depending on type.
 
     Returns:
@@ -76,7 +76,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
     orodje = povezava_do_baze.cursor()
     
     sql = '''
-        INSERT INTO podatki (time, timestamp_us, sensor_id, direction, value, test_name)
+        INSERT INTO podatki (time, timestamp_ms, sensor_id, direction, value, test_name)
         VALUES (?, ?, ?, ?, ?, ?)
     '''
 
@@ -86,7 +86,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
             trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sensor = vzorec.get('sensor_id', '')
             topic = vzorec.get('mqtt_topic', '')
-            ts_us = vzorec['timestamp_us']
+            ts_us = vzorec['timestamp_ms']
 
             if topic == "acceleration":
                 seznam.append((trenutni_cas, ts_us, sensor, 'x', vzorec['ax_g'], ime_testa))

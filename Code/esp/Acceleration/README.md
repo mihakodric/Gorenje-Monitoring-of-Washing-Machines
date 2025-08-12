@@ -5,7 +5,7 @@ Instructions for config.json:
     "wifi_password": "89846834",
 
     "mqtt_server": "192.168.0.77",
-    (In cmd write 'ipconfig', find line: IPv4 Address. . . . . . . . . . . : 192.168.0.77)
+    (In cmd write 'ipconfig', find line: IPv4 Address. . . . . . . . . . . : xxx.xxx.x.xx)
 
     "mqtt_port": 1883,
 
