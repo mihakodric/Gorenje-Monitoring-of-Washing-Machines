@@ -4,5 +4,10 @@
   "mqtt_server": "192.168.0.77",
   "mqtt_port": 1883,
   "mqtt_topic": "acceleration",
-  "sensor_id": "acc_1"
+  "sensor_id": "acc_1",
+  "sensitivity": 0.000488,
+  "buffer_size": 10,
+  "sampling_frequency_Hz": 200,
+  "send_interval_ms": 5000,
+  "range_g": 16                   
 }
