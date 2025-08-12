@@ -28,8 +28,8 @@ void setup() {
 
 void loop() {
   static unsigned long lastRead = 0;
-  unsigned long now = micros();
-  if (now - lastRead < 200000) return;  // 0.2 sekunde
+  unsigned long now = millis();
+  if (now - lastRead < 200) return;  // 0.2 sekunde
   lastRead = now;
 
   int sensorValue = digitalRead(sensorPin); //bere stanje senzorja

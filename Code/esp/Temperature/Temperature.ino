@@ -52,8 +52,8 @@ void setup()
 
 void loop() {
   static unsigned long lastRead = 0;
-  unsigned long now = micros();
-  if (now - lastRead < 1000000) return;  // 1 Hz
+  unsigned long now = millis();
+  if (now - lastRead < 1000) return;  // 1 Hz
   lastRead = now;
 
   /**
