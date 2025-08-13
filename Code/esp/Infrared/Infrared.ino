@@ -1,27 +1,78 @@
 #include "ClassMQTT.h"
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 
-#define BUFFER_SIZE 50
 
 int value;
-
 const int sensorPin = 4;  //signal na pinu 4
 
-const char* wifi_ssid = "TP-Link_B0E0";
-const char* wifi_password = "89846834";
-const char* mqtt_server = "192.168.0.77"; //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
-const int mqtt_port = 1883;                 //notebook odpremo z run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
-const char* mqtt_topic = "infrared";
-const char* sensor_id = "infra_1";
+// Config variables loaded from JSON
+String wifi_ssid;
+String wifi_password;
+String mqtt_server;
+int mqtt_port;
+String mqtt_topic;
+String sensor_id;
+int buffer_size;
+unsigned long sampling_interval_ms;
 
-ClassMQTT mqttClient(wifi_ssid, wifi_password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
+ClassMQTT* mqttClient;
 
+// Load config from LittleFS
+bool loadConfig() {
+  if (!LittleFS.begin()) {
+    Serial.println("Failed to mount LittleFS!");
+    return false;
+  }
+
+  File file = LittleFS.open("/config.json", "r");
+  if (!file) {
+    Serial.println("Failed to open config.json");
+    return false;
+  }
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error) {
+    Serial.print("Failed to parse config.json: ");
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  wifi_ssid            = doc["wifi_ssid"] | "TP-Link_B0E0";
+  wifi_password        = doc["wifi_password"] | "89846834";
+  mqtt_server          = doc["mqtt_server"] | "192.168.0.77";
+  mqtt_port            = doc["mqtt_port"] | 1883;
+  mqtt_topic           = doc["mqtt_topic"] | "infrared";
+  sensor_id            = doc["sensor_id"] | "infra_x";
+  buffer_size          = doc["buffer_size"] | 50;
+  sampling_interval_ms = doc["sampling_interval_ms"] | 200;
+
+  return true;
+}
 
 void setup() {
   Serial.begin(115200);  
 
-  mqttClient.setupWiFi();
-  mqttClient.setupMQTT();
+  if (!loadConfig()) {
+    Serial.println("Config load failed! Stopping.");
+    while (true) delay(1000);
+  }
+
+  // Create MQTT client with loaded values
+  mqttClient = new ClassMQTT(
+    wifi_ssid.c_str(),
+    wifi_password.c_str(),
+    mqtt_server.c_str(),
+    mqtt_port,
+    mqtt_topic.c_str(),
+    buffer_size
+  );
+
+  mqttClient->setupWiFi();
+  mqttClient->setupMQTT();
 
   pinMode(sensorPin, INPUT); //signal je vhodni
 }
@@ -29,7 +80,7 @@ void setup() {
 void loop() {
   static unsigned long lastRead = 0;
   unsigned long now = millis();
-  if (now - lastRead < 200) return;  // 0.2 sekunde
+  if (now - lastRead < sampling_interval_ms) return;  // 0.2 sekunde
   lastRead = now;
 
   int sensorValue = digitalRead(sensorPin); //bere stanje senzorja
@@ -53,6 +104,6 @@ void loop() {
   String json;
   serializeJson(doc, json);
 
-  mqttClient.dodajVBuffer(json);
-  mqttClient.loop();
+  mqttClient->dodajVBuffer(json);
+  mqttClient->loop();
 }
