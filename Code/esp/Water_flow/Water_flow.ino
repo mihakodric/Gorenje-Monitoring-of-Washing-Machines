@@ -1,16 +1,18 @@
 #include "ClassMQTT.h"
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 
-#define BUFFER_SIZE 10
+// Config variables loaded from JSON
+String wifi_ssid;
+String wifi_password;
+String mqtt_server;
+int mqtt_port;
+String mqtt_topic;
+String sensor_id;
+int buffer_size;
+unsigned long sampling_interval_ms;
 
-const char* wifi_ssid = "TP-Link_B0E0";
-const char* wifi_password = "89846834";
-const char* mqtt_server = "192.168.0.77"; //pravilni IP najdemo pod cmd, ipconfig, IPv4 Address
-const int mqtt_port = 1883;
-const char* mqtt_topic = "water_flow";
-const char* sensor_id = "flow_1";
-
-ClassMQTT mqttClient(wifi_ssid, wifi_password, mqtt_server, mqtt_port, mqtt_topic, BUFFER_SIZE);
+ClassMQTT* mqttClient;
 
 volatile double waterFlow;  //volatile- da se lahko spremenljivka spremeni kadarkoli
 
@@ -18,10 +20,61 @@ void IRAM_ATTR pulse() {   //void- zato, da funkcija ne vrača ničesar, atribut
   waterFlow += 1.0 / 75.0; //na vsak pulz doda vodi 1/75 litra
 }
 
+// Load config from LittleFS
+bool loadConfig() {
+  if (!LittleFS.begin()) {
+    Serial.println("Failed to mount LittleFS!");
+    return false;
+  }
+
+  File file = LittleFS.open("/config.json", "r");
+  if (!file) {
+    Serial.println("Failed to open config.json");
+    return false;
+  }
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error) {
+    Serial.print("Failed to parse config.json: ");
+    Serial.println(error.c_str());
+    return false;
+  }
+
+  wifi_ssid            = doc["wifi_ssid"] | "TP-Link_B0E0";
+  wifi_password        = doc["wifi_password"] | "89846834";
+  mqtt_server          = doc["mqtt_server"] | "192.168.0.77";
+  mqtt_port            = doc["mqtt_port"] | 1883;
+  mqtt_topic           = doc["mqtt_topic"] | "water_flow";
+  sensor_id            = doc["sensor_id"] | "flow_x";
+  buffer_size          = doc["buffer_size"] | 10;
+  sampling_interval_ms = doc["sampling_interval_ms"] | 500;
+
+  return true;
+}
+
 void setup() {
   Serial.begin(9600);
-  mqttClient.setupWiFi();
-  mqttClient.setupMQTT();
+
+  if (!loadConfig()) {
+    Serial.println("Config load failed! Stopping.");
+    while (true) delay(1000);
+  }
+
+  // Create MQTT client with loaded values
+  mqttClient = new ClassMQTT(
+    wifi_ssid.c_str(),
+    wifi_password.c_str(),
+    mqtt_server.c_str(),
+    mqtt_port,
+    mqtt_topic.c_str(),
+    buffer_size
+  );
+
+  mqttClient->setupWiFi();
+  mqttClient->setupMQTT();
 
   waterFlow = 0;
 
@@ -32,7 +85,7 @@ void setup() {
 void loop() {
   static unsigned long lastRead = 0;
   unsigned long now = millis();
-  if (now - lastRead < 500) return;  // 0.5 sekunde
+  if (now - lastRead < sampling_interval_ms) return;  // 0.5 sekunde
   lastRead = now;
 
   Serial.print("Pretok vode: ");
@@ -49,6 +102,6 @@ void loop() {
   String json;
   serializeJson(doc, json);
 
-  mqttClient.dodajVBuffer(json);
-  mqttClient.loop();
+  mqttClient->dodajVBuffer(json);
+  mqttClient->loop();
 }
