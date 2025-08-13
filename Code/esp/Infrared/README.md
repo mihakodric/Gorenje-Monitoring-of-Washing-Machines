@@ -10,12 +10,12 @@ Instructions for config.json:
     "mqtt_port": 1883
     (program files/mosquitto/mosquitto.conf open with notebook - run as administrator, add listener 1883, add another line: allow_anonymous true),
 
-    "mqtt_topic": "distance", 
+    "mqtt_topic": "infrared", 
     (Choose between: acceleration / distance / temperature / current / infrared / water_flow)
 
-    "sensor_id": "dist_1"
+    "sensor_id": "infra_1"
     (Set the sensor name. Should be always in this format: acc_x / dist_x / temp_x / current_x / infra_x / flow_x)
 
-    "buffer_size": 10,
+    "buffer_size": 50,
 
-    "sampling_interval_ms" : 1000
+    "sampling_interval_ms" : 200
