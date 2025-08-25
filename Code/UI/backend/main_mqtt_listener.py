@@ -1,7 +1,7 @@
 import json
 import os
 import time
-from db import ustvari_sql_bazo, vstavi_podatke
+from database import ustvari_sql_bazo, vstavi_podatke
 import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
