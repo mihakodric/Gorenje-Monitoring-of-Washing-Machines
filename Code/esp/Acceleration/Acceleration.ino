@@ -1,6 +1,9 @@
 // program files/mosquitto/mosquitto.conf odpremo z notebook - run as administrator in dodamo listener 1883 ter v drugo vrstico allow_anonymous true
 // prvič ko zaženemo ?? v ozadju tečecmd, notri vpišemo "C:\Program Files\mosquitto\mosquitto.exe" -c "C:\Program Files\mosquitto\mosquitto.conf" -v
-// config.json naložimo na esp: ArduinoIDE, Ctrl+Shift+P (search bar), Upload LittleFS to Pico/ESP8266/ESP32
+
+// naloži plugin: https://github.com/earlephilhower/arduino-littlefs-upload/blob/main/README.md, .vsix file shrani v mapo "C:\Users\<username>\.arduinoIDE\plugins\" (mapo plugins ustvari na novo)
+// config.json naložimo na esp: ArduinoIDE, Ctrl+Shift+P (search bar), > Upload LittleFS to Pico/ESP8266/ESP32
+// ko nalagaš config.json, ne sme biti odprt SerialMonitor
 
 #include <Wire.h>
 #include <WiFi.h>
