@@ -47,13 +47,13 @@ bool loadConfig() {
   mqtt_topic           = doc["mqtt_topic"] | "distance";
   sensor_id            = doc["sensor_id"] | "dist_1";
   buffer_size          = doc["buffer_size"] | 5;
-  sampling_interval_ms = doc["sampling_interval_ms"] | 1000;
+  sampling_interval_ms = doc["sampling_interval_ms"] | 100;
 
   return true;
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   
   if (!loadConfig()) {
