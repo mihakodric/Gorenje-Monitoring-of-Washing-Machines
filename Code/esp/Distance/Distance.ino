@@ -47,7 +47,7 @@ bool loadConfig() {
   mqtt_topic           = doc["mqtt_topic"] | "distance";
   sensor_id            = doc["sensor_id"] | "dist_1";
   buffer_size          = doc["buffer_size"] | 5;
-  sampling_interval_ms = doc["sampling_interval_ms"] | 100;
+  sampling_interval_ms = doc["sampling_interval_ms"] | 100; 
 
   return true;
 }
@@ -79,7 +79,6 @@ void setup() {
   mqttClient->setupWiFi();
   mqttClient->setupMQTT();
 }
-
 
 
 void loop() {
