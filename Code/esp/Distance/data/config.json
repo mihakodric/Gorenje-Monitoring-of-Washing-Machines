@@ -1,10 +1,12 @@
 {
   "wifi_ssid": "TP-Link_B0E0",
   "wifi_password": "89846834",
-  "mqtt_server": "192.168.0.77",
+  "mqtt_server": "192.168.0.106",
   "mqtt_port": 1883,
   "mqtt_topic": "distance",
   "sensor_id": "dist_1",
   "buffer_size": 10,
-  "sampling_interval_ms" : 50               
+  "sampling_interval_ms" : 50
+  "gmt_offset_sec": 3600,       
+  "daylight_offset_sec": 3600               
 }
