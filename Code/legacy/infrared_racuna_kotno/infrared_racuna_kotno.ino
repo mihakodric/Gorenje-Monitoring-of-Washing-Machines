@@ -1,23 +1,26 @@
-volatile unsigned int counter = 0;  
-const int sensorPin = 4;  // IR sensor output pin
+#include <Arduino.h>
+#include <Ticker.h>
 
-// Timer pointer
-hw_timer_t * timer = NULL;
+volatile unsigned int counter = 0;
+const int sensorPin = 4;
+
+Ticker timerTicker;  // software timer
 
 void IRAM_ATTR blink() {
   counter++;
 }
 
-void IRAM_ATTR onTimer() {
-  float revPerSec = (float)counter;
-  float omega = 2 * PI * revPerSec;  // rad/s
+void onTimer() {
+  unsigned int count = counter;
+  counter = 0;
 
-  Serial.print("Revolutions per second: ");
-  Serial.print(revPerSec);
-  Serial.print("  |  Angular velocity (rad/s): ");
-  Serial.println(omega);
+  float omega = 2.0 * PI * count; // rad/s
 
-  counter = 0;  // reset counter
+  Serial.print("The speed of the motor: ");
+  Serial.print(count);
+  Serial.print(" round/s, Omega: ");
+  Serial.print(omega);
+  Serial.println(" rad/s");
 }
 
 void setup() {
@@ -26,12 +29,11 @@ void setup() {
   pinMode(sensorPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(sensorPin), blink, RISING);
 
-  // Setup timer: timer 0, prescaler 80 -> 1 tick = 1us
-  timer = timerBegin(1); // 1 Hz → ISR runs every second
-  timerAttachInterrupt(timer, &onTimer);
-  timerAlarm(timer, 1000000, true, 0); // 1,000,000 µs = 1 second, autoreload enabled
+  // timer vsakih 1 s
+  timerTicker.attach(1.0, onTimer);  // 1.0 = interval v sekundah
 }
 
 void loop() {
-  // nothing here, all handled by interrupts
+  // vse se dogaja prek ISR
 }
+
