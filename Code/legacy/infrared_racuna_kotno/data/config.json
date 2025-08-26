@@ -6,5 +6,5 @@
   "mqtt_topic": "infrared",
   "sensor_id": "infra_1",
   "buffer_size": 50,
-  "sampling_interval_ms" : 200               
+  "sampling_interval_ms" : 5000               
 }
