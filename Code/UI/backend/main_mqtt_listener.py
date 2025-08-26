@@ -62,7 +62,6 @@ def prejemanje(client, userdata, msg):
     """
     try:
         podatki = json.loads(msg.payload.decode('utf-8'))
-
         if isinstance(podatki, dict):
             # Ensure sensor_id is present in payload
             if 'sensor_id' not in podatki:

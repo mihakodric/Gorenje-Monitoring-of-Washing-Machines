@@ -129,13 +129,17 @@ void setup() {
 
 
 String getPreciseDatetime() {
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) return "N/A";
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) return "N/A";
 
-  unsigned long usec = esp_timer_get_time() % 1000000;       // mikrosekunde
-  char buf[32];
-  strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
-  return String(buf) + "." + String(usec / 1000, 3);        // 3 decimalke ms
+    unsigned long usec = esp_timer_get_time() % 1000000;  // mikrosekunde
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    char usec_buf[7];
+    snprintf(usec_buf, sizeof(usec_buf), "%06lu", usec); // vedno 6 mest 0-9
+
+    return String(buf) + "." + String(usec_buf);
 }
 
 
