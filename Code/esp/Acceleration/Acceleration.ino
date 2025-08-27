@@ -14,7 +14,7 @@ String wifi_ssid;
 String wifi_password;
 String mqtt_server;
 int mqtt_port;
-String mqtt_topic;
+String mqtt_topic; 
 String sensor_id;
 float sensitivity;
 int buffer_size;
@@ -129,18 +129,22 @@ void setup() {
 
 
 String getPreciseDatetime() {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) return "N/A";
+    struct timeval tv;
+    gettimeofday(&tv, NULL); 
 
-    unsigned long usec = esp_timer_get_time() % 1000000;  // mikrosekunde
+    time_t now = tv.tv_sec;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
     char buf[32];
     strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
 
     char usec_buf[7];
-    snprintf(usec_buf, sizeof(usec_buf), "%06lu", usec); // vedno 6 mest 0-9
+    snprintf(usec_buf, sizeof(usec_buf), "%06ld", tv.tv_usec);
 
     return String(buf) + "." + String(usec_buf);
 }
+
 
 
 void loop() {
