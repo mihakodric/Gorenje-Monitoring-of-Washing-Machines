@@ -1,10 +1,10 @@
 {
   "wifi_ssid": "TP-Link_B0E0",
   "wifi_password": "89846834",
-  "mqtt_server": "192.168.0.106",
+  "mqtt_server": "192.168.0.77",
   "mqtt_port": 1883,
   "mqtt_topic": "infrared",
   "sensor_id": "infra_1",
   "buffer_size": 50,
-  "sampling_interval_ms" : 200               
+  "sampling_interval_ms" : 5000               
 }
