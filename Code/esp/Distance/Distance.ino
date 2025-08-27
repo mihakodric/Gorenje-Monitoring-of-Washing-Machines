@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include "ClassMQTT.h"
 #include <LittleFS.h>
+#include "time.h"
 
 DFRobot_VL6180X VL6180X;
 
@@ -14,6 +15,8 @@ String mqtt_topic;
 String sensor_id;
 int buffer_size;
 unsigned long sampling_interval_ms;
+long gmt_offset_sec;        
+int daylight_offset_sec;
 
 ClassMQTT* mqttClient;
 
@@ -48,6 +51,8 @@ bool loadConfig() {
   sensor_id            = doc["sensor_id"] | "dist_1";
   buffer_size          = doc["buffer_size"] | 5;
   sampling_interval_ms = doc["sampling_interval_ms"] | 100; 
+  gmt_offset_sec      = doc["gmt_offset_sec"] | 3600;      
+  daylight_offset_sec = doc["daylight_offset_sec"] | 3600;
 
   return true;
 }
@@ -77,9 +82,30 @@ void setup() {
   );
 
   mqttClient->setupWiFi();
+
+  configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
+
   mqttClient->setupMQTT();
 }
 
+String getPreciseDatetime() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL); 
+
+    time_t now = tv.tv_sec;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    char usec_buf[7];
+    snprintf(usec_buf, sizeof(usec_buf), "%06ld", tv.tv_usec);
+
+    return String(buf) + "." + String(usec_buf);
+}
 
 void loop() {
   static unsigned long lastRead = 0;
@@ -87,14 +113,14 @@ void loop() {
   if (now - lastRead < sampling_interval_ms) return;  // 1 Hz
   lastRead = now;
 
-  Serial.print("t = ");
-  Serial.print(now);
-  Serial.print(" ms, ");
+  String datetime = getPreciseDatetime();
 
   uint8_t izmerjenaRazdalja = VL6180X.rangePollMeasurement();
   uint8_t status = VL6180X.getRangeResult();
 
   if (status == VL6180X_NO_ERR) {
+    Serial.print(datetime);
+    Serial.print(" ");
     Serial.print("Range: ");
     Serial.print(izmerjenaRazdalja);
     Serial.println(" mm");
@@ -102,6 +128,7 @@ void loop() {
     // Using ArduinoJson to format JSON objekt:
     StaticJsonDocument<200> doc;  // adjust size if needed
     doc["timestamp_ms"] = now;
+    doc["datetime"] = datetime; 
     doc["mqtt_topic"] = mqtt_topic;
     doc["sensor_id"] = sensor_id;
     doc["range_mm"] = izmerjenaRazdalja;

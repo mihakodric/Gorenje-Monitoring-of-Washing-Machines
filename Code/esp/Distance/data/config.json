@@ -6,7 +6,7 @@
   "mqtt_topic": "distance",
   "sensor_id": "dist_1",
   "buffer_size": 10,
-  "sampling_interval_ms" : 50
+  "sampling_interval_ms" : 50,
   "gmt_offset_sec": 3600,       
-  "daylight_offset_sec": 3600               
+  "daylight_offset_sec": 3600              
 }
