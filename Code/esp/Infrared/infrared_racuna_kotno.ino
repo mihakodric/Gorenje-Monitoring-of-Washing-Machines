@@ -112,7 +112,7 @@ void loop() {
   if (newData) {
     newData = false;
 
-    float rotations = (lastCount / 2.0) / (sampling_interval_ms / 1000.0);
+    float rotations = (lastCount / 2.0) / (sampling_interval_ms / 1000.0);  // obrati/s
     float omega = 2.0 * PI * rotations; // rad/s
 
     Serial.print("The speed of the motor: ");
