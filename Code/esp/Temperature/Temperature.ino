@@ -12,7 +12,7 @@
 #include "ClassMQTT.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-
+#include "time.h"
 
 // Config variables loaded from JSON
 String wifi_ssid;
@@ -23,6 +23,8 @@ String mqtt_topic;
 String sensor_id;
 int buffer_size;
 unsigned long sampling_interval_ms;
+long gmt_offset_sec;        
+int daylight_offset_sec; 
 
 ClassMQTT* mqttClient;
 DFRobot_MLX90614_I2C sensor;   // instantiate an object to drive our sensor
@@ -58,8 +60,27 @@ bool loadConfig() {
   sensor_id            = doc["sensor_id"] | "temp_1";
   buffer_size          = doc["buffer_size"] | 5;
   sampling_interval_ms = doc["sampling_interval_ms"] | 1000;
+  gmt_offset_sec       = doc["gmt_offset_sec"] | 3600;      
+  daylight_offset_sec  = doc["daylight_offset_sec"] | 3600;
 
   return true;
+}
+
+String getPreciseDatetime() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL); 
+
+    time_t now = tv.tv_sec;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    char usec_buf[7];
+    snprintf(usec_buf, sizeof(usec_buf), "%06ld", tv.tv_usec);
+
+    return String(buf) + "." + String(usec_buf);
 }
 
 void setup()
@@ -89,6 +110,11 @@ void setup()
   );
 
   mqttClient->setupWiFi();
+
+  configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
+
   mqttClient->setupMQTT();
 
     /**
@@ -109,6 +135,8 @@ void loop() {
   if (now - lastRead < sampling_interval_ms) return;  // 1 Hz
   lastRead = now;
 
+  String datetime = getPreciseDatetime();
+
   /**
    * get ambient temperature, unit is Celsius
    * return value range： -40.01 °C ~ 85 °C
@@ -124,7 +152,8 @@ void loop() {
   float objectTemp = sensor.getObjectTempCelsius();
 
     // print measured data in Celsius
-  Serial.print("Ambient celsius : "); Serial.print(ambientTemp); Serial.println(" °C");
+  Serial.print(datetime);
+  Serial.print(" Ambient celsius : "); Serial.print(ambientTemp); Serial.println(" °C");
   Serial.print("Object celsius : ");  Serial.print(objectTemp);  Serial.println(" °C");
   Serial.println();
   // print measured data in Fahrenheit
@@ -135,6 +164,7 @@ void loop() {
   // Use ArduinoJson to create JSON
   StaticJsonDocument<200> doc; // adjust size as needed
   doc["timestamp_ms"] = now;
+  doc["datetime"] = datetime; 
   doc["mqtt_topic"] = mqtt_topic;
   doc["sensor_id"] = sensor_id;
   doc["ambient_temp_c"] = ambientTemp;
