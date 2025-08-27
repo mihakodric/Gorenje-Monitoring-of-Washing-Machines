@@ -38,6 +38,7 @@ void onTimer() {
   lastCount = counter;
   counter = 0;
   newData = true;
+  // Serial.printf("Pulses counted: %u in %lu ms\n", lastCount, sampling_interval_ms);
 }
 
 // --- Load config from LittleFS ---
