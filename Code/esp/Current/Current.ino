@@ -8,6 +8,8 @@
 #include "ClassMQTT.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include "time.h"
+
 
 // Config variables loaded from JSON
 String wifi_ssid;
@@ -18,6 +20,8 @@ String mqtt_topic;
 String sensor_id;
 int buffer_size;
 unsigned long sampling_interval_ms;
+long gmt_offset_sec;          
+int daylight_offset_sec;
 
 ClassMQTT* mqttClient;
 
@@ -78,6 +82,8 @@ bool loadConfig() {
   sensor_id            = doc["sensor_id"] | "current_1";
   buffer_size          = doc["buffer_size"] | 10;
   sampling_interval_ms = doc["sampling_interval_ms"] | 500;
+  gmt_offset_sec      = doc["gmt_offset_sec"] | 3600;
+  daylight_offset_sec = doc["daylight_offset_sec"] | 3600;
 
   return true;
 }
@@ -103,8 +109,32 @@ void setup()
 
   mqttClient->setupWiFi();
   mqttClient->setupMQTT();
+
+  configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
+
   pinMode(13, OUTPUT);  //izhodni signal bo na pinu 13, da se prižge npr. LED, ni nujno, je pa lahko za preverjanje, da vidiš, če teče skozi tok, ker sveti
 }                        //če se zgodi, da hočemo imeti še LED, ga vežemo na 13, možno pa je, da je na našem esp-ju že avtomatsko vgrajen, možno, da na pin 2, v tem primeru samo zamenjamo 2 in 13 v kodi
+
+
+String getPreciseDatetime() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL); 
+
+    time_t now = tv.tv_sec;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    char usec_buf[7];
+    snprintf(usec_buf, sizeof(usec_buf), "%06ld", tv.tv_usec);
+
+    return String(buf) + "." + String(usec_buf);
+}
+
 
 void loop() 
 {
@@ -124,7 +154,7 @@ void loop()
 
   // Use ArduinoJson to create JSON file
   StaticJsonDocument<200> doc; // adjust size as needed
-  doc["timestamp_ms"] = now;
+  doc["datetime"] = getPreciseDatetime();
   doc["mqtt_topic"] = mqtt_topic;
   doc["sensor_id"] = sensor_id;
   doc["current_a"] = ACCurrentValue;

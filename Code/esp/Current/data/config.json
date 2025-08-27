@@ -6,5 +6,7 @@
   "mqtt_topic": "current",
   "sensor_id": "current_1",
   "buffer_size": 10,
-  "sampling_interval_ms" : 500               
+  "sampling_interval_ms" : 500,
+  "gmt_offset_sec" : 3600,
+  "daylight_offset_sec" : 3600               
 }
