@@ -11,11 +11,11 @@ def ustvari_sql_bazo(ime_baze):
     If the database file does not exist, it will be created.  
     The function creates a table named `podatki` with the following columns:
         - id (INTEGER, primary key, autoincrement)
-        - time (TEXT): human-readable timestamp of data insertion (format: YYYY-MM-DD HH:MM:SS)
-        - datetime (INTEGER): raw timestamp from the sensor (milliseconds)
+        - datetime (INTEGER): global date and time (in microseconds)
         - sensor_id (TEXT): identifier of the sensor (e.g., 'acc1', 'temp2')
         - direction (REAL): axis or direction for accelerometer readings, or 'None' for scalar values
         - value (REAL): measured sensor value
+        - unit (TEXT): unit of the measured value
         - test_name (REAL): test label (e.g., ime_testa)
 
     Args:
@@ -30,11 +30,11 @@ def ustvari_sql_bazo(ime_baze):
     orodje.execute('''
         CREATE TABLE IF NOT EXISTS podatki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            time TEXT NOT NULL,
             datetime INTEGER NOT NULL,
             sensor_id TEXT NOT NULL,          
             direction TEXT NOT NULL,                       
-            value REAL NOT NULL,                       
+            value REAL NOT NULL,
+            unit TEXT NOT NULL,                       
             test_name REAL NOT NULL 
         )
     ''')
@@ -55,7 +55,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
         - Temperature ('temp...'): inserts one row with `temp_c`.
         - Current ('current...'): inserts one row with `current_a`.
         - Flow ('flow...'): inserts one row with `flow`.
-        - Infrared ('infra...'): inserts one row with `yes_no`.
+        - Infrared ('infra...'): inserts one row with `omega` (angular velocity).
 
     If a sensor ID is unrecognized, a message is printed.  
     If a required key is missing in the data dictionary, an error message is printed.
@@ -76,46 +76,51 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
     orodje = povezava_do_baze.cursor()
     
     sql = '''
-        INSERT INTO podatki (time, datetime, sensor_id, direction, value, test_name)
+        INSERT INTO podatki (datetime, sensor_id, direction, value, unit, test_name)
         VALUES (?, ?, ?, ?, ?, ?)
     '''
 
     seznam = []
     for vzorec in vzorci:
         try:
-            trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sensor = vzorec.get('sensor_id', '')
             topic = vzorec.get('mqtt_topic', '')
             ts_us = vzorec['datetime']
 
             if topic == "acceleration":
-                seznam.append((trenutni_cas, ts_us, sensor, 'x', vzorec['ax_g'], ime_testa))
-                seznam.append((trenutni_cas, ts_us, sensor, 'y', vzorec['ay_g'], ime_testa))
-                seznam.append((trenutni_cas, ts_us, sensor, 'z', vzorec['az_g'], ime_testa))
+                unit = f'g'
+                seznam.append((ts_us, sensor, 'x', vzorec['ax_g'], unit, ime_testa))
+                seznam.append((ts_us, sensor, 'y', vzorec['ay_g'], unit, ime_testa))
+                seznam.append((ts_us, sensor, 'z', vzorec['az_g'], unit, ime_testa))
             
             elif topic == "distance":
                 value = vzorec.get('range_mm', None)
+                unit = f'mm'
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
+                    seznam.append((ts_us, sensor, 'None', value, unit, ime_testa))
         
             elif topic == "temperature":
-                seznam.append((trenutni_cas, ts_us, sensor, 'Ambient', vzorec['ambient_temp_c'], ime_testa))
-                seznam.append((trenutni_cas, ts_us, sensor, 'Object', vzorec['object_temp_c'], ime_testa))
+                unit = f'°C'
+                seznam.append((ts_us, sensor, 'Ambient', vzorec['ambient_temp_c'], unit, ime_testa))
+                seznam.append((ts_us, sensor, 'Object', vzorec['object_temp_c'], unit, ime_testa))
 
             elif topic == "current":
                 value = vzorec.get('current_a', None)
+                unit = f'A'
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))            
+                    seznam.append((ts_us, sensor, 'None', value, unit, ime_testa))            
 
             elif topic == "water_flow":
                 value = vzorec.get('flow', None)
+                unit = f'L'
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
+                    seznam.append((ts_us, sensor, 'None', value, unit, ime_testa))
 
             elif topic == "infrared":
-                value = vzorec.get('yes_no', None)
+                value = vzorec.get('omega', None)
+                unit = f'rad/s'
                 if value is not None:
-                    seznam.append((trenutni_cas, ts_us, sensor, 'None', value, ime_testa))
+                    seznam.append((ts_us, sensor, 'None', value, unit, ime_testa))
 
             else:
                 print(f'Unknown topic: {topic}')
