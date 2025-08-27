@@ -1,6 +1,7 @@
 #include "ClassMQTT.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include "time.h"
 
 // Config variables loaded from JSON
 String wifi_ssid;
@@ -11,6 +12,8 @@ String mqtt_topic;
 String sensor_id;
 int buffer_size;
 unsigned long sampling_interval_ms;
+long gmt_offset_sec;       
+int daylight_offset_sec;
 
 ClassMQTT* mqttClient;
 
@@ -18,6 +21,23 @@ volatile double waterFlow;  //volatile- da se lahko spremenljivka spremeni kadar
 
 void IRAM_ATTR pulse() {   //void- zato, da funkcija ne vrača ničesar, atribut- oznaka, ki da navodila, kako naj ravna s funkcijo-kam se shrani, IRAM_ATTR- naj shrani v notranji RAM v ESP32
   waterFlow += 1.0 / 75.0; //na vsak pulz doda vodi 1/75 litra
+}
+
+String getPreciseDatetime() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL); 
+
+    time_t now = tv.tv_sec;
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    char usec_buf[7];
+    snprintf(usec_buf, sizeof(usec_buf), "%06ld", tv.tv_usec);
+
+    return String(buf) + "." + String(usec_buf);
 }
 
 // Load config from LittleFS
@@ -51,6 +71,8 @@ bool loadConfig() {
   sensor_id            = doc["sensor_id"] | "flow_x";
   buffer_size          = doc["buffer_size"] | 10;
   sampling_interval_ms = doc["sampling_interval_ms"] | 500;
+  gmt_offset_sec       = doc["gmt_offset_sec"] | 3600;  
+  daylight_offset_sec  = doc["daylight_offset_sec"] | 3600;
 
   return true;
 }
@@ -74,6 +96,11 @@ void setup() {
   );
 
   mqttClient->setupWiFi();
+
+  configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
+
   mqttClient->setupMQTT();
 
   waterFlow = 0;
@@ -88,13 +115,17 @@ void loop() {
   if (now - lastRead < sampling_interval_ms) return;  // 0.5 sekunde
   lastRead = now;
 
-  Serial.print("Pretok vode: ");
+  String datetime = getPreciseDatetime();
+
+  Serial.print(datetime);
+  Serial.print(" Pretok vode: ");
   Serial.print(waterFlow, 3);  // izpiše do 3 decimalna mesta
   Serial.println(" L");
 
     // Use ArduinoJson to create JSON
   StaticJsonDocument<200> doc; // adjust size as needed
   doc["timestamp_ms"] = now;
+  doc["datetime"] = datetime; 
   doc["mqtt_topic"] = mqtt_topic;
   doc["sensor_id"] = sensor_id;
   doc["flow"] = waterFlow;
