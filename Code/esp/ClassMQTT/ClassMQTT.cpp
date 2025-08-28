@@ -28,6 +28,17 @@ void ClassMQTT::setupWiFi() {
 
 void ClassMQTT::setupMQTT() {
   client.setServer(mqttServer, mqttPort);
+
+
+  while (!client.connected()) {
+    if (client.connect("ESP32Client")) {
+      Serial.println("Povezan na MQTT.");
+    } else {
+      Serial.print("Ni povezano, rc = ");
+      Serial.println(client.state());
+      delay(2000);
+    }
+  }
 }
 
 

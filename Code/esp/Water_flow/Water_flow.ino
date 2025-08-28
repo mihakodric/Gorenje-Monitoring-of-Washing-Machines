@@ -47,6 +47,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     message += (char)payload[i];
   }
 
+  message.trim();
+
   Serial.print("Prejet ukaz na ");
   Serial.print(topic);
   Serial.print(": ");
@@ -113,6 +115,8 @@ void setup() {
     buffer_size
   );
 
+  mqttClient->setCallback(mqttCallback);
+
   mqttClient->setupWiFi();
 
   configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
@@ -121,7 +125,6 @@ void setup() {
 
   mqttClient->setupMQTT();
 
-  mqttClient->setCallback(mqttCallback);
   mqttClient->subscribe("water_flow/cmd");
 
   waterFlow = 0;
@@ -130,7 +133,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(27), pulse, RISING); //ko vidi, da signal raste, pokliče funkcijo pulse, prekine rast
 }
 
-void loop() {
+void loop() {  
+
+  mqttClient->loop();
+
   static unsigned long lastRead = 0;
   unsigned long now = millis();
   if (now - lastRead < sampling_interval_ms) return;  // 0.5 sekunde
@@ -155,5 +161,4 @@ void loop() {
   serializeJson(doc, json);
 
   mqttClient->dodajVBuffer(json);
-  mqttClient->loop();
 }
