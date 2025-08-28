@@ -25,9 +25,9 @@ int daylight_offset_sec;
 
 ClassMQTT* mqttClient;
 
-const int ACPin = 2;           // vhodni signal bo na pinu GPIO2
+const int ACPin = 34;           // vhodni signal bo na pinu GPIO2
 #define ACTectionRange 20      // definiramo območje senzorja (v A)
-#define VREF 3.3               // referenčna napetost na esp32
+#define VREF 3.7               // referenčna napetost na esp32
 
 float readACCurrentValue()  //funkcija, ki bo brala tok
 {
