@@ -17,6 +17,9 @@ public:
   void dodajVBuffer(String jsonObject);  // Dodamo JSON kot string
   void posljiBuffer();                  // Pošlje celoten array JSON-ov
 
+  void setCallback(MQTT_CALLBACK_SIGNATURE);  // nastavi callback funkcijo
+  void subscribe(const char* topic); 
+
 private:
   void poveziMQTT();
 

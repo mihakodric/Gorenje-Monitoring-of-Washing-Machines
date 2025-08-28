@@ -30,6 +30,16 @@ void ClassMQTT::setupMQTT() {
   client.setServer(mqttServer, mqttPort);
 }
 
+
+void ClassMQTT::setCallback(MQTT_CALLBACK_SIGNATURE) {
+    client.setCallback(callback);
+}
+
+void ClassMQTT::subscribe(const char* topic) {
+    client.subscribe(topic);
+}
+
+
 void ClassMQTT::poveziMQTT() {
   while (!client.connected()) {
     if (client.connect("ESP32Client")) {

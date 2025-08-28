@@ -40,6 +40,24 @@ String getPreciseDatetime() {
     return String(buf) + "." + String(usec_buf);
 }
 
+//za sprejem ukazov prek mqtt
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+
+  Serial.print("Prejet ukaz na ");
+  Serial.print(topic);
+  Serial.print(": ");
+  Serial.println(message);
+
+  if (message == "reset") {
+    waterFlow = 0;
+    Serial.println("Vodomer resetiran!");
+  }
+}
+
 // Load config from LittleFS
 bool loadConfig() {
   if (!LittleFS.begin()) {
@@ -102,6 +120,9 @@ void setup() {
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
   mqttClient->setupMQTT();
+
+  mqttClient->setCallback(mqttCallback);
+  mqttClient->subscribe("water_flow/cmd");
 
   waterFlow = 0;
 
