@@ -1,5 +1,5 @@
 @echo off
 echo Starting FastAPI Backend Server...
-cd /d "backend"
+cd /d "%~dp0backend"
 call venv\Scripts\activate.bat
 python api_server.py

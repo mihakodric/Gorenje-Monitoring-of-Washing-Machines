@@ -1,4 +1,4 @@
 @echo off
 echo Starting React Frontend Development Server...
-cd /d "frontend"
+cd /d "%~dp0frontend"
 npm start dev

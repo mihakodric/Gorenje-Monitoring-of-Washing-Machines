@@ -24,6 +24,7 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/', label: 'Dashboard', icon: Home },
     { path: '/sensors', label: 'Sensors', icon: Zap },
     { path: '/tests', label: 'Tests', icon: TestTube },
+    { path: '/washing-machines', label: 'Washing Machines', icon: Zap },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
