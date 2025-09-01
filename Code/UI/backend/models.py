@@ -60,6 +60,31 @@ class Test(TestBase):
     last_data: Optional[str] = None
 
 
+
+class MachineBase(BaseModel):
+    machine_id: str
+    name: str
+    description: Optional[str] = ""
+    location: Optional[str] = ""
+    is_active: Optional[bool] = True
+
+
+class MachineCreate(MachineBase):
+    pass
+
+
+class MachineUpdate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    location: Optional[str] = ""
+    is_active: Optional[bool] = True
+
+
+class Machine(MachineBase):
+    id: int
+    created_at: str
+
+
 class SensorData(BaseModel):
     id: int
     time: str

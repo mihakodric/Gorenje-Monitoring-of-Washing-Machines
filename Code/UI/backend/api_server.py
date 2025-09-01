@@ -11,6 +11,7 @@ import threading
 from models import (
     Sensor, SensorCreate, SensorUpdate, 
     Test, TestCreate, TestUpdate, 
+    Machine, MachineCreate, MachineUpdate, 
     SensorData, TestSummary,
     MqttConfig, MqttConfigCreate, MqttConfigUpdate,
     SensorType, SensorTypeCreate, SensorTypeUpdate
@@ -22,7 +23,8 @@ from database import (
     get_all_mqtt_configs, create_mqtt_config, get_mqtt_config_by_id,
     update_mqtt_config, delete_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id,
-    update_sensor_type, delete_sensor_type
+    update_sensor_type, delete_sensor_type,
+    get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
 )
 from main_mqtt_listener import poberi_podatke_mqtt
 
@@ -285,6 +287,49 @@ async def stop_test(test_name: str):
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test stopped successfully"}
+
+# Washing machines endpoints
+@app.get("/api/machines", response_model=List[Machine])
+async def get_machines():
+    """Get all washing machines"""
+    sensors = get_all_machines(DATABASE_NAME)
+    return sensors
+
+
+@app.get("/api/machines/{machine_id}", response_model=Machine)
+async def get_machine(machine_id: str):
+    """Get a specific washing machine"""
+    sensor = get_machine_by_id(DATABASE_NAME, machine_id)
+    if not sensor:
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return sensor
+
+
+@app.post("/api/machines", response_model=dict)
+async def add_machine(machine: MachineCreate):
+    """Create a new washing machine"""
+    success = create_machine(DATABASE_NAME, machine.dict())
+    if not success:
+        raise HTTPException(status_code=400, detail="Washing Machine with this ID already exists")
+    return {"message": "Washing Machine created successfully"}
+
+
+@app.put("/api/machines/{machine_id}", response_model=dict)
+async def modify_machine(machine_id: str, machine: MachineUpdate):
+    """Update a washing machine"""
+    success = update_machine(DATABASE_NAME, machine_id, machine.dict())
+    if not success:
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return {"message": "Washing Machine updated successfully"}
+
+
+@app.delete("/api/machines/{machine_id}", response_model=dict)
+async def remove_machine(machine_id: str):
+    """Delete a washing machine"""
+    success = delete_machine(DATABASE_NAME, machine_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return {"message": "Washing Machine deleted successfully"}
 
 
 # Data endpoints

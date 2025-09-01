@@ -43,6 +43,19 @@ def ustvari_sql_bazo(ime_baze):
             notes TEXT
         )
     ''')
+
+    # Create washing machines table
+    orodje.execute('''
+        CREATE TABLE IF NOT EXISTS machines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT,
+            location TEXT,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TEXT NOT NULL
+        )
+    ''')
     
     # Create sensor data table (updated schema)
     orodje.execute('''
@@ -425,6 +438,92 @@ def get_test_summary(ime_baze: str, test_name: str) -> Dict:
         'test_info': test_info,
         'data_summary': data_summary
     }
+
+
+# Washing machines
+def get_all_machines(ime_baze: str) -> List[Dict]:
+    """Get all washing machines from the database."""
+    conn = sqlite3.connect(ime_baze)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM machines ORDER BY created_at DESC
+    ''')
+    machines = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return machines
+
+
+def get_machine_by_id(ime_baze: str, machine_id: str) -> Optional[Dict]:
+    """Get a specific washing machine by ID."""
+    conn = sqlite3.connect(ime_baze)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM machines WHERE sensor_id = ?', (machine_id,))
+    sensor = cursor.fetchone()
+    conn.close()
+    return dict(sensor) if sensor else None
+
+
+def create_machine(ime_baze: str, machine_data: Dict) -> bool:
+    """Create a new washing machine."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO machines (machine_id, name, description, location, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (
+            machine_data['machine_id'],
+            machine_data['name'],
+            machine_data.get('description', ''),
+            machine_data.get('location', ''),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+
+def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
+    """Update an existing machine."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE sensors 
+        SET name = ?, description = ?, location = ?, is_active = ?
+        WHERE machine_id = ?
+    ''', (
+        machine_data['name'],
+        machine_data.get('description', ''),
+        machine_data.get('location', ''),
+        machine_data.get('is_active', True),
+        machine_id
+    ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+
+def delete_machine(ime_baze: str, machine_id: str) -> bool:
+    """Delete a washing machine."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM machines WHERE machine_id = ?', (machine_id,))
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
 
 
 # MQTT Configuration functions
