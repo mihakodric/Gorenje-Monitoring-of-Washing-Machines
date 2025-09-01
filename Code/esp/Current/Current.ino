@@ -51,6 +51,34 @@ float readACCurrentValue()  //funkcija, ki bo brala tok
   return ACCurrentValue;
 }
 
+#include <LittleFS.h>
+#include <ArduinoJson.h>
+
+bool saveConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_interval_ms"] = sampling_interval_ms;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  File file = LittleFS.open("/config.json", "w");
+  if (!file) {
+    Serial.println("Failed to open config file for writing");
+    return false;
+  }
+  serializeJson(doc, file);
+  file.close();
+  Serial.println("Config saved to LittleFS.");
+  return true;
+}
+
+
 // Load config from LittleFS
 bool loadConfig() {
   if (!LittleFS.begin()) {
@@ -88,6 +116,29 @@ bool loadConfig() {
   return true;
 }
 
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) message += (char)payload[i];
+  message.trim();
+
+  Serial.print("Prejet ukaz na "); Serial.print(topic);
+  Serial.print(": "); Serial.println(message);
+
+  StaticJsonDocument<200> doc;
+  DeserializationError error = deserializeJson(doc, message);
+  if (error) {
+    Serial.println("Invalid JSON in MQTT command");
+    return;
+  }
+
+  String set = doc["set"] | "";
+  if (set == "sampling_interval_ms") {
+    sampling_interval_ms = doc["value"];
+    saveConfig();
+  } 
+}
+
+
 void setup() 
 {
   Serial.begin(115200);
@@ -107,12 +158,15 @@ void setup()
     buffer_size
   );
 
+  mqttClient->setCallback(mqttCallback);
   mqttClient->setupWiFi();
-  mqttClient->setupMQTT();
 
   configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
+
+  mqttClient->setupMQTT();
+  mqttClient->subscribe("current/cmd");
 
   // pinMode(13, OUTPUT);  //izhodni signal bo na pinu 13, da se prižge npr. LED, ni nujno, je pa lahko za preverjanje, da vidiš, če teče skozi tok, ker sveti
 }                        //če se zgodi, da hočemo imeti še LED, ga vežemo na 13, možno pa je, da je na našem esp-ju že avtomatsko vgrajen, možno, da na pin 2, v tem primeru samo zamenjamo 2 in 13 v kodi

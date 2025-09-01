@@ -7,7 +7,7 @@ mqtt_port = 1883
 config_updates = {
     "acceleration/cmd": [
         {"set": "sampling_frequency_Hz", "value": 400},
-        {"set": "sensitivity", "value": 0.000000},
+        {"set": "sensitivity", "value": 0.000488},
         {"set": "range_g", "value": 16},
         {"set": "send_interval_ms", "value": 10}
     ],
