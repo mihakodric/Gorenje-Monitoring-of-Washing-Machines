@@ -5,13 +5,12 @@
   "mqtt_port": 1883,
   "mqtt_topic": "acceleration",
   "sensor_id": "acc_1",
-  
+
   "sensitivity": 0.000488,
   "buffer_size": 10,
   "sampling_frequency_Hz": 200,
   "send_interval_ms": 5,
   "range_g": 16, 
-
   "gmt_offset_sec": 3600,       
   "daylight_offset_sec": 3600  
 }
