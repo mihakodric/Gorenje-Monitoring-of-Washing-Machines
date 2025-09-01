@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Zap, TestTube, Activity, Settings, BarChart3, Menu, X } from 'lucide-react';
+import { Home, Zap, Droplet, TestTube, Activity, Settings, BarChart3, Menu, X } from 'lucide-react';
 
 const Navigation = ({ isCollapsed, setIsCollapsed }) => {
   const location = useLocation();
@@ -24,7 +24,7 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/', label: 'Dashboard', icon: Home },
     { path: '/sensors', label: 'Sensors', icon: Zap },
     { path: '/tests', label: 'Tests', icon: TestTube },
-    { path: '/washing-machines', label: 'Washing Machines', icon: Zap },
+    { path: '/washing-machines', label: 'Washing Machines', icon: Droplet },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];

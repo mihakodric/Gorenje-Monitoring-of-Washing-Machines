@@ -27,6 +27,15 @@ export const testsAPI = {
   getSummary: (name) => api.get(`/api/tests/${name}/summary`),
 };
 
+// Washing machines API
+export const washingMachinesAPI = {
+  getAll: () => api.get('/api/machines'),
+  getById: (id) => api.get(`/api/machines/${id}`),
+  create: (machine) => api.post('/api/machines', machine),
+  update: (id, machine) => api.put(`/api/machines/${id}`, machine),
+  delete: (id) => api.delete(`/api/machines/${id}`),
+};
+
 // MQTT API
 export const mqttAPI = {
   start: () => api.post('/api/mqtt/start'),
