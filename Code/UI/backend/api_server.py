@@ -102,7 +102,25 @@ async def lifespan(app: FastAPI):
     
     for sensor_data in default_sensors:
         if not get_sensor_by_id(DATABASE_NAME, sensor_data["sensor_id"]):
-            create_sensor(DATABASE_NAME, sensor_data)
+            create_sensor(DATABASE_NAME, sensor_data)     
+
+    # Add default washing machines, if they don't exist
+    default_machines = [
+        {
+            "machine_id": "machine1",
+            "name": "Washing Machine 1",
+            "description": "Test Washing Machine",
+        },
+        {
+            "machine_id": "machine2",
+            "name": "Washing Machine 2",
+            "description": "Test Washing Machine",
+        }
+    ]
+
+    for machine_data in default_machines:
+        if not get_machine_by_id(DATABASE_NAME, machine_data["machine_id"]):
+            create_machine(DATABASE_NAME, machine_data)
     
     # Add default sensor types if they don't exist
     default_sensor_types = [

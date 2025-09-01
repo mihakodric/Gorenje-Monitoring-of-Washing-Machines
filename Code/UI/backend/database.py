@@ -51,7 +51,6 @@ def ustvari_sql_bazo(ime_baze):
             machine_id TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
             description TEXT,
-            location TEXT,
             is_active BOOLEAN DEFAULT 1,
             created_at TEXT NOT NULL
         )
@@ -461,7 +460,7 @@ def get_machine_by_id(ime_baze: str, machine_id: str) -> Optional[Dict]:
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('SELECT * FROM machines WHERE sensor_id = ?', (machine_id,))
+    cursor.execute('SELECT * FROM machines WHERE machine_id = ?', (machine_id,))
     sensor = cursor.fetchone()
     conn.close()
     return dict(sensor) if sensor else None
@@ -474,13 +473,12 @@ def create_machine(ime_baze: str, machine_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO machines (machine_id, name, description, location, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO machines (machine_id, name, description, created_at)
+            VALUES (?, ?, ?, ?)
         ''', (
             machine_data['machine_id'],
             machine_data['name'],
             machine_data.get('description', ''),
-            machine_data.get('location', ''),
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
         conn.commit()
@@ -498,12 +496,11 @@ def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
     
     cursor.execute('''
         UPDATE sensors 
-        SET name = ?, description = ?, location = ?, is_active = ?
+        SET name = ?, description = ?, is_active = ?
         WHERE machine_id = ?
     ''', (
         machine_data['name'],
         machine_data.get('description', ''),
-        machine_data.get('location', ''),
         machine_data.get('is_active', True),
         machine_id
     ))
