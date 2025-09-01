@@ -54,7 +54,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
         - Temperature ('temp...'): inserts one row with `temp_c`.
         - Current ('current...'): inserts one row with `current_a`.
         - Flow ('flow...'): inserts one row with `flow`.
-        - Infrared ('infra...'): inserts one row with `omega` (angular velocity).
+        - Infrared ('infra...'): inserts one row with `rotations`.
 
     If a sensor ID is unrecognized, a message is printed.  
     If a required key is missing in the data dictionary, an error message is printed.
@@ -111,7 +111,7 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
                     seznam.append((ts_us, sensor, 'None', value, ime_testa))
 
             elif topic == "infrared":
-                value = vzorec.get('omega', None)
+                value = vzorec.get('rotations', None)
                 if value is not None:
                     seznam.append((ts_us, sensor, 'None', value, ime_testa))
 

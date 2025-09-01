@@ -142,7 +142,7 @@ void loop() {
   if (newData) {
     newData = false;
 
-    float rotations = (lastCount / 2.0) / (sampling_interval_ms / 1000.0);  // obrati/s
+    float rotations = (lastCount / 2.0) / (sampling_interval_ms / 1000.0) * 60;  // obrati/min
     float omega = 2.0 * PI * rotations; // rad/s
 
     Serial.print("The speed of the motor: ");
@@ -157,7 +157,7 @@ void loop() {
     doc["sensor_id"] = sensor_id;
     doc["mqtt_topic"] = mqtt_topic;
     doc["rotations"] = rotations;
-    doc["omega"] = omega;
+    //doc["omega"] = omega;
 
     String output;
     serializeJson(doc, output);
