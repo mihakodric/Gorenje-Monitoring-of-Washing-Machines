@@ -37,6 +37,36 @@ ClassMQTT* mqtt = nullptr;
 unsigned long lastRead = 0;
 unsigned long sampleIntervalMillis = 0;
 
+
+bool saveConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["sensitivity"] = sensitivity;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_frequency_Hz"] = sampling_frequency;
+  doc["send_interval_ms"] = send_interval_ms;
+  doc["range_g"] = range_g;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  File file = LittleFS.open("/config.json", "w");
+  if (!file) {
+    Serial.println("Failed to open config file for writing");
+    return false;
+  }
+  serializeJson(doc, file);
+  file.close();
+  Serial.println("Config saved to LittleFS.");
+  return true;
+}
+
+
+
 //da zloada config
 bool loadConfig() {
   if (!LittleFS.begin()) { Serial.println("LittleFS mount failed"); return false; }
@@ -105,6 +135,41 @@ void setupAccelerometer() {
   Wire.endTransmission();
 }
 
+//MQTT callback za prejete ukaze
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) message += (char)payload[i];
+  message.trim();
+
+  Serial.print("Prejet ukaz na "); Serial.print(topic);
+  Serial.print(": "); Serial.println(message);
+
+  StaticJsonDocument<200> doc;
+  DeserializationError error = deserializeJson(doc, message);
+  if (error) {
+    Serial.println("Invalid JSON in MQTT command");
+    return;
+  }
+
+  String set = doc["set"] | "";
+  if (set == "sensitivity") {
+    sensitivity = doc["value"];
+    saveConfig();
+  } else if (set == "sampling_frequency_Hz") {
+    sampling_frequency = doc["value"];
+    sampleIntervalMillis = 1000UL / sampling_frequency;
+    setupAccelerometer();
+    saveConfig();
+  } else if (set == "send_interval_ms") {
+    send_interval_ms = doc["value"];
+    saveConfig();
+  } else if (set == "range_g") {
+    range_g = doc["value"];
+    setupAccelerometer();
+    saveConfig();
+  }
+}
+
 
 void setup() {
   Serial.begin(230400);
@@ -116,6 +181,7 @@ void setup() {
   sampleIntervalMillis = 1000UL / sampling_frequency;
 
   mqtt = new ClassMQTT(wifi_ssid.c_str(), wifi_password.c_str(), mqtt_server.c_str(), mqtt_port, mqtt_topic.c_str(), buffer_size);
+  mqtt->setCallback(mqttCallback);
   mqtt->setupWiFi();
 
   configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
@@ -123,6 +189,7 @@ void setup() {
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
   mqtt->setupMQTT();
+  mqtt->subscribe("acceleration/cmd");
   setupAccelerometer();
   lastRead = millis();
 }
