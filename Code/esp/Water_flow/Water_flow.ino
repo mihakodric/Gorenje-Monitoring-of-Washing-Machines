@@ -42,22 +42,67 @@ String getPreciseDatetime() {
 
 //za sprejem ukazov prek mqtt
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  String message;
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
+    String message;
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+    message.trim();
+
+    Serial.print("Prejet ukaz na ");
+    Serial.print(topic);
+    Serial.print(": ");
+    Serial.println(message);
+
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, message);
+    if (error) {
+        Serial.println("Napaka: neveljaven JSON ukaz");
+        return;
+    }
+
+    String set = doc["set"] | "";
+
+    if (set == "reset") {
+        bool doReset = doc["value"] | false;  // privzeto false
+        if (doReset) {
+            waterFlow = 0;
+            Serial.println("Vodomer resetiran!");
+        } else {
+            Serial.println("Reset ukaz prejet, a value=false, reset ni izveden.");
+        }
+    } 
+    else if (set == "sampling_interval_ms") {
+        sampling_interval_ms = doc["value"].as<unsigned long>();
+        saveConfig();
+        Serial.print("Sampling interval nastavljen na: ");
+        Serial.println(sampling_interval_ms);
+    }
+}
+
+
+
+bool saveConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_interval_ms"] = sampling_interval_ms;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  File file = LittleFS.open("/config.json", "w");
+  if (!file) {
+    Serial.println("Failed to open config file for writing");
+    return false;
   }
-
-  message.trim();
-
-  Serial.print("Prejet ukaz na ");
-  Serial.print(topic);
-  Serial.print(": ");
-  Serial.println(message);
-
-  if (message == "reset") {
-    waterFlow = 0;
-    Serial.println("Vodomer resetiran!");
-  }
+  serializeJson(doc, file);
+  file.close();
+  Serial.println("Config saved to LittleFS.");
+  return true;
 }
 
 // Load config from LittleFS

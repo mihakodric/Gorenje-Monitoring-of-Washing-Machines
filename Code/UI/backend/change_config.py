@@ -12,11 +12,14 @@ config_updates = {
         {"set": "send_interval_ms", "value": 10}
     ],
     "current/cmd": [
-        {"set": "sampling_interval_ms", "value": 200},
-        {"set": "calibration_offset", "value": 5}
+        {"set": "sampling_interval_ms", "value": 500},
     ],
-    "waterflow/cmd": [
-        {"set": "reset", "value": True}
+    "distance/cmd": [
+        {"set": "sampling_interval_ms", "value": 50},
+    ],
+    "water_flow/cmd": [
+        {"set": "reset", "value": False},
+        {"set": "sampling_interval_ms", "value": 2000}
     ]
 }
 
