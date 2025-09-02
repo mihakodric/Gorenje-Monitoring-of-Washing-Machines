@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 
 const WashingMachineModal = ({ machine, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    id: "",
+    machine_id: "",
     name: "",
     description: "",
   });
@@ -13,7 +13,7 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
   useEffect(() => {
     if (machine) {
       setFormData({
-        id: machine.id || "",
+        machine_id: machine.machine_id || "",
         name: machine.name || "",
         description: machine.description || "",
       });
@@ -35,7 +35,7 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
     try {
       if (machine) {
         // Update existing machine
-        await washingMachinesAPI.update(machine.id, {
+        await washingMachinesAPI.update(machine.machine_id, {
           name: formData.name,
           description: formData.description,
         });
@@ -70,8 +70,8 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
             <label className="form-label">Machine ID *</label>
             <input
               type="text"
-              name="id"
-              value={formData.id}
+              name="machine_id"
+              value={formData.machine_id}
               onChange={handleChange}
               className="form-control"
               required

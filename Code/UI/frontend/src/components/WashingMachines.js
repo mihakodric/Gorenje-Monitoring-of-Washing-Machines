@@ -39,7 +39,7 @@ const WashingMachines = () => {
       // Search filter
       const matchesSearch =
         String(machine.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(machine.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(machine.machine_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(machine.description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       return matchesSearch;
@@ -312,7 +312,7 @@ const WashingMachines = () => {
               </thead>
               <tbody>
                 {filteredMachines.map((machine) => (
-                  <tr key={machine.id}>
+                  <tr key={machine.machine_id}>
                     <td>
                       <div>
                         <div
@@ -331,7 +331,7 @@ const WashingMachines = () => {
                             fontFamily: "monospace",
                           }}
                         >
-                          ID: {machine.id}
+                          ID: {machine.machine_id}
                         </div>
                         <div
                           style={{
@@ -359,7 +359,7 @@ const WashingMachines = () => {
                         </button>
                         <button
                           className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteMachine(machine.id)}
+                          onClick={() => handleDeleteMachine(machine.machine_id)}
                           title="Delete machine"
                           style={{
                             padding: "8px 12px",

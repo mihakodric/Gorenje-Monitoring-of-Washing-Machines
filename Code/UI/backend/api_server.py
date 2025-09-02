@@ -109,12 +109,12 @@ async def lifespan(app: FastAPI):
         {
             "machine_id": "machine1",
             "name": "Washing Machine 1",
-            "description": "Test Washing Machine",
+            "description": "Test Washing Machine 1",
         },
         {
             "machine_id": "machine2",
             "name": "Washing Machine 2",
-            "description": "Test Washing Machine",
+            "description": "Test Washing Machine 2",
         }
     ]
 

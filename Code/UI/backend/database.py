@@ -51,7 +51,6 @@ def ustvari_sql_bazo(ime_baze):
             machine_id TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
             description TEXT,
-            is_active BOOLEAN DEFAULT 1,
             created_at TEXT NOT NULL
         )
     ''')
@@ -495,13 +494,12 @@ def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
     cursor = conn.cursor()
     
     cursor.execute('''
-        UPDATE sensors 
-        SET name = ?, description = ?, is_active = ?
+        UPDATE machines 
+        SET name = ?, description = ?
         WHERE machine_id = ?
     ''', (
         machine_data['name'],
         machine_data.get('description', ''),
-        machine_data.get('is_active', True),
         machine_id
     ))
     

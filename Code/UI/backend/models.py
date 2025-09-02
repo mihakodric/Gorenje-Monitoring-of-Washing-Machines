@@ -65,8 +65,6 @@ class MachineBase(BaseModel):
     machine_id: str
     name: str
     description: Optional[str] = ""
-    location: Optional[str] = ""
-    is_active: Optional[bool] = True
 
 
 class MachineCreate(MachineBase):
@@ -76,8 +74,6 @@ class MachineCreate(MachineBase):
 class MachineUpdate(BaseModel):
     name: str
     description: Optional[str] = ""
-    location: Optional[str] = ""
-    is_active: Optional[bool] = True
 
 
 class Machine(MachineBase):
