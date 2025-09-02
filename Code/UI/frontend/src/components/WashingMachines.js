@@ -307,6 +307,7 @@ const WashingMachines = () => {
                       )}
                     </div>
                   </th>
+                  <th>Connected Sensors</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -344,6 +345,7 @@ const WashingMachines = () => {
                         </div>
                       </div>
                     </td>
+                    <td></td>
                     <td>
                       <div className="action-buttons">
                         <button

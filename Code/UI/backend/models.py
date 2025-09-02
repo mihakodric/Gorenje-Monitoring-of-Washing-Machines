@@ -11,6 +11,7 @@ class SensorBase(BaseModel):
     location: Optional[str] = ""
     mqtt_topic: str
     is_active: Optional[bool] = True
+    machine_id: Optional[str] = None
 
 
 class SensorCreate(SensorBase):
@@ -22,6 +23,7 @@ class SensorUpdate(BaseModel):
     description: Optional[str] = ""
     location: Optional[str] = ""
     is_active: Optional[bool] = True
+    machine_id: Optional[str] = None
 
 
 class Sensor(SensorBase):

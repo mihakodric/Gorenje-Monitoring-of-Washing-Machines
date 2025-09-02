@@ -25,7 +25,8 @@ def ustvari_sql_bazo(ime_baze):
             mqtt_topic TEXT NOT NULL,
             is_active BOOLEAN DEFAULT 1,
             created_at TEXT NOT NULL,
-            last_seen TEXT
+            last_seen TEXT,
+            machine_id TEXT
         )
     ''')
     
@@ -223,8 +224,8 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO sensors (sensor_id, sensor_type, name, description, location, mqtt_topic, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sensors (sensor_id, sensor_type, name, description, location, mqtt_topic, created_at, machine_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             sensor_data['sensor_id'],
             sensor_data['sensor_type'],
@@ -232,7 +233,8 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
             sensor_data.get('description', ''),
             sensor_data.get('location', ''),
             sensor_data['mqtt_topic'],
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            sensor_data.get('machine_id', None)  
         ))
         conn.commit()
         return True
@@ -249,13 +251,14 @@ def update_sensor(ime_baze: str, sensor_id: str, sensor_data: Dict) -> bool:
     
     cursor.execute('''
         UPDATE sensors 
-        SET name = ?, description = ?, location = ?, is_active = ?
+        SET name = ?, description = ?, location = ?, is_active = ?, machine_id = ?
         WHERE sensor_id = ?
     ''', (
         sensor_data['name'],
         sensor_data.get('description', ''),
         sensor_data.get('location', ''),
         sensor_data.get('is_active', True),
+        sensor_data.get('machine_id', None),
         sensor_id
     ))
     
