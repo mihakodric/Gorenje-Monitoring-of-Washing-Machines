@@ -17,6 +17,9 @@ config_updates = {
     "distance/cmd": [
         {"set": "sampling_interval_ms", "value": 50},
     ],
+    "temperature/cmd": [
+        {"set": "sampling_interval_ms", "value": 1000}
+    ],
     "water_flow/cmd": [
         {"set": "reset", "value": False},
         {"set": "sampling_interval_ms", "value": 2000}
