@@ -1,8 +1,18 @@
 import paho.mqtt.client as mqtt
 import json
+import os
 
-mqtt_broker = "192.168.0.106"
-mqtt_port = 1883
+
+# Branje nastavitev iz config.json
+base_path = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(base_path, 'config.json')
+with open(config_path, 'r') as config_file:
+    config = json.load(config_file)
+
+# Dostop do vrednosti
+mqtt_broker = config['mqtt_broker']
+mqtt_port = config['mqtt_port']
+
 
 config_updates = {
     "acceleration/cmd": [
