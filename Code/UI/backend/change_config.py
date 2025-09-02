@@ -17,6 +17,9 @@ config_updates = {
     "distance/cmd": [
         {"set": "sampling_interval_ms", "value": 50},
     ],
+    "infrared/cmd": [
+        {"set": "sampling_interval_ms", "value": 500},
+    ],
     "temperature/cmd": [
         {"set": "sampling_interval_ms", "value": 1000}
     ],
