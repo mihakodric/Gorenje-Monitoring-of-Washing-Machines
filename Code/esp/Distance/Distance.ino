@@ -100,7 +100,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (set == "sampling_interval_ms") {
     sampling_interval_ms = doc["value"];
     saveConfig();
-  } 
+  } else if (set == "gmt_offset_sec") {
+    gmt_offset_sec = doc["value"];
+    saveConfig();
+    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  } else if (set == "daylight_offset_sec") {
+    daylight_offset_sec = doc["value"];
+    saveConfig();
+    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  }
 }
 
 void setup() {

@@ -19,23 +19,35 @@ config_updates = {
         {"set": "sampling_frequency_Hz", "value": 400},
         {"set": "sensitivity", "value": 0.000488},
         {"set": "range_g", "value": 16},
-        {"set": "send_interval_ms", "value": 10}
+        {"set": "send_interval_ms", "value": 10},
+        {"set": "gmt_offset_sec", "value": 3600},
+        {"set": "daylight_offset_sec", "value": 3600}
     ],
     "current/cmd": [
         {"set": "sampling_interval_ms", "value": 500},
+        {"set": "gmt_offset_sec", "value": 3600},
+        {"set": "daylight_offset_sec", "value": 3600}
     ],
     "distance/cmd": [
         {"set": "sampling_interval_ms", "value": 1000},
+        {"set": "gmt_offset_sec", "value": 3600},
+        {"set": "daylight_offset_sec", "value": 3600}
     ],
     "infrared/cmd": [
         {"set": "sampling_interval_ms", "value": 500},
+        {"set": "gmt_offset_sec", "value": 3600},
+        {"set": "daylight_offset_sec", "value": 3600}
     ],
     "temperature/cmd": [
-        {"set": "sampling_interval_ms", "value": 1000}
+        {"set": "sampling_interval_ms", "value": 1000},
+        {"set": "gmt_offset_sec", "value": 3600},
+        {"set": "daylight_offset_sec", "value": 3600}
     ],
     "water_flow/cmd": [
         {"set": "reset", "value": False},
-        {"set": "sampling_interval_ms", "value": 2000}
+        {"set": "sampling_interval_ms", "value": 2000},
+        {"set": "gmt_offset_sec", "value": 3600},
+        {"set": "daylight_offset_sec", "value": 3600}
     ]
 }
 
