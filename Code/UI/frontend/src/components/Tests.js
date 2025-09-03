@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { testsAPI } from '../api';
+import { testsAPI, washingMachinesAPI } from '../api';
 import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock } from 'lucide-react';
 import TestModal from './TestModal';
 
@@ -10,6 +10,7 @@ const Tests = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
+  const [machines, setMachines] = useState([]);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +21,7 @@ const Tests = () => {
 
   useEffect(() => {
     loadTests();
+    loadMachines();
   }, []);
 
   const loadTests = async () => {
@@ -29,6 +31,17 @@ const Tests = () => {
       setFilteredTests(response.data);
     } catch (error) {
       console.error('Error loading tests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMachines = async () => {
+    try {
+      const response = await washingMachinesAPI.getAll();
+      setMachines(response.data);
+    } catch (error) {
+      console.error('Error loading machines:', error);
     } finally {
       setLoading(false);
     }
@@ -154,6 +167,7 @@ const Tests = () => {
     setShowModal(false);
     setEditingTest(null);
     loadTests();
+    loadMachines();
   };
 
   const getStatusColor = (status) => {
@@ -476,6 +490,7 @@ const Tests = () => {
       {showModal && (
         <TestModal
           test={editingTest}
+          machines={machines}
           onClose={handleModalClose}
           onSave={handleModalSave}
         />

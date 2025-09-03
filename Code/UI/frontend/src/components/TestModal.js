@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { testsAPI } from '../api';
 import { X } from 'lucide-react';
 
-const TestModal = ({ test, onClose, onSave }) => {
+const TestModal = ({ test, machines, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     test_name: '',
     description: '',
@@ -91,14 +91,20 @@ const TestModal = ({ test, onClose, onSave }) => {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Machine ID</label>
-              <input
-                type="text"
+              <select
                 name="machine_id"
                 value={formData.machine_id}
                 onChange={handleChange}
                 className="form-control"
-                placeholder="e.g., WM001, Machine_A"
-              />
+                required
+              >
+                <option value="">Select machine...</option>
+                {machines.map(machine => (
+                  <option key={machine.machine_id} value={machine.machine_id}>
+                    {machine.name} ({machine.machine_id})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group">
