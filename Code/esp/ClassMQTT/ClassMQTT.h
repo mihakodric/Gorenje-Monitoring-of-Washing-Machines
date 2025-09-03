@@ -20,6 +20,8 @@ public:
   void setCallback(MQTT_CALLBACK_SIGNATURE);  // nastavi callback funkcijo
   void subscribe(const char* topic); 
 
+  void setBufferSize(int newSize);
+
 private:
   void poveziMQTT();
 
@@ -28,7 +30,7 @@ private:
   const char* mqttServer;
   const int mqttPort;
   const char* topic;
-  const int bufferSize;
+  int bufferSize;
 
   WiFiClient espClient;
   PubSubClient client;

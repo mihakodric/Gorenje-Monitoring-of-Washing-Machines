@@ -1,4 +1,5 @@
 #include "ClassMQTT.h"
+#include <Arduino.h>
 
 ClassMQTT::ClassMQTT(const char* ssid, const char* password,
                      const char* mqttServer, int mqttPort,
@@ -98,4 +99,20 @@ void ClassMQTT::posljiBuffer() {
 
 void ClassMQTT::loop() {
   client.loop();
+}
+
+void ClassMQTT::setBufferSize(int newSize) {
+    if (newSize <= 0 || newSize == bufferSize) return;
+
+    String* newBuffer = new String[newSize];
+    int copyCount = (bufferIndex < newSize) ? bufferIndex : newSize;
+    for (int i = 0; i < copyCount; i++) {
+        newBuffer[i] = buffer[i];
+    }
+    delete[] buffer;
+    buffer = newBuffer;
+    bufferSize = newSize;
+    if (bufferIndex > bufferSize) bufferIndex = bufferSize;
+
+    Serial.print("Buffer size posodobljen: "); Serial.println(bufferSize);
 }

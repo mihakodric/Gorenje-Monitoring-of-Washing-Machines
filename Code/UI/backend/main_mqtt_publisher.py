@@ -29,9 +29,10 @@ config_updates = {
         {"set": "daylight_offset_sec", "value": 3600}
     ],
     "distance/cmd": [
-        {"set": "sampling_interval_ms", "value": 1000},
+        {"set": "sampling_interval_ms", "value": 100},
         {"set": "gmt_offset_sec", "value": 3600},
-        {"set": "daylight_offset_sec", "value": 3600}
+        {"set": "daylight_offset_sec", "value": 3600},
+        {"set": "buffer_size", "value": 10}
     ],
     "infrared/cmd": [
         {"set": "sampling_interval_ms", "value": 500},

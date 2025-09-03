@@ -108,6 +108,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     daylight_offset_sec = doc["value"];
     saveConfig();
     configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  } else if (set == "buffer_size") {
+    buffer_size = doc["value"];
+    saveConfig();
+    mqttClient->setBufferSize(buffer_size);
   }
 }
 
@@ -143,7 +147,7 @@ void setup() {
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
   mqttClient->setupMQTT();
-    mqttClient->subscribe("distance/cmd");
+  mqttClient->subscribe("distance/cmd");
 }
 
 String getPreciseDatetime() {
