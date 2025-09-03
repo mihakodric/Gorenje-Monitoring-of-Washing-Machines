@@ -167,6 +167,18 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     range_g = doc["value"];
     setupAccelerometer();
     saveConfig();
+  } else if (set == "gmt_offset_sec") {
+    gmt_offset_sec = doc["value"];
+    saveConfig();
+    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  } else if (set == "daylight_offset_sec") {
+    daylight_offset_sec = doc["value"];
+    saveConfig();
+    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+  } else if (set == "buffer_size") {
+    buffer_size = doc["value"];
+    saveConfig();
+    mqttClient->setBufferSize(buffer_size);
   }
 }
 
