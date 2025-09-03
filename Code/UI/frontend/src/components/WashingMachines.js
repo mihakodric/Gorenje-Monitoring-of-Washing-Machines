@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Activity, Search, X, Filter } from "lucide-react";
 import { washingMachinesAPI } from "../api";
+import { sensorsAPI } from "../api";
 import WashingMachineModal from "./WashingMachineModal";
 
 const WashingMachines = () => {
@@ -9,6 +10,7 @@ const WashingMachines = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMachine, setEditingMachine] = useState(null);
+  const [sensors, setSensors] = useState([]);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,6 +19,7 @@ const WashingMachines = () => {
 
   useEffect(() => {
     loadMachines();
+    loadSensors();
   }, []);
 
   useEffect(() => {
@@ -29,6 +32,17 @@ const WashingMachines = () => {
       setMachines(response.data);
     } catch (error) {
       console.error("Error loading washing machines:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadSensors = async () => {
+    try {
+      const response = await sensorsAPI.getAll();
+      setSensors(response.data);
+    } catch (error) {
+      console.error("Error loading sensors:", error);
     } finally {
       setLoading(false);
     }
@@ -111,6 +125,7 @@ const WashingMachines = () => {
     setShowModal(false);
     setEditingMachine(null);
     loadMachines();
+    loadSensors();
   };
 
   if (loading) {
@@ -345,7 +360,18 @@ const WashingMachines = () => {
                         </div>
                       </div>
                     </td>
-                    <td></td>
+                    <td>
+                      {sensors
+                        .filter(sensor => sensor.machine_id === machine.machine_id)
+                        .map(sensor => (
+                          <div key={sensor.sensor_id} style={{ fontSize: "13px", color: "#374151" }}>
+                            {sensor.name} <span style={{ color: "#9ca3af", fontSize: "11px" }}>({sensor.sensor_id})</span>
+                          </div>
+                        ))}
+                      {sensors.filter(sensor => sensor.machine_id === machine.machine_id).length === 0 && (
+                        <span style={{ color: "#9ca3af", fontSize: "12px" }}>No sensors connected</span>
+                      )}
+                    </td>
                     <td>
                       <div className="action-buttons">
                         <button
@@ -383,6 +409,7 @@ const WashingMachines = () => {
       {showModal && (
         <WashingMachineModal
           machine={editingMachine}
+          sensors={sensors}
           onClose={handleModalClose}
           onSave={handleModalSave}
         />

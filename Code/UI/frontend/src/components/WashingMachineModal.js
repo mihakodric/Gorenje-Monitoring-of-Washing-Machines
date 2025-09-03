@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { washingMachinesAPI } from "../api";
+import { washingMachinesAPI, sensorsAPI } from "../api";
 import { X } from "lucide-react";
 
-const WashingMachineModal = ({ machine, onClose, onSave }) => {
+const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     machine_id: "",
     name: "",
     description: "",
   });
+  const [selectedSensorIds, setSelectedSensorIds] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -17,8 +18,21 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
         name: machine.name || "",
         description: machine.description || "",
       });
+      // Preselect sensors connected to this machine
+      setSelectedSensorIds(
+        sensors
+          .filter(sensor => sensor.machine_id === machine.machine_id)
+          .map(sensor => sensor.sensor_id)
+      );
+    } else {
+      setFormData({
+        machine_id: "",
+        name: "",
+        description: "",
+      });
+      setSelectedSensorIds([]);
     }
-  }, [machine]);
+  }, [machine, sensors]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,21 +42,45 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
     }));
   };
 
+  const handleSensorSelect = (e) => {
+    const options = Array.from(e.target.selectedOptions);
+    setSelectedSensorIds(options.map(opt => opt.value));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let machineId;
       if (machine) {
         // Update existing machine
         await washingMachinesAPI.update(machine.machine_id, {
           name: formData.name,
           description: formData.description,
         });
+        machineId = machine.machine_id;
       } else {
         // Create new machine
-        await washingMachinesAPI.create(formData);
+        const res = await washingMachinesAPI.create(formData);
+        machineId = formData.machine_id;
       }
+      // Update sensors' machine_id
+      await Promise.all(
+        sensors.map(sensor => {
+          // If sensor is selected, assign to machine; else, clear assignment if it was previously assigned
+          if (selectedSensorIds.includes(sensor.sensor_id)) {
+            if (sensor.machine_id !== machineId) {
+              return sensorsAPI.update(sensor.sensor_id, { ...sensor, machine_id: machineId });
+            }
+          } else {
+            if (sensor.machine_id === machineId) {
+              return sensorsAPI.update(sensor.sensor_id, { ...sensor, machine_id: null });
+            }
+          }
+          return null;
+        })
+      );
       onSave();
     } catch (error) {
       console.error("Error saving washing machine:", error);
@@ -105,6 +143,25 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
               rows={3}
               placeholder="Enter washing machine description..."
             />
+          </div>
+
+          {/* Connected Sensors */}
+          <div className="form-group">
+            <label className="form-label">Connected Sensors</label>
+            <select
+              multiple
+              className="form-control"
+              value={selectedSensorIds}
+              onChange={handleSensorSelect}
+              style={{ minHeight: "120px" }}
+            >
+              {sensors.map(sensor => (
+                <option key={sensor.sensor_id} value={sensor.sensor_id}>
+                  {sensor.name} ({sensor.sensor_id})
+                </option>
+              ))}
+            </select>
+            <small>Select sensors to connect to this machine.</small>
           </div>
 
           {/* Footer */}
