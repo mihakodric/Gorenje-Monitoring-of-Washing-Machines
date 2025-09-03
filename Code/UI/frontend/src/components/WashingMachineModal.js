@@ -148,19 +148,34 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
           {/* Connected Sensors */}
           <div className="form-group">
             <label className="form-label">Connected Sensors</label>
-            <select
-              multiple
-              className="form-control"
-              value={selectedSensorIds}
-              onChange={handleSensorSelect}
-              style={{ minHeight: "120px" }}
-            >
-              {sensors.map(sensor => (
-                <option key={sensor.sensor_id} value={sensor.sensor_id}>
-                  {sensor.name} ({sensor.sensor_id})
-                </option>
-              ))}
-            </select>
+            <div style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px" }}>
+              {sensors
+                .filter(sensor =>
+                  !sensor.machine_id || sensor.machine_id === formData.machine_id
+                )
+                .map(sensor => (
+                  <div key={sensor.sensor_id} style={{ marginBottom: "8px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
+                      <input
+                        type="checkbox"
+                        value={sensor.sensor_id}
+                        checked={selectedSensorIds.includes(sensor.sensor_id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedSensorIds(prev => [...prev, sensor.sensor_id]);
+                          } else {
+                            setSelectedSensorIds(prev => prev.filter(id => id !== sensor.sensor_id));
+                          }
+                        }}
+                      />
+                      {sensor.name} <span style={{ color: "#9ca3af", fontSize: "12px" }}>({sensor.sensor_id})</span>
+                    </label>
+                  </div>
+                ))}
+              {sensors.filter(sensor => !sensor.machine_id || sensor.machine_id === formData.machine_id).length === 0 && (
+                <div style={{ color: "#9ca3af", fontSize: "13px" }}>No sensors available.</div>
+              )}
+            </div>
             <small>Select sensors to connect to this machine.</small>
           </div>
 
