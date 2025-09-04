@@ -1,9 +1,10 @@
-https://wiki.dfrobot.com/IR_Thermometer_Sensor_MLX90614_SKU__SEN0206 - spletno mesto
+## IR Thermometer Sensor MLX90614 (SKU SEN0206)
 
-pine povežemo tako:
-(esp32-senzor)
+Website: [IR Thermometer Sensor MLX90614](https://wiki.dfrobot.com/IR_Thermometer_Sensor_MLX90614_SKU__SEN0206)
 
-rdeča žica je VCC--3.3V,
-črna žica je GND--GND,
-modra žica je SCL--22,
-zelena žica je SDA--21
+## Pin Connections (Sensor → ESP32)
+
+- VCC (Red wire) → 3.3V
+- GND (black wire )→ GND
+- SCL (Blue wire) → GPIO 22
+- SDA (Green wire) → GPIO 21
