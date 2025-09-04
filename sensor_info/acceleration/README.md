@@ -10,4 +10,4 @@ Website: [LIS2DW12 Triple Axis Accelerometer (DFRobot)](https://wiki.dfrobot.com
 - SDA → GPIO 21
 
 
-<img src="connect_accelerometer.jpg" alt="Alt text" width="400">
+<img src="connection_diagram_accelerometer.jpg" alt="Alt text" width="400">
