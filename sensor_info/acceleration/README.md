@@ -2,7 +2,7 @@ Website: [LIS2DW12 Triple Axis Accelerometer (DFRobot)](https://wiki.dfrobot.com
 
 Connect the pins as follows (Sensor → ESP32):
 
-VCC → 3.3V
-GND → GND
-SCL → GPIO 22
-SDA → GPIO 21
+- VCC → 3.3V
+- GND → GND
+- SCL → GPIO 22
+- SDA → GPIO 21
