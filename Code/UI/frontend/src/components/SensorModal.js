@@ -5,12 +5,12 @@ import { X } from 'lucide-react';
 const SensorModal = ({ sensor, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     sensor_id: '',
-    name: '',
+    sensor_name: '',
     sensor_type: 'acceleration',
     description: '',
     location: '',
     mqtt_topic: '',
-    is_active: true
+    is_online: true
   });
   const [loading, setLoading] = useState(false);
 
@@ -36,12 +36,12 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
     if (sensor) {
       setFormData({
         sensor_id: sensor.sensor_id || '',
-        name: sensor.name || '',
+        sensor_name: sensor.sensor_name || '',
         sensor_type: sensor.sensor_type || 'acceleration',
         description: sensor.description || '',
         location: sensor.location || '',
         mqtt_topic: sensor.mqtt_topic || '',
-        is_active: sensor.is_active !== undefined ? sensor.is_active : true
+        is_online: sensor.is_online !== undefined ? sensor.is_online : true
       });
     }
   }, [sensor]);
@@ -62,10 +62,10 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
       if (sensor) {
         // Update existing sensor
         await sensorsAPI.update(sensor.sensor_id, {
-          name: formData.name,
+          sensor_name: formData.sensor_name,
           description: formData.description,
           location: formData.location,
-          is_active: formData.is_active
+          is_online: formData.is_online
         });
       } else {
         // Create new sensor
@@ -112,8 +112,8 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
               <label className="form-label">Name *</label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
+                name="sensor_name"
+                value={formData.sensor_name}
                 onChange={handleChange}
                 className="form-control"
                 required
@@ -188,12 +188,12 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
             <label className="form-label">
               <input
                 type="checkbox"
-                name="is_active"
-                checked={formData.is_active}
+                name="is_online"
+                checked={formData.is_online}
                 onChange={handleChange}
                 style={{ marginRight: '8px' }}
               />
-              Active
+              Online
             </label>
           </div>
 

@@ -207,7 +207,7 @@ const TestDetails = () => {
         <div className="grid grid-2">
           <div>
             <p><strong>Status:</strong> <span className={`status status-${test.status}`}>{test.status}</span></p>
-            <p><strong>Machine ID:</strong> {test.machine_id || 'Not specified'}</p>
+            <p><strong>Machine Name:</strong> {test.machine_name || 'Not specified'}</p>
             <p><strong>Created By:</strong> {test.created_by}</p>
           </div>
           <div>
@@ -240,7 +240,7 @@ const TestDetails = () => {
               <option value="all">All Sensors</option>
               {sensors.map(sensor => (
                 <option key={sensor.sensor_id} value={sensor.sensor_id}>
-                  {sensor.name} ({sensor.sensor_id})
+                  {sensor.sensor_name} ({sensor.sensor_id})
                 </option>
               ))}
             </select>

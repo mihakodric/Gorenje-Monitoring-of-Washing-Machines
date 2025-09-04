@@ -6,7 +6,6 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     test_name: '',
     description: '',
-    machine_id: '',
     status: 'running',
     created_by: 'user',
     notes: ''
@@ -18,7 +17,6 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
       setFormData({
         test_name: test.test_name || '',
         description: test.description || '',
-        machine_id: test.machine_id || '',
         status: test.status || 'running',
         created_by: test.created_by || 'user',
         notes: test.notes || ''
@@ -43,7 +41,7 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
         // Update existing test
         await testsAPI.update(test.test_name, {
           description: formData.description,
-          machine_id: formData.machine_id,
+          machine_name: formData.machine_iname,
           status: formData.status,
           notes: formData.notes,
           end_time: formData.status === 'completed' ? new Date().toISOString() : null
@@ -90,18 +88,18 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Machine ID</label>
+              <label className="form-label">Machine name</label>
               <select
-                name="machine_id"
-                value={formData.machine_id}
+                name="machine_name"
+                value={formData.machine_name}
                 onChange={handleChange}
                 className="form-control"
                 required
               >
                 <option value="">Select machine...</option>
                 {machines.map(machine => (
-                  <option key={machine.machine_id} value={machine.machine_id}>
-                    {machine.name} ({machine.machine_id})
+                  <option key={machine.machine_name} value={machine.machine_name}>
+                    {machine.machine_name}
                   </option>
                 ))}
               </select>

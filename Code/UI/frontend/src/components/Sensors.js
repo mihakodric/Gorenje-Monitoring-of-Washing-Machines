@@ -28,15 +28,15 @@ const Sensors = () => {
   const filterAndSortSensors = () => {
     let filtered = sensors.filter(sensor => {
       // Search filter
-      const matchesSearch = sensor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = sensor.sensor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            sensor.sensor_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            sensor.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            sensor.mqtt_topic.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Status filter
       const matchesStatus = statusFilter === 'all' || 
-                           (statusFilter === 'active' && sensor.is_active) ||
-                           (statusFilter === 'inactive' && !sensor.is_active);
+                           (statusFilter === 'active' && sensor.is_online) ||
+                           (statusFilter === 'inactive' && !sensor.is_online);
 
       // Type filter
       const matchesType = typeFilter === 'all' || sensor.sensor_type === typeFilter;
@@ -214,7 +214,7 @@ const Sensors = () => {
                 color: '#6b7280',
                 fontWeight: '500'
               }}>
-                {filteredSensors.filter(s => s.is_active).length} of {filteredSensors.length} sensors online
+                {filteredSensors.filter(s => s.is_online).length} of {filteredSensors.length} sensors online
                 {sensors.length !== filteredSensors.length && ` (${sensors.length} total)`}
               </p>
             </div>
@@ -394,11 +394,11 @@ const Sensors = () => {
                   <th>MQTT Configuration</th>
                   <th 
                     style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => handleSort('is_active')}
+                    onClick={() => handleSort('is_online')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       Status
-                      {sortField === 'is_active' && (
+                      {sortField === 'is_online' && (
                         <span style={{ fontSize: '12px' }}>
                           {sortDirection === 'asc' ? '↑' : '↓'}
                         </span>
@@ -443,7 +443,7 @@ const Sensors = () => {
                           </div>
                           <div>
                             <div style={{ fontWeight: '600', color: '#374151', fontSize: '14px' }}>
-                              {sensor.name}
+                              {sensor.sensor_name}
                             </div>
                             <div style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace' }}>
                               ID: {sensor.sensor_id}
@@ -489,7 +489,7 @@ const Sensors = () => {
                           fontWeight: '600',
                           textTransform: 'uppercase',
                           letterSpacing: '0.5px',
-                          ...(sensor.is_active ? {
+                          ...(sensor.is_online ? {
                             background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
                             color: '#065f46',
                             border: '2px solid #a7f3d0'
@@ -503,10 +503,10 @@ const Sensors = () => {
                             width: '6px',
                             height: '6px',
                             borderRadius: '50%',
-                            backgroundColor: sensor.is_active ? '#10b981' : '#ef4444',
-                            animation: sensor.is_active ? 'pulse 2s infinite' : 'none'
+                            backgroundColor: sensor.is_online ? '#10b981' : '#ef4444',
+                            animation: sensor.is_online ? 'pulse 2s infinite' : 'none'
                           }}></div>
-                          {sensor.is_active ? 'Online' : 'Offline'}
+                          {sensor.is_online ? 'Online' : 'Offline'}
                         </div>
                       </td>
                       <td>

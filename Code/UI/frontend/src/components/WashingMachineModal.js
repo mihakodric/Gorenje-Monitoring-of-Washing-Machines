@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     machine_id: "",
-    name: "",
+    machine_name: "",
     description: "",
   });
   const [selectedSensorIds, setSelectedSensorIds] = useState([]);
@@ -15,7 +15,7 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
     if (machine) {
       setFormData({
         machine_id: machine.machine_id || "",
-        name: machine.name || "",
+        machine_name: machine.machine_name || "",
         description: machine.description || "",
       });
       // Preselect sensors connected to this machine
@@ -27,7 +27,7 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
     } else {
       setFormData({
         machine_id: "",
-        name: "",
+        machine_name: "",
         description: "",
       });
       setSelectedSensorIds([]);
@@ -56,7 +56,7 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
       if (machine) {
         // Update existing machine
         await washingMachinesAPI.update(machine.machine_id, {
-          name: formData.name,
+          machine_name: formData.machine_name,
           description: formData.description,
         });
         machineId = machine.machine_id;
@@ -123,8 +123,8 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
             <label className="form-label">Name *</label>
             <input
               type="text"
-              name="name"
-              value={formData.name}
+              name="machine_name"
+              value={formData.machine_name}
               onChange={handleChange}
               className="form-control"
               required
@@ -168,7 +168,7 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
                           }
                         }}
                       />
-                      {sensor.name} <span style={{ color: "#9ca3af", fontSize: "12px" }}>({sensor.sensor_id})</span>
+                      {sensor.sensor_name} <span style={{ color: "#9ca3af", fontSize: "12px" }}>({sensor.sensor_id})</span>
                     </label>
                   </div>
                 ))}

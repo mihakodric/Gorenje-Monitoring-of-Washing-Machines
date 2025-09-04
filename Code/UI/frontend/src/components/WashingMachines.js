@@ -52,7 +52,7 @@ const WashingMachines = () => {
     let filtered = machines.filter(machine => {
       // Search filter
       const matchesSearch =
-        String(machine.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(machine.machine_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(machine.machine_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(machine.description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -338,7 +338,7 @@ const WashingMachines = () => {
                             fontSize: "14px",
                           }}
                         >
-                          {machine.name}
+                          {machine.machine_name}
                         </div>
                         <div
                           style={{
@@ -365,7 +365,7 @@ const WashingMachines = () => {
                         .filter(sensor => sensor.machine_id === machine.machine_id)
                         .map(sensor => (
                           <div key={sensor.sensor_id} style={{ fontSize: "13px", color: "#374151" }}>
-                            {sensor.name} <span style={{ color: "#9ca3af", fontSize: "11px" }}>({sensor.sensor_id})</span>
+                            {sensor.sensor_name} <span style={{ color: "#9ca3af", fontSize: "11px" }}>({sensor.sensor_id})</span>
                           </div>
                         ))}
                       {sensors.filter(sensor => sensor.machine_id === machine.machine_id).length === 0 && (

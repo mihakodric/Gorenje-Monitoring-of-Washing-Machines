@@ -6,12 +6,11 @@ from datetime import datetime
 class SensorBase(BaseModel):
     sensor_id: str
     sensor_type: str  # 'acceleration', 'temperature', 'distance', etc.
-    name: str
+    sensor_name: str
     description: Optional[str] = ""
     location: Optional[str] = ""
     mqtt_topic: str
-    is_active: Optional[bool] = True
-    machine_id: Optional[str] = None
+    is_online: Optional[bool] = True
 
 
 class SensorCreate(SensorBase):
@@ -19,11 +18,10 @@ class SensorCreate(SensorBase):
 
 
 class SensorUpdate(BaseModel):
-    name: str
+    sensor_name: str
     description: Optional[str] = ""
     location: Optional[str] = ""
-    is_active: Optional[bool] = True
-    machine_id: Optional[str] = None
+    is_online: Optional[bool] = True
 
 
 class Sensor(SensorBase):
@@ -35,7 +33,6 @@ class Sensor(SensorBase):
 class TestBase(BaseModel):
     test_name: str
     description: Optional[str] = ""
-    machine_id: Optional[str] = ""
     status: Optional[str] = "running"
     created_by: Optional[str] = "user"
     notes: Optional[str] = ""
@@ -47,7 +44,6 @@ class TestCreate(TestBase):
 
 class TestUpdate(BaseModel):
     description: Optional[str] = ""
-    machine_id: Optional[str] = ""
     status: Optional[str] = "running"
     end_time: Optional[str] = None
     notes: Optional[str] = ""
@@ -64,8 +60,7 @@ class Test(TestBase):
 
 
 class MachineBase(BaseModel):
-    machine_id: str
-    name: str
+    machine_name: str
     description: Optional[str] = ""
 
 
@@ -74,7 +69,7 @@ class MachineCreate(MachineBase):
 
 
 class MachineUpdate(BaseModel):
-    name: str
+    machine_name: str
     description: Optional[str] = ""
 
 

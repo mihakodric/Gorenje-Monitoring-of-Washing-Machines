@@ -24,7 +24,7 @@ from database import (
     update_mqtt_config, delete_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id,
     update_sensor_type, delete_sensor_type,
-    get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
+    get_all_machines, get_machine_by_name, create_machine, update_machine, delete_machine
 )
 from main_mqtt_listener import poberi_podatke_mqtt
 
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "acc1",
             "sensor_type": "acceleration",
-            "name": "Accelerometer 1",
+            "sensor_name": "Accelerometer 1",
             "description": "Main washing machine accelerometer",
             "location": "Machine body",
             "mqtt_topic": "acceleration"
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "temp1",
             "sensor_type": "temperature",
-            "name": "Temperature Sensor 1",
+            "sensor_name": "Temperature Sensor 1",
             "description": "Water temperature sensor",
             "location": "Water inlet",
             "mqtt_topic": "temperature"
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "dist1",
             "sensor_type": "distance",
-            "name": "Distance Sensor 1",
+            "sensor_name": "Distance Sensor 1",
             "description": "Water level measurement",
             "location": "Water tank",
             "mqtt_topic": "distance"
@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "current1",
             "sensor_type": "current",
-            "name": "Current Sensor 1",
+            "sensor_name": "Current Sensor 1",
             "description": "Motor current measurement",
             "location": "Motor",
             "mqtt_topic": "current"
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "flow1",
             "sensor_type": "water_flow",
-            "name": "Flow Sensor 1",
+            "sensor_name": "Flow Sensor 1",
             "description": "Water flow measurement",
             "location": "Water pipe",
             "mqtt_topic": "water_flow"
@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "infra1",
             "sensor_type": "infrared",
-            "name": "Infrared Sensor 1",
+            "sensor_name": "Infrared Sensor 1",
             "description": "Door position sensor",
             "location": "Door",
             "mqtt_topic": "infrared"
@@ -107,19 +107,17 @@ async def lifespan(app: FastAPI):
     # Add default washing machines, if they don't exist
     default_machines = [
         {
-            "machine_id": "machine1",
-            "name": "Washing Machine 1",
+            "machine_name": "machine1",
             "description": "Test Washing Machine 1",
         },
         {
-            "machine_id": "machine2",
-            "name": "Washing Machine 2",
+            "machine_name": "machine2",
             "description": "Test Washing Machine 2",
         }
     ]
 
     for machine_data in default_machines:
-        if not get_machine_by_id(DATABASE_NAME, machine_data["machine_id"]):
+        if not get_machine_by_name(DATABASE_NAME, machine_data["machine_name"]):
             create_machine(DATABASE_NAME, machine_data)
     
     # Add default sensor types if they don't exist
@@ -314,10 +312,10 @@ async def get_machines():
     return sensors
 
 
-@app.get("/api/machines/{machine_id}", response_model=Machine)
-async def get_machine(machine_id: str):
+@app.get("/api/machines/{machine_name}", response_model=Machine)
+async def get_machine(machine_name: str):
     """Get a specific washing machine"""
-    sensor = get_machine_by_id(DATABASE_NAME, machine_id)
+    sensor = get_machine_by_name(DATABASE_NAME, machine_name)
     if not sensor:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return sensor
@@ -332,19 +330,19 @@ async def add_machine(machine: MachineCreate):
     return {"message": "Washing Machine created successfully"}
 
 
-@app.put("/api/machines/{machine_id}", response_model=dict)
-async def modify_machine(machine_id: str, machine: MachineUpdate):
+@app.put("/api/machines/name}", response_model=dict)
+async def modify_machine(machine_name: str, machine: MachineUpdate):
     """Update a washing machine"""
-    success = update_machine(DATABASE_NAME, machine_id, machine.dict())
+    success = update_machine(DATABASE_NAME, machine_name, machine.dict())
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return {"message": "Washing Machine updated successfully"}
 
 
-@app.delete("/api/machines/{machine_id}", response_model=dict)
-async def remove_machine(machine_id: str):
+@app.delete("/api/machines/{machine_name}", response_model=dict)
+async def remove_machine(machine_name: str):
     """Delete a washing machine"""
-    success = delete_machine(DATABASE_NAME, machine_id)
+    success = delete_machine(DATABASE_NAME, machine_name)
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return {"message": "Washing Machine deleted successfully"}

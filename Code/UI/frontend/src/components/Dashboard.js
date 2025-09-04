@@ -37,7 +37,7 @@ const Dashboard = () => {
       setStats({
         sensors: sensors.length,
         tests: tests.length,
-        activeSensors: sensors.filter(s => s.is_active).length,
+        activeSensors: sensors.filter(s => s.is_online).length,
         runningTests: tests.filter(t => t.status === 'running').length
       });
     } catch (error) {

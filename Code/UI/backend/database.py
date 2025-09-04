@@ -19,14 +19,13 @@ def ustvari_sql_bazo(ime_baze):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sensor_id TEXT UNIQUE NOT NULL,
             sensor_type TEXT NOT NULL,
-            name TEXT NOT NULL,
+            sensor_name TEXT NOT NULL,
             description TEXT,
             location TEXT,
             mqtt_topic TEXT NOT NULL,
-            is_active BOOLEAN DEFAULT 1,
+            is_online BOOLEAN DEFAULT 1,
             created_at TEXT NOT NULL,
-            last_seen TEXT,
-            machine_id TEXT
+            last_seen TEXT
         )
     ''')
     
@@ -36,7 +35,6 @@ def ustvari_sql_bazo(ime_baze):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             test_name TEXT UNIQUE NOT NULL,
             description TEXT,
-            machine_id TEXT,
             start_time TEXT NOT NULL,
             end_time TEXT,
             status TEXT DEFAULT 'running',
@@ -49,8 +47,7 @@ def ustvari_sql_bazo(ime_baze):
     orodje.execute('''
         CREATE TABLE IF NOT EXISTS machines (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            machine_id TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
+            machine_name TEXT NOT NULL,
             description TEXT,
             created_at TEXT NOT NULL
         )
@@ -224,17 +221,16 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO sensors (sensor_id, sensor_type, name, description, location, mqtt_topic, created_at, machine_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO sensors (sensor_id, sensor_type, sensor_name, description, location, mqtt_topic, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             sensor_data['sensor_id'],
             sensor_data['sensor_type'],
-            sensor_data['name'],
+            sensor_data['sensor_name'],
             sensor_data.get('description', ''),
             sensor_data.get('location', ''),
             sensor_data['mqtt_topic'],
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            sensor_data.get('machine_id', None)  
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
         conn.commit()
         return True
@@ -251,14 +247,13 @@ def update_sensor(ime_baze: str, sensor_id: str, sensor_data: Dict) -> bool:
     
     cursor.execute('''
         UPDATE sensors 
-        SET name = ?, description = ?, location = ?, is_active = ?, machine_id = ?
+        SET sensor_name = ?, description = ?, location = ?, is_online = ?
         WHERE sensor_id = ?
     ''', (
-        sensor_data['name'],
+        sensor_data['sensor_name'],
         sensor_data.get('description', ''),
         sensor_data.get('location', ''),
-        sensor_data.get('is_active', True),
-        sensor_data.get('machine_id', None),
+        sensor_data.get('is_online', True),
         sensor_id
     ))
     
@@ -329,12 +324,11 @@ def create_test(ime_baze: str, test_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO tests (test_name, description, machine_id, start_time, status, created_by, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tests (test_name, description, start_time, status, created_by, notes)
+            VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             test_data['test_name'],
             test_data.get('description', ''),
-            test_data.get('machine_id', ''),
             test_data.get('start_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
             test_data.get('status', 'running'),
             test_data.get('created_by', 'user'),
@@ -355,11 +349,10 @@ def update_test(ime_baze: str, test_name: str, test_data: Dict) -> bool:
     
     cursor.execute('''
         UPDATE tests 
-        SET description = ?, machine_id = ?, status = ?, end_time = ?, notes = ?
+        SET description = ?, status = ?, end_time = ?, notes = ?
         WHERE test_name = ?
     ''', (
         test_data.get('description', ''),
-        test_data.get('machine_id', ''),
         test_data.get('status', 'running'),
         test_data.get('end_time'),
         test_data.get('notes', ''),
@@ -456,16 +449,16 @@ def get_all_machines(ime_baze: str) -> List[Dict]:
     return machines
 
 
-def get_machine_by_id(ime_baze: str, machine_id: str) -> Optional[Dict]:
-    """Get a specific washing machine by ID."""
+def get_machine_by_name(ime_baze: str, machine_name: str) -> Optional[Dict]:
+    """Get a specific washing machine by name."""
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('SELECT * FROM machines WHERE machine_id = ?', (machine_id,))
-    sensor = cursor.fetchone()
+    cursor.execute('SELECT * FROM machines WHERE machine_name = ?', (machine_name,))
+    machine = cursor.fetchone()
     conn.close()
-    return dict(sensor) if sensor else None
+    return dict(machine) if machine else None
 
 
 def create_machine(ime_baze: str, machine_data: Dict) -> bool:
@@ -475,11 +468,10 @@ def create_machine(ime_baze: str, machine_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO machines (machine_id, name, description, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO machines (machine_name, description, created_at)
+            VALUES (?, ?, ?)
         ''', (
-            machine_data['machine_id'],
-            machine_data['name'],
+            machine_data['machine_name'],
             machine_data.get('description', ''),
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ))
@@ -491,19 +483,18 @@ def create_machine(ime_baze: str, machine_data: Dict) -> bool:
         conn.close()
 
 
-def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
+def update_machine(ime_baze: str, machine_name: str, machine_data: Dict) -> bool:
     """Update an existing machine."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
     
     cursor.execute('''
         UPDATE machines 
-        SET name = ?, description = ?
-        WHERE machine_id = ?
+        SET description = ?
+        WHERE machine_name = ?
     ''', (
-        machine_data['name'],
         machine_data.get('description', ''),
-        machine_id
+        machine_name
     ))
     
     success = cursor.rowcount > 0
@@ -512,12 +503,12 @@ def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
     return success
 
 
-def delete_machine(ime_baze: str, machine_id: str) -> bool:
+def delete_machine(ime_baze: str, machine_name: str) -> bool:
     """Delete a washing machine."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
     
-    cursor.execute('DELETE FROM machines WHERE machine_id = ?', (machine_id,))
+    cursor.execute('DELETE FROM machines WHERE machine_name = ?', (machine_name,))
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()

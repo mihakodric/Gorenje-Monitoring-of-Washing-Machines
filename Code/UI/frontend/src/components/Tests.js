@@ -53,7 +53,6 @@ const Tests = () => {
       const matchesSearch = searchTerm === '' || 
         test.test_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         test.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        test.machine_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         test.id.toString().includes(searchTerm);
       
       let matchesStatus = true;
@@ -368,17 +367,6 @@ const Tests = () => {
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('machine_id')}
-                    className={`sortable ${sortField === 'machine_id' ? 'sorted' : ''}`}
-                  >
-                    Machine ID
-                    {sortField === 'machine_id' && (
-                      <span className={`sort-indicator ${sortDirection}`}>
-                        {sortDirection === 'asc' ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </th>
-                  <th 
                     onClick={() => handleSort('status')}
                     className={`sortable ${sortField === 'status' ? 'sorted' : ''}`}
                   >
@@ -436,7 +424,6 @@ const Tests = () => {
                         </div>
                       )}
                     </td>
-                    <td>{test.machine_id || '-'}</td>
                     <td>
                       <span className={`status ${getStatusColor(test.status)}`}>
                         {test.status === 'running' ? <Play size={12} /> : null}

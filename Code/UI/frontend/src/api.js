@@ -30,10 +30,10 @@ export const testsAPI = {
 // Washing machines API
 export const washingMachinesAPI = {
   getAll: () => api.get('/api/machines'),
-  getById: (id) => api.get(`/api/machines/${id}`),
+  getById: (name) => api.get(`/api/machines/${name}`),
   create: (machine) => api.post('/api/machines', machine),
-  update: (id, machine) => api.put(`/api/machines/${id}`, machine),
-  delete: (id) => api.delete(`/api/machines/${id}`),
+  update: (name, machine) => api.put(`/api/machines/${name}`, machine),
+  delete: (name) => api.delete(`/api/machines/${name}`),
 };
 
 // MQTT API
