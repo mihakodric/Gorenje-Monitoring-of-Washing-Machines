@@ -1,4 +1,4 @@
-Website: LIS2DW12 Triple Axis Accelerometer (DFRobot)
+Website: [LIS2DW12 Triple Axis Accelerometer (DFRobot)](https://wiki.dfrobot.com/LIS2DW12_Triple_Axis_Accelerometer_SKU_SEN0405)
 
 Connect the pins as follows (Sensor → ESP32):
 
