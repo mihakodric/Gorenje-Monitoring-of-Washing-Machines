@@ -14,14 +14,15 @@ from models import (
     Machine, MachineCreate, MachineUpdate, 
     SensorData, TestSummary,
     MqttConfig, MqttConfigUpdate,
-    SensorType, SensorTypeCreate, SensorTypeUpdate
+    SensorType, SensorTypeCreate, SensorTypeUpdate,
+    TestRelation
 )
 from database import (
     ustvari_sql_bazo,
     get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
     get_all_tests, get_test_by_id, create_test, update_test, get_related_machines, get_related_sensors,
     get_sensor_data, get_test_summary,
-    get_mqtt_config, update_mqtt_config,
+    get_mqtt_config, create_mqtt_config, update_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
     get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
 )
@@ -118,6 +119,18 @@ async def lifespan(app: FastAPI):
     for machine_data in default_machines:
         if not get_machine_by_id(DATABASE_NAME, machine_data["machine_name"]):
             create_machine(DATABASE_NAME, machine_data)
+
+    # Add default MQTT config if it doesn't exist
+    default_mqtt_config = {
+        "broker_host": MQTT_BROKER,
+        "broker_port": MQTT_PORT,
+        "username": "",
+        "password": "",
+        "is_active": True
+    }
+
+    if not get_mqtt_config(DATABASE_NAME):
+        create_mqtt_config(DATABASE_NAME, default_mqtt_config)
     
     # Add default sensor types if they don't exist
     default_sensor_types = [
@@ -261,10 +274,10 @@ async def get_tests():
     return tests
 
 
-@app.get("/api/tests/{test_name}", response_model=Test)
-async def get_test(test_name: str):
+@app.get("/api/tests/{test_id}", response_model=Test)
+async def get_test(test_id: int):
     """Get a specific test"""
-    test = get_test_by_id(DATABASE_NAME, test_name)
+    test = get_test_by_id(DATABASE_NAME, test_id)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     return test
@@ -273,35 +286,46 @@ async def get_test(test_name: str):
 @app.post("/api/tests", response_model=dict)
 async def add_test(test: TestCreate):
     """Create a new test"""
-    if not test.start_time:
-        test.start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
     success = create_test(DATABASE_NAME, test.dict())
     if not success:
         raise HTTPException(status_code=400, detail="Test with this name already exists")
     return {"message": "Test created successfully"}
 
 
-@app.put("/api/tests/{test_name}", response_model=dict)
-async def modify_test(test_name: str, test: TestUpdate):
+@app.put("/api/tests/{test_id}", response_model=dict)
+async def modify_test(test_id: int, test: TestUpdate):
     """Update a test"""
-    success = update_test(DATABASE_NAME, test_name, test.dict())
+    success = update_test(DATABASE_NAME, test_id, test.dict())
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test updated successfully"}
 
 
-@app.post("/api/tests/{test_name}/stop", response_model=dict)
-async def stop_test(test_name: str):
+@app.post("/api/tests/{test_id}/start", response_model=dict)
+async def start_test(test_id: int):
+    """Start a test"""
+    test_update = {
+        "status": "running",
+        "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    success = update_test(DATABASE_NAME, test_id, test_update)
+    if not success:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return {"message": "Test started successfully"}
+
+
+@app.post("/api/tests/{test_id}/stop", response_model=dict)
+async def stop_test(test_id: str):
     """Stop a test"""
     test_update = {
         "status": "completed",
         "end_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-    success = update_test(DATABASE_NAME, test_name, test_update)
+    success = update_test(DATABASE_NAME, test_id, test_update)
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test stopped successfully"}
+
 
 # Washing machines endpoints
 @app.get("/api/machines", response_model=List[Machine])
@@ -311,10 +335,10 @@ async def get_machines():
     return sensors
 
 
-@app.get("/api/machines/{machine_name}", response_model=Machine)
-async def get_machine(machine_name: str):
+@app.get("/api/machines/{machine_id}", response_model=Machine)
+async def get_machine(machine_id: int):
     """Get a specific washing machine"""
-    sensor = get_machine_by_id(DATABASE_NAME, machine_name)
+    sensor = get_machine_by_id(DATABASE_NAME, machine_id)
     if not sensor:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return sensor
@@ -329,26 +353,26 @@ async def add_machine(machine: MachineCreate):
     return {"message": "Washing Machine created successfully"}
 
 
-@app.put("/api/machines/name}", response_model=dict)
-async def modify_machine(machine_name: str, machine: MachineUpdate):
+@app.put("/api/machines/{machine_id}}", response_model=dict)
+async def modify_machine(machine_id: int, machine: MachineUpdate):
     """Update a washing machine"""
-    success = update_machine(DATABASE_NAME, machine_name, machine.dict())
+    success = update_machine(DATABASE_NAME, machine_id, machine.dict())
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return {"message": "Washing Machine updated successfully"}
 
 
-@app.delete("/api/machines/{machine_name}", response_model=dict)
-async def remove_machine(machine_name: str):
+@app.delete("/api/machines/{machine_id}", response_model=dict)
+async def remove_machine(machine_id: str):
     """Delete a washing machine"""
-    success = delete_machine(DATABASE_NAME, machine_name)
+    success = delete_machine(DATABASE_NAME, machine_id)
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return {"message": "Washing Machine deleted successfully"}
 
 
 # Data endpoints
-@app.get("/api/tests/{test_name}/data", response_model=List[SensorData])
+@app.get("/api/tests/{test_id}/data", response_model=List[SensorData])
 async def get_test_data(
     test_name: str,
     sensor_id: Optional[str] = None,
@@ -361,10 +385,10 @@ async def get_test_data(
     return data
 
 
-@app.get("/api/tests/{test_name}/summary", response_model=TestSummary)
-async def get_test_data_summary(test_name: str):
+@app.get("/api/tests/{test_id}/summary", response_model=TestSummary)
+async def get_test_data_summary(test_id: int):
     """Get test summary with statistics"""
-    summary = get_test_summary(DATABASE_NAME, test_name)
+    summary = get_test_summary(DATABASE_NAME, test_id)
     return summary
 
 

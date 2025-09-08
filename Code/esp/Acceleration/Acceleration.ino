@@ -243,15 +243,18 @@ void loop() {
   }
 
   if (sampleIndex >= buffer_size || (millis() - lastSend >= send_interval_ms)) {
-    for (int i = 0; i < sampleIndex; i++) {
-      StaticJsonDocument<256> doc;  // Adjust size if needed
+    StaticJsonDocument<256> doc;
+    doc["meta"]["mqtt_topic"] = mqtt_topic;
+    doc["meta"]["sensor_id"] = sensor_id;
 
-      doc["timestamp_ms"] = samples[i].timestamp;
-      doc["mqtt_topic"] = mqtt_topic;
-      doc["sensor_id"] = sensor_id;
-      doc["ax_g"] = samples[i].x;
-      doc["ay_g"] = samples[i].y;
-      doc["az_g"] = samples[i].z;
+    JsonArray data = doc.createNestedArray("data");
+    for (int i = 0; i < sampleIndex; i++) {
+        JsonObject sample = data.createNestedObject();
+        sample["timestamp_ms"] = samples[i].timestamp;
+        sample["ax_g"] = samples[i].x;
+        sample["ay_g"] = samples[i].y;
+        sample["az_g"] = samples[i].z;
+    }
 
       String jsonObj;
       serializeJson(doc, jsonObj);  // Convert JSON document to String
