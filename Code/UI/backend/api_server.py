@@ -13,18 +13,17 @@ from models import (
     Test, TestCreate, TestUpdate, 
     Machine, MachineCreate, MachineUpdate, 
     SensorData, TestSummary,
-    MqttConfig, MqttConfigCreate, MqttConfigUpdate,
+    MqttConfig, MqttConfigUpdate,
     SensorType, SensorTypeCreate, SensorTypeUpdate
 )
 from database import (
-    ustvari_sql_bazo, get_all_sensors, get_sensor_by_id, create_sensor, 
-    update_sensor, delete_sensor, get_all_tests, get_test_by_name, 
-    create_test, update_test, get_sensor_data, get_test_summary,
-    get_all_mqtt_configs, create_mqtt_config, get_mqtt_config_by_id,
-    update_mqtt_config, delete_mqtt_config,
-    get_all_sensor_types, create_sensor_type, get_sensor_type_by_id,
-    update_sensor_type, delete_sensor_type,
-    get_all_machines, get_machine_by_name, create_machine, update_machine, delete_machine
+    ustvari_sql_bazo,
+    get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
+    get_all_tests, get_test_by_id, create_test, update_test, get_related_machines, get_related_sensors,
+    get_sensor_data, get_test_summary,
+    get_mqtt_config, update_mqtt_config,
+    get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
+    get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
 )
 from main_mqtt_listener import poberi_podatke_mqtt
 
@@ -117,7 +116,7 @@ async def lifespan(app: FastAPI):
     ]
 
     for machine_data in default_machines:
-        if not get_machine_by_name(DATABASE_NAME, machine_data["machine_name"]):
+        if not get_machine_by_id(DATABASE_NAME, machine_data["machine_name"]):
             create_machine(DATABASE_NAME, machine_data)
     
     # Add default sensor types if they don't exist
@@ -265,7 +264,7 @@ async def get_tests():
 @app.get("/api/tests/{test_name}", response_model=Test)
 async def get_test(test_name: str):
     """Get a specific test"""
-    test = get_test_by_name(DATABASE_NAME, test_name)
+    test = get_test_by_id(DATABASE_NAME, test_name)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     return test
@@ -315,7 +314,7 @@ async def get_machines():
 @app.get("/api/machines/{machine_name}", response_model=Machine)
 async def get_machine(machine_name: str):
     """Get a specific washing machine"""
-    sensor = get_machine_by_name(DATABASE_NAME, machine_name)
+    sensor = get_machine_by_id(DATABASE_NAME, machine_name)
     if not sensor:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return sensor
@@ -429,7 +428,7 @@ async def get_system_status():
 @app.get("/api/settings/mqtt-configs", response_model=List[MqttConfig])
 async def get_mqtt_configs():
     """Get all MQTT configurations"""
-    return get_all_mqtt_configs(DATABASE_NAME)
+    return get_mqtt_config(DATABASE_NAME)
 
 
 @app.post("/api/settings/mqtt-configs", response_model=MqttConfig)

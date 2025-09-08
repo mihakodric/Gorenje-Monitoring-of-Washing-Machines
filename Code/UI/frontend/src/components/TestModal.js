@@ -41,7 +41,7 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
         // Update existing test
         await testsAPI.update(test.test_name, {
           description: formData.description,
-          machine_name: formData.machine_iname,
+          machine_name: formData.machine_name,
           status: formData.status,
           notes: formData.notes,
           end_time: formData.status === 'completed' ? new Date().toISOString() : null

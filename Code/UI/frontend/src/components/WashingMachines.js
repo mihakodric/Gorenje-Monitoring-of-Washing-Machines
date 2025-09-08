@@ -53,7 +53,6 @@ const WashingMachines = () => {
       // Search filter
       const matchesSearch =
         String(machine.machine_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(machine.machine_id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(machine.description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       return matchesSearch;
@@ -100,14 +99,14 @@ const WashingMachines = () => {
     setShowModal(true);
   };
 
-  const handleDeleteMachine = async (machineId) => {
+  const handleDeleteMachine = async (machineName) => {
     if (
       window.confirm(
         "Are you sure you want to delete this washing machine? This action cannot be undone."
       )
     ) {
       try {
-        await washingMachinesAPI.delete(machineId);
+        await washingMachinesAPI.delete(machineName);
         loadMachines();
       } catch (error) {
         console.error("Error deleting washing machine:", error);
@@ -322,13 +321,12 @@ const WashingMachines = () => {
                       )}
                     </div>
                   </th>
-                  <th>Connected Sensors</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMachines.map((machine) => (
-                  <tr key={machine.machine_id}>
+                  <tr key={machine.machine_name}>
                     <td>
                       <div>
                         <div
@@ -342,15 +340,6 @@ const WashingMachines = () => {
                         </div>
                         <div
                           style={{
-                            fontSize: "12px",
-                            color: "#9ca3af",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          ID: {machine.machine_id}
-                        </div>
-                        <div
-                          style={{
                             marginTop: "6px",
                             fontSize: "13px",
                             color: "#6b7280",
@@ -359,18 +348,6 @@ const WashingMachines = () => {
                           {machine.description || "No description"}
                         </div>
                       </div>
-                    </td>
-                    <td>
-                      {sensors
-                        .filter(sensor => sensor.machine_id === machine.machine_id)
-                        .map(sensor => (
-                          <div key={sensor.sensor_id} style={{ fontSize: "13px", color: "#374151" }}>
-                            {sensor.sensor_name} <span style={{ color: "#9ca3af", fontSize: "11px" }}>({sensor.sensor_id})</span>
-                          </div>
-                        ))}
-                      {sensors.filter(sensor => sensor.machine_id === machine.machine_id).length === 0 && (
-                        <span style={{ color: "#9ca3af", fontSize: "12px" }}>No sensors connected</span>
-                      )}
                     </td>
                     <td>
                       <div className="action-buttons">
@@ -387,7 +364,7 @@ const WashingMachines = () => {
                         </button>
                         <button
                           className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteMachine(machine.machine_id)}
+                          onClick={() => handleDeleteMachine(machine.machine_name)}
                           title="Delete machine"
                           style={{
                             padding: "8px 12px",
@@ -409,7 +386,6 @@ const WashingMachines = () => {
       {showModal && (
         <WashingMachineModal
           machine={editingMachine}
-          sensors={sensors}
           onClose={handleModalClose}
           onSave={handleModalSave}
         />

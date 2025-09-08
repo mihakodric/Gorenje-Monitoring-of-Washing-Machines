@@ -1,38 +1,29 @@
 import React, { useState, useEffect } from "react";
-import { washingMachinesAPI, sensorsAPI } from "../api";
+import { washingMachinesAPI} from "../api";
 import { X } from "lucide-react";
 
-const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
+const WashingMachineModal = ({ machine, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    machine_id: "",
     machine_name: "",
     description: "",
   });
-  const [selectedSensorIds, setSelectedSensorIds] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (machine) {
-      setFormData({
-        machine_id: machine.machine_id || "",
-        machine_name: machine.machine_name || "",
-        description: machine.description || "",
-      });
-      // Preselect sensors connected to this machine
-      setSelectedSensorIds(
-        sensors
-          .filter(sensor => sensor.machine_id === machine.machine_id)
-          .map(sensor => sensor.sensor_id)
-      );
-    } else {
-      setFormData({
-        machine_id: "",
-        machine_name: "",
-        description: "",
-      });
-      setSelectedSensorIds([]);
-    }
-  }, [machine, sensors]);
+
+useEffect(() => {
+  if (machine) {
+    setFormData({
+      machine_name: machine.machine_name || "",
+      description: machine.description || "",
+    });
+  } else {
+    setFormData({
+      machine_name: "",
+      description: "",
+    });
+  }
+}, [machine]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -42,49 +33,28 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
     }));
   };
 
-  const handleSensorSelect = (e) => {
-    const options = Array.from(e.target.selectedOptions);
-    setSelectedSensorIds(options.map(opt => opt.value));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      let machineId;
+      let machineName;
       if (machine) {
         // Update existing machine
-        await washingMachinesAPI.update(machine.machine_id, {
-          machine_name: formData.machine_name,
+        await washingMachinesAPI.update(machine.machine_name, {
           description: formData.description,
         });
-        machineId = machine.machine_id;
+        machineName = machine.machine_name;
       } else {
         // Create new machine
         const res = await washingMachinesAPI.create(formData);
-        machineId = formData.machine_id;
+        machineName = formData.machine_name;
       }
-      // Update sensors' machine_id
-      await Promise.all(
-        sensors.map(sensor => {
-          // If sensor is selected, assign to machine; else, clear assignment if it was previously assigned
-          if (selectedSensorIds.includes(sensor.sensor_id)) {
-            if (sensor.machine_id !== machineId) {
-              return sensorsAPI.update(sensor.sensor_id, { ...sensor, machine_id: machineId });
-            }
-          } else {
-            if (sensor.machine_id === machineId) {
-              return sensorsAPI.update(sensor.sensor_id, { ...sensor, machine_id: null });
-            }
-          }
-          return null;
-        })
-      );
       onSave();
     } catch (error) {
       console.error("Error saving washing machine:", error);
-      alert("Error saving washing machine. Please check if ID already exists.");
+      alert("Error saving washing machine. Please check if Name already exists.");
     } finally {
       setLoading(false);
     }
@@ -103,24 +73,9 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* ID */}
-          <div className="form-group">
-            <label className="form-label">Machine ID *</label>
-            <input
-              type="text"
-              name="machine_id"
-              value={formData.machine_id}
-              onChange={handleChange}
-              className="form-control"
-              required
-              disabled={!!machine} // cannot edit ID once created
-              placeholder="e.g., wm1, wm2"
-            />
-          </div>
-
           {/* Name */}
           <div className="form-group">
-            <label className="form-label">Name *</label>
+            <label className="form-label">Machine Name *</label>
             <input
               type="text"
               name="machine_name"
@@ -128,6 +83,7 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
               onChange={handleChange}
               className="form-control"
               required
+              disabled={!!machine} // cannot edit Name once created
               placeholder="e.g., Main Washing Machine"
             />
           </div>
@@ -143,40 +99,6 @@ const WashingMachineModal = ({ machine, sensors, onClose, onSave }) => {
               rows={3}
               placeholder="Enter washing machine description..."
             />
-          </div>
-
-          {/* Connected Sensors */}
-          <div className="form-group">
-            <label className="form-label">Connected Sensors</label>
-            <div style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px" }}>
-              {sensors
-                .filter(sensor =>
-                  !sensor.machine_id || sensor.machine_id === formData.machine_id
-                )
-                .map(sensor => (
-                  <div key={sensor.sensor_id} style={{ marginBottom: "8px" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
-                      <input
-                        type="checkbox"
-                        value={sensor.sensor_id}
-                        checked={selectedSensorIds.includes(sensor.sensor_id)}
-                        onChange={e => {
-                          if (e.target.checked) {
-                            setSelectedSensorIds(prev => [...prev, sensor.sensor_id]);
-                          } else {
-                            setSelectedSensorIds(prev => prev.filter(id => id !== sensor.sensor_id));
-                          }
-                        }}
-                      />
-                      {sensor.sensor_name} <span style={{ color: "#9ca3af", fontSize: "12px" }}>({sensor.sensor_id})</span>
-                    </label>
-                  </div>
-                ))}
-              {sensors.filter(sensor => !sensor.machine_id || sensor.machine_id === formData.machine_id).length === 0 && (
-                <div style={{ color: "#9ca3af", fontSize: "13px" }}>No sensors available.</div>
-              )}
-            </div>
-            <small>Select sensors to connect to this machine.</small>
           </div>
 
           {/* Footer */}
