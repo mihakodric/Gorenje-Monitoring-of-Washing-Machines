@@ -19,7 +19,6 @@ String sensor_id;
 float sensitivity;
 int buffer_size;
 int sampling_frequency;       
-unsigned long send_interval_ms;
 int range_g;
 long gmt_offset_sec;          
 int daylight_offset_sec;      
@@ -49,7 +48,6 @@ bool saveConfig() {
   doc["sensitivity"] = sensitivity;
   doc["buffer_size"] = buffer_size;
   doc["sampling_frequency_Hz"] = sampling_frequency;
-  doc["send_interval_ms"] = send_interval_ms;
   doc["range_g"] = range_g;
   doc["gmt_offset_sec"] = gmt_offset_sec;
   doc["daylight_offset_sec"] = daylight_offset_sec;
@@ -89,7 +87,6 @@ bool loadConfig() {
   sensitivity   = doc["sensitivity"] | 0.000488;
   buffer_size   = doc["buffer_size"] | 10;
   sampling_frequency = doc["sampling_frequency_Hz"] | 200; 
-  send_interval_ms  = doc["send_interval_ms"] | 1000;
   range_g       = doc["range_g"] | 16;
   gmt_offset_sec      = doc["gmt_offset_sec"] | 3600;
   daylight_offset_sec = doc["daylight_offset_sec"] | 3600;
@@ -160,9 +157,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     sampleIntervalMillis = 1000UL / sampling_frequency;
     setupAccelerometer();
     saveConfig();
-  } else if (set == "send_interval_ms") {
-    send_interval_ms = doc["value"];
-    saveConfig();
   } else if (set == "range_g") {
     range_g = doc["value"];
     setupAccelerometer();
@@ -178,7 +172,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   } else if (set == "buffer_size") {
     buffer_size = doc["value"];
     saveConfig();
-    mqttClient->setBufferSize(buffer_size);
+    mqtt->setBufferSize(buffer_size);
   }
 }
 
@@ -261,24 +255,26 @@ void loop() {
 
     //pošlje buffer
     if (sampleIndex >= buffer_size) {
-      for (int i = 0; i < sampleIndex; i++) {
-        StaticJsonDocument<256> doc;
-        doc["datetime"] = samples[i].datetime;
-        doc["mqtt_topic"] = mqtt_topic;
-        doc["sensor_id"] = sensor_id;
-        doc["ax_g"] = samples[i].x;
-        doc["ay_g"] = samples[i].y;
-        doc["az_g"] = samples[i].z;
+      StaticJsonDocument<512> doc;
+      doc["meta"]["mqtt_topic"] = mqtt_topic;
+      doc["meta"]["sensor_id"] = sensor_id;
 
-        String jsonObj;
-        serializeJson(doc, jsonObj);
-        mqtt->dodajVBuffer(jsonObj);
+      JsonArray data = doc.createNestedArray("data");
+      for (int i = 0; i < sampleIndex; i++) {
+        JsonObject sample = data.createNestedObject();
+        sample["datetime"] = samples[i].datetime;
+        sample["ax_g"] = samples[i].x;
+        sample["ay_g"] = samples[i].y;
+        sample["az_g"] = samples[i].z;
       }
+      String jsonObj;
+      serializeJson(doc, jsonObj);
+      mqtt->dodajVBuffer(jsonObj);
       sampleIndex = 0;
       Serial.println("Buffer poslan preko MQTT.");
     }
   }
-
+  
   mqtt->loop();
 }
 

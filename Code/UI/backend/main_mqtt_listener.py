@@ -62,23 +62,22 @@ def prejemanje(client, userdata, msg):
     """
     try:
         podatki = json.loads(msg.payload.decode('utf-8'))
-        if isinstance(podatki, dict):
-            # Ensure sensor_id is present in payload
-            if 'sensor_id' not in podatki:
-                print('Opozorilo: Manjka sensor_id v sporočilu.')
-                return
-            podatki = [podatki]  # Make a list for vstavi_podatke
-        elif isinstance(podatki, list):
-            for vzorec in podatki:
-                if 'sensor_id' not in vzorec:
-                    print('Opozorilo: Manjka sensor_id v enem od vzorcev.')
-                    return
-        else:
-            print('Napačna oblika podatkov (ni seznam ali dict).')
+        if not isinstance(podatki, dict):
+            print("Napačna oblika podatkov (pričakovan je dict).")
+            return
+        
+        meta = podatki.get('meta', {})
+        data = podatki.get('data', [])
+
+        if not isinstance(data, list):
+            print("Napačna oblika podatkov: 'data' ni seznam.")
+            return
+        if not data:
+            print("Ni vzorcev v 'data'.")
             return
 
-        print(f'Prejeto {len(podatki)} vzorcev prek MQTT iz teme {msg.topic}.')
-        vstavi_podatke(ime_baze, podatki)
+        print(f'Prejeto {len(data)} vzorcev prek MQTT iz teme {msg.topic}.')
+        vstavi_podatke(ime_baze, meta, data)
 
     except Exception as e:
         print(f'Napaka pri prejemanju podatkov prek MQTT: {e}')

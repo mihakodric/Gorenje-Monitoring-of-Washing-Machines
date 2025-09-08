@@ -30,7 +30,7 @@ def ustvari_sql_bazo(ime_baze):
     orodje.execute('''
         CREATE TABLE IF NOT EXISTS podatki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            datetime INTEGER NOT NULL,
+            datetime TEXT NOT NULL,
             sensor_id TEXT NOT NULL,          
             direction TEXT NOT NULL,                       
             value REAL NOT NULL,                      
@@ -43,7 +43,7 @@ def ustvari_sql_bazo(ime_baze):
 
 
 
-def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
+def vstavi_podatke(ime_baze, meta, data, ime_testa='test_1'):
     """
     Insert multiple sensor data samples into the SQLite database.
 
@@ -71,6 +71,9 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
         None
     """
 
+    sensor_id = meta.get('sensor_id', '')
+    topic = meta.get('mqtt_topic', '')
+
     povezava_do_baze = sqlite3.connect(ime_baze)
     orodje = povezava_do_baze.cursor()
     
@@ -80,43 +83,41 @@ def vstavi_podatke(ime_baze, vzorci, ime_testa='test_1'):
     '''
 
     seznam = []
-    for vzorec in vzorci:
+    for vzorec in data:
         try:
-            sensor = vzorec.get('sensor_id', '')
-            topic = vzorec.get('mqtt_topic', '')
-            ts_us = vzorec['datetime']
+            datetime = vzorec['datetime']
 
             if topic == "acceleration":
-                seznam.append((ts_us, sensor, 'x', vzorec['ax_g'], ime_testa))
-                seznam.append((ts_us, sensor, 'y', vzorec['ay_g'], ime_testa))
-                seznam.append((ts_us, sensor, 'z', vzorec['az_g'], ime_testa))
+                seznam.append((datetime, sensor_id, 'x', vzorec['ax_g'], ime_testa))
+                seznam.append((datetime, sensor_id, 'y', vzorec['ay_g'], ime_testa))
+                seznam.append((datetime, sensor_id, 'z', vzorec['az_g'], ime_testa))
             
-            elif topic == "distance":
-                value = vzorec.get('range_mm', None)
-                if value is not None:
-                    seznam.append((ts_us, sensor, 'None', value, ime_testa))
+            # elif topic == "distance":
+            #     value = vzorec.get('range_mm', None)
+            #     if value is not None:
+            #         seznam.append((datetime, sensor_id, 'None', value, ime_testa))
         
             elif topic == "temperature":
-                seznam.append((ts_us, sensor, 'Ambient', vzorec['ambient_temp_c'], ime_testa))
-                seznam.append((ts_us, sensor, 'Object', vzorec['object_temp_c'], ime_testa))
+                seznam.append((datetime, sensor_id, 'Ambient', vzorec['ambient_temp_c'], ime_testa))
+                seznam.append((datetime, sensor_id, 'Object', vzorec['object_temp_c'], ime_testa))
 
-            elif topic == "current":
-                value = vzorec.get('current_a', None)
-                if value is not None:
-                    seznam.append((ts_us, sensor, 'None', value, ime_testa))            
+            # elif topic == "current":
+            #     value = vzorec.get('current_a', None)
+            #     if value is not None:
+            #         seznam.append((datetime, sensor_id, 'None', value, ime_testa))            
 
-            elif topic == "water_flow":
-                value = vzorec.get('flow', None)
-                if value is not None:
-                    seznam.append((ts_us, sensor, 'None', value, ime_testa))
+            # elif topic == "water_flow":
+            #     value = vzorec.get('flow', None)
+            #     if value is not None:
+            #         seznam.append((datetime, sensor_id, 'None', value, ime_testa))
 
-            elif topic == "infrared":
-                value = vzorec.get('rotations', None)
-                if value is not None:
-                    seznam.append((ts_us, sensor, 'None', value, ime_testa))
+            # elif topic == "infrared":
+            #     value = vzorec.get('rotations', None)
+            #     if value is not None:
+            #         seznam.append((datetime, sensor_id, 'None', value, ime_testa))
 
             else:
-                print(f'Unknown topic: {topic}')
+                seznam.append((datetime, sensor_id, 'None', vzorec.get('value', None), ime_testa))
 
         except KeyError as e:
             print(f'Manjka ključ v podatkih: {e}')

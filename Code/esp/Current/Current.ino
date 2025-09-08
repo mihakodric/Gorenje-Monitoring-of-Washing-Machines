@@ -51,8 +51,6 @@ float readACCurrentValue()  //funkcija, ki bo brala tok
   return ACCurrentValue;
 }
 
-#include <LittleFS.h>
-#include <ArduinoJson.h>
 
 bool saveConfig() {
   StaticJsonDocument<512> doc;
