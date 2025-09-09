@@ -7,7 +7,7 @@
   "sensor_id": "acc_1",
 
   "sensitivity": 0.000488,
-  "buffer_size": 10,
+  "buffer_size": 50,
   "sampling_frequency_Hz": 200,
   "range_g": 16, 
   "gmt_offset_sec": 3600,       

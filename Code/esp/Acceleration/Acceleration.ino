@@ -186,7 +186,7 @@ void setup() {
   samples = new Sample[buffer_size];
   sampleIntervalMillis = 1000UL / sampling_frequency;
 
-  mqtt = new ClassMQTT(wifi_ssid.c_str(), wifi_password.c_str(), mqtt_server.c_str(), mqtt_port, mqtt_topic.c_str(), buffer_size);
+  mqtt = new ClassMQTT(wifi_ssid.c_str(), wifi_password.c_str(), mqtt_server.c_str(), mqtt_port, mqtt_topic.c_str(), 1);    // buffer size inside classmqtt is set to 1, because we send all samples in one json object
   mqtt->setCallback(mqttCallback);
   mqtt->setupWiFi();
 
@@ -255,9 +255,17 @@ void loop() {
 
     //pošlje buffer
     if (sampleIndex >= buffer_size) {
-      StaticJsonDocument<512> doc;
-      doc["meta"]["mqtt_topic"] = mqtt_topic;
-      doc["meta"]["sensor_id"] = sensor_id;
+
+      size_t capacity = JSON_OBJECT_SIZE(2) +                // root: meta + data
+                  JSON_OBJECT_SIZE(2) +                // meta object
+                  JSON_ARRAY_SIZE(buffer_size) +       // data array
+                  buffer_size * JSON_OBJECT_SIZE(5) +  // samples
+                  200;                                  // margin for strings
+
+      DynamicJsonDocument doc(capacity);
+      JsonObject meta = doc.createNestedObject("meta");
+      meta["mqtt_topic"] = mqtt_topic;
+      meta["sensor_id"] = sensor_id;
 
       JsonArray data = doc.createNestedArray("data");
       for (int i = 0; i < sampleIndex; i++) {
@@ -269,9 +277,13 @@ void loop() {
       }
       String jsonObj;
       serializeJson(doc, jsonObj);
+
+      size_t needed = measureJson(doc);
+      Serial.print("JSON size: "); Serial.println(needed);
+      Serial.print("capacity: "); Serial.println(capacity);
+
       mqtt->dodajVBuffer(jsonObj);
       sampleIndex = 0;
-      Serial.println("Buffer poslan preko MQTT.");
     }
   }
   
