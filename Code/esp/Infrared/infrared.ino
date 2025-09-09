@@ -152,7 +152,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   } else if (set == "buffer_size") {
     buffer_size = doc["value"];
     saveConfig();
-    mqttClient->setBufferSize(buffer_size);
+    // mqttClient->setBufferSize(buffer_size);
   }
 }
 

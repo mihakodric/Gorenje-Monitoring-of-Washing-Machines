@@ -26,6 +26,15 @@ unsigned long sampling_interval_ms;
 long gmt_offset_sec;        
 int daylight_offset_sec; 
 
+// Data buffer
+struct Sample {
+  String datetime;   
+  float object_temp_c;
+  float ambient_temp_c;
+};
+Sample* samples = nullptr;
+int sampleIndex = 0;
+
 ClassMQTT* mqttClient;
 DFRobot_MLX90614_I2C sensor;   // instantiate an object to drive our sensor
 
@@ -121,7 +130,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   } else if (set == "buffer_size") {
     buffer_size = doc["value"];
     saveConfig();
-    mqttClient->setBufferSize(buffer_size);
+    // mqttClient->setBufferSize(buffer_size);
   }
 }
 
@@ -158,6 +167,8 @@ void setup()
   }
   Serial.println("Sensor started!");
 
+  samples = new Sample[buffer_size];
+
   // Create MQTT client with loaded values
   mqttClient = new ClassMQTT(
     wifi_ssid.c_str(),
@@ -165,7 +176,7 @@ void setup()
     mqtt_server.c_str(),
     mqtt_port,
     mqtt_topic.c_str(),
-    buffer_size
+    1
   );
 
   mqttClient->setCallback(mqttCallback);
@@ -193,7 +204,7 @@ void setup()
 void loop() {
   static unsigned long lastRead = 0;
   unsigned long now = millis();
-  if (now - lastRead < sampling_interval_ms) return;  // 1 Hz
+  if (now - lastRead < sampling_interval_ms) return;
   lastRead = now;
 
   String datetime = getPreciseDatetime();
@@ -221,20 +232,41 @@ void loop() {
   // Serial.print("Ambient fahrenheit : "); Serial.print(ambientTemp*9/5 + 32); Serial.println(" F");
   // Serial.print("Object fahrenheit : ");  Serial.print(objectTemp*9/5 + 32);  Serial.println(" F");
 
+  samples[sampleIndex].datetime = datetime;   
+  samples[sampleIndex].object_temp_c = objectTemp;
+  samples[sampleIndex].ambient_temp_c = ambientTemp;
+  sampleIndex++;
 
-  // Use ArduinoJson to create JSON
-  StaticJsonDocument<200> doc; // adjust size as needed
-  doc["timestamp_ms"] = now;
-  doc["datetime"] = datetime; 
-  doc["mqtt_topic"] = mqtt_topic;
-  doc["sensor_id"] = sensor_id;
-  doc["ambient_temp_c"] = ambientTemp;
-  doc["object_temp_c"] = objectTemp;
+  if (sampleIndex >= buffer_size) {
 
-  String json;
-  serializeJson(doc, json);
-  
-  mqttClient->dodajVBuffer(json);
+    size_t capacity = JSON_OBJECT_SIZE(2) +                // root: meta + data
+                JSON_OBJECT_SIZE(2) +                // meta object
+                JSON_ARRAY_SIZE(buffer_size) +       // data array
+                buffer_size * JSON_OBJECT_SIZE(4) +  // samples
+                200;                                  // margin for strings
+
+    DynamicJsonDocument doc(capacity);
+    JsonObject meta = doc.createNestedObject("meta");
+    meta["mqtt_topic"] = mqtt_topic;
+    meta["sensor_id"] = sensor_id;
+
+    JsonArray data = doc.createNestedArray("data");
+    for (int i = 0; i < sampleIndex; i++) {
+      JsonObject sample = data.createNestedObject();
+      sample["datetime"] = samples[i].datetime;
+      sample["object_temp_c"] = samples[i].object_temp_c;
+      sample["ambient_temp_c"] = samples[i].ambient_temp_c;
+    }
+    String jsonObj;
+    serializeJson(doc, jsonObj);
+
+    size_t needed = measureJson(doc);
+    Serial.print("JSON size: "); Serial.println(needed);
+    Serial.print("capacity: "); Serial.println(capacity);
+
+    mqttClient->dodajVBuffer(jsonObj);
+    sampleIndex = 0;
+  }
   mqttClient->loop();
 }
 
