@@ -18,6 +18,16 @@ unsigned long sampling_interval_ms;
 long gmt_offset_sec;        
 int daylight_offset_sec;
 
+// Data buffer
+struct Sample {
+  String datetime;   
+  uint8_t range_mm;
+};
+
+Sample* samples = nullptr;
+int sampleIndex = 0;
+
+
 ClassMQTT* mqttClient;
 
 bool saveConfig() {
@@ -129,6 +139,8 @@ void setup() {
     while (1) delay(1000);
   }
 
+  samples = new Sample[buffer_size];
+
     // Create MQTT client with loaded values
   mqttClient = new ClassMQTT(
     wifi_ssid.c_str(),
@@ -136,7 +148,7 @@ void setup() {
     mqtt_server.c_str(),
     mqtt_port,
     mqtt_topic.c_str(),
-    buffer_size
+    1
   );
 
   mqttClient->setCallback(mqttCallback);
@@ -185,17 +197,35 @@ void loop() {
     Serial.print(izmerjenaRazdalja);
     Serial.println(" mm");
 
-    // Using ArduinoJson to format JSON objekt:
-    StaticJsonDocument<200> doc;  // adjust size if needed
-    doc["timestamp_ms"] = now;
-    doc["datetime"] = datetime; 
-    doc["mqtt_topic"] = mqtt_topic;
-    doc["sensor_id"] = sensor_id;
-    doc["range_mm"] = izmerjenaRazdalja;
+    samples[sampleIndex].datetime = datetime;
+    samples[sampleIndex].range_mm = izmerjenaRazdalja;
+    sampleIndex++;
 
-    String json;
-    serializeJson(doc, json);
-    mqttClient->dodajVBuffer(json);
+    // If buffer is full, send JSON
+    if (sampleIndex >= buffer_size) {
+      size_t capacity = JSON_OBJECT_SIZE(2) +                // root: meta + data
+                        JSON_OBJECT_SIZE(2) +                // meta object
+                        JSON_ARRAY_SIZE(buffer_size) +       // data array
+                        buffer_size * JSON_OBJECT_SIZE(3) +  // each sample
+                        200;                                 // margin for strings
+
+      DynamicJsonDocument doc(capacity);
+
+      JsonObject meta = doc.createNestedObject("meta");
+      meta["mqtt_topic"] = mqtt_topic;
+      meta["sensor_id"] = sensor_id;
+      JsonArray data = doc.createNestedArray("data");
+      for (int i = 0; i < sampleIndex; i++) {
+        JsonObject sample = data.createNestedObject();
+        sample["datetime"] = samples[i].datetime;
+        sample["value"] = samples[i].range_mm;
+      }
+
+    String jsonObj;
+    serializeJson(doc, jsonObj);
+    mqttClient->dodajVBuffer(jsonObj);
+    sampleIndex = 0; // reset buffer
+    }
 
   } else {
     Serial.println("Napaka pri meritvi razdalje.");
