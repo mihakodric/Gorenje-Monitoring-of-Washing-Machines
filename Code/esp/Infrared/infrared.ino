@@ -24,6 +24,15 @@ unsigned long sampling_interval_ms;
 long gmt_offset_sec;          
 int daylight_offset_sec; 
 
+// Data buffer
+struct Sample {
+  String datetime;   
+  float rotations;
+};
+
+Sample* samples = nullptr;
+int sampleIndex = 0;
+
 // --- MQTT client pointer ---
 ClassMQTT* mqttClient;
 
@@ -155,6 +164,9 @@ void setup() {
     while (true) delay(1000);
   }
 
+  samples = new Sample[buffer_size];
+
+
   // Create MQTT client with loaded values
   mqttClient = new ClassMQTT(
     wifi_ssid.c_str(),
@@ -162,7 +174,7 @@ void setup() {
     mqtt_server.c_str(),
     mqtt_port,
     mqtt_topic.c_str(),
-    buffer_size
+    1
   );
 
   mqttClient->setCallback(mqttCallback);
@@ -207,6 +219,7 @@ void loop() {
   if (newData) {
     newData = false;
 
+    String datetime = getPreciseDatetime();
     float rotations = (lastCount / 2.0) / (sampling_interval_ms / 1000.0) * 60;  // obrati/min
     float omega = 2.0 * PI * rotations; // rad/min
 
@@ -216,19 +229,33 @@ void loop() {
     Serial.print(omega);
     Serial.println(" rad/min");
 
-    // Build JSON object with ArduinoJson
-    StaticJsonDocument<200> doc;
-    doc["datetime"] = getPreciseDatetime();
-    doc["sensor_id"] = sensor_id;
-    doc["mqtt_topic"] = mqtt_topic;
-    doc["rotations"] = rotations;
-    //doc["omega"] = omega;
+    samples[sampleIndex].datetime = datetime;
+    samples[sampleIndex].rotations = rotations;
+    sampleIndex++;
 
-    String output;
-    serializeJson(doc, output);
+    if (sampleIndex >= buffer_size) {
+      size_t capacity = JSON_OBJECT_SIZE(2) +                // root: meta + data
+                        JSON_OBJECT_SIZE(2) +                // meta object
+                        JSON_ARRAY_SIZE(buffer_size) +       // data array
+                        buffer_size * JSON_OBJECT_SIZE(3) +  // each sample
+                        200;                                 // margin for strings
 
-    // Add JSON string to MQTT buffer
-    mqttClient->dodajVBuffer(output);
+      DynamicJsonDocument doc(capacity);
+
+      JsonObject meta = doc.createNestedObject("meta");
+      meta["mqtt_topic"] = mqtt_topic;
+      meta["sensor_id"] = sensor_id;
+      JsonArray data = doc.createNestedArray("data");
+      for (int i = 0; i < sampleIndex; i++) {
+        JsonObject sample = data.createNestedObject();
+        sample["datetime"] = samples[i].datetime;
+        sample["value"] = samples[i].rotations;
+      }
+    String json;
+    serializeJson(doc, json);
+    mqttClient->dodajVBuffer(json);
+    sampleIndex = 0;
+    }
   }
 }
 
