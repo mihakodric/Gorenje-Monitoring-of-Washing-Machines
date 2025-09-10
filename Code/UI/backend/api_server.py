@@ -20,8 +20,9 @@ from models import (
 from database import (
     ustvari_sql_bazo,
     get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
-    get_all_tests, get_test_by_id, create_test, update_test, get_related_machines, get_related_sensors,
+    get_all_tests, get_test_by_id, create_test, update_test, delete_test,
     get_sensor_data, get_test_summary,
+    get_sensor_relations, create_sensor_relation, delete_sensor_relation,
     get_mqtt_config, create_mqtt_config, update_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
     get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
@@ -117,7 +118,7 @@ async def lifespan(app: FastAPI):
     ]
 
     for machine_data in default_machines:
-        if not get_machine_by_id(DATABASE_NAME, machine_data["machine_name"]):
+        if not get_all_machines(DATABASE_NAME):
             create_machine(DATABASE_NAME, machine_data)
 
     # Add default MQTT config if it doesn't exist
@@ -139,7 +140,6 @@ async def lifespan(app: FastAPI):
             "display_name": "Accelerometer",
             "description": "Measures vibration and movement acceleration",
             "default_topic": "acceleration",
-            "data_format": "json",
             "unit": "g",
             "min_value": -10.0,
             "max_value": 10.0
@@ -149,7 +149,6 @@ async def lifespan(app: FastAPI):
             "display_name": "Temperature Sensor",
             "description": "Measures temperature of water or ambient",
             "default_topic": "temperature",
-            "data_format": "json",
             "unit": "°C",
             "min_value": -20.0,
             "max_value": 100.0
@@ -159,7 +158,6 @@ async def lifespan(app: FastAPI):
             "display_name": "Distance/Ultrasonic Sensor",
             "description": "Measures distance or water level",
             "default_topic": "distance",
-            "data_format": "json",
             "unit": "cm",
             "min_value": 0.0,
             "max_value": 400.0
@@ -169,7 +167,6 @@ async def lifespan(app: FastAPI):
             "display_name": "Current Sensor",
             "description": "Measures electrical current consumption",
             "default_topic": "current",
-            "data_format": "json",
             "unit": "A",
             "min_value": 0.0,
             "max_value": 30.0
@@ -179,7 +176,6 @@ async def lifespan(app: FastAPI):
             "display_name": "Water Flow Sensor",
             "description": "Measures water flow rate",
             "default_topic": "water_flow",
-            "data_format": "json",
             "unit": "L/min",
             "min_value": 0.0,
             "max_value": 50.0
@@ -189,7 +185,6 @@ async def lifespan(app: FastAPI):
             "display_name": "Infrared Sensor",
             "description": "Detects presence or position using infrared",
             "default_topic": "infrared",
-            "data_format": "json",
             "unit": "",
             "min_value": 0.0,
             "max_value": 1.0
@@ -315,7 +310,7 @@ async def start_test(test_id: int):
 
 
 @app.post("/api/tests/{test_id}/stop", response_model=dict)
-async def stop_test(test_id: str):
+async def stop_test(test_id: int):
     """Stop a test"""
     test_update = {
         "status": "completed",
@@ -325,6 +320,37 @@ async def stop_test(test_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test stopped successfully"}
+
+
+@app.delete("/api/tests/{test_id}", response_model=dict)
+async def remove_test(test_id: int):
+    """Delete a test and all its related data"""
+    success = delete_test(DATABASE_NAME, test_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return {"message": "Test and related data deleted successfully"}
+
+# Test relations endpoints
+# Get all relations for a test
+@app.get("/api/tests/{test_id}/relations", response_model=List[TestRelation])
+async def get_relations(test_id: int):
+    return get_test_relations(DATABASE_NAME, test_id)
+
+# Add a relation (sensor or machine) to a test
+@app.post("/api/tests/{test_id}/relations", response_model=dict)
+async def add_relation(test_id: int, relation: TestRelationCreate):
+    success = create_test_relation(DATABASE_NAME, test_id, relation.dict())
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to create relation")
+    return {"message": "Relation created successfully"}
+
+# Delete a relation (remove a sensor or machine from a test)
+@app.delete("/api/tests/{test_id}/relations/{relation_id}", response_model=dict)
+async def remove_relation(test_id: int, relation_id: int):
+    success = delete_test_relation(DATABASE_NAME, relation_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Relation not found")
+    return {"message": "Relation deleted successfully"}
 
 
 # Washing machines endpoints
@@ -353,7 +379,7 @@ async def add_machine(machine: MachineCreate):
     return {"message": "Washing Machine created successfully"}
 
 
-@app.put("/api/machines/{machine_id}}", response_model=dict)
+@app.put("/api/machines/{machine_id}", response_model=dict)
 async def modify_machine(machine_id: int, machine: MachineUpdate):
     """Update a washing machine"""
     success = update_machine(DATABASE_NAME, machine_id, machine.dict())
@@ -374,14 +400,13 @@ async def remove_machine(machine_id: str):
 # Data endpoints
 @app.get("/api/tests/{test_id}/data", response_model=List[SensorData])
 async def get_test_data(
-    test_name: str,
+    test_id: int,
     sensor_id: Optional[str] = None,
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
-    limit: Optional[int] = 1000
 ):
     """Get sensor data for a test"""
-    data = get_sensor_data(DATABASE_NAME, test_name, sensor_id, start_time, end_time, limit)
+    data = get_sensor_data(DATABASE_NAME, test_id, sensor_id, start_time, end_time)
     return data
 
 
@@ -455,30 +480,30 @@ async def get_mqtt_configs():
     return get_mqtt_config(DATABASE_NAME)
 
 
-@app.post("/api/settings/mqtt-configs", response_model=MqttConfig)
-async def create_mqtt_config_endpoint(config: MqttConfigCreate):
-    """Create a new MQTT configuration"""
-    config_dict = config.dict()
-    return create_mqtt_config(DATABASE_NAME, config_dict)
+# @app.post("/api/settings/mqtt-configs", response_model=MqttConfig)
+# async def create_mqtt_config_endpoint(config: MqttConfigCreate):
+#     """Create a new MQTT configuration"""
+#     config_dict = config.dict()
+#     return create_mqtt_config(DATABASE_NAME, config_dict)
 
 
 @app.put("/api/settings/mqtt-configs/{config_id}", response_model=MqttConfig)
 async def update_mqtt_config_endpoint(config_id: int, config: MqttConfigUpdate):
     """Update MQTT configuration"""
     config_dict = {k: v for k, v in config.dict().items() if v is not None}
-    result = update_mqtt_config(DATABASE_NAME, config_id, config_dict)
+    result = update_mqtt_config(DATABASE_NAME, config_dict)
     if not result:
         raise HTTPException(status_code=404, detail="MQTT configuration not found")
     return result
 
 
-@app.delete("/api/settings/mqtt-configs/{config_id}")
-async def delete_mqtt_config_endpoint(config_id: int):
-    """Delete MQTT configuration"""
-    success = delete_mqtt_config(DATABASE_NAME, config_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="MQTT configuration not found")
-    return {"message": "MQTT configuration deleted successfully"}
+# @app.delete("/api/settings/mqtt-configs/{config_id}")
+# async def delete_mqtt_config_endpoint(config_id: int):
+#     """Delete MQTT configuration"""
+#     success = delete_mqtt_config(DATABASE_NAME, config_id)
+#     if not success:
+#         raise HTTPException(status_code=404, detail="MQTT configuration not found")
+#     return {"message": "MQTT configuration deleted successfully"}
 
 
 @app.get("/api/settings/sensor-types", response_model=List[SensorType])

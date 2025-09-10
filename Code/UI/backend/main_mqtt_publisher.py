@@ -27,47 +27,6 @@ config_updates = [
         # {"set": "range_g", "value": 16}
     ]
 
-    # "acceleration/cmd": [
-    #     {"set": "sampling_frequency_Hz", "value": 400},
-    #     {"set": "sensitivity", "value": 0.000488},
-    #     {"set": "range_g", "value": 16},
-    #     {"set": "gmt_offset_sec", "value": 3600},
-    #     {"set": "daylight_offset_sec", "value": 3600},
-    #     {"set": "buffer_size", "value": 10}
-    # ],
-    # "current/cmd": [
-    #     {"set": "sampling_interval_ms", "value": 500},
-    #     {"set": "gmt_offset_sec", "value": 3600},
-    #     {"set": "daylight_offset_sec", "value": 3600},
-    #     {"set": "buffer_size", "value": 10}
-    # ],
-    # "distance/cmd": [
-    #     {"set": "sampling_interval_ms", "value": 100},
-    #     {"set": "gmt_offset_sec", "value": 3600},
-    #     {"set": "daylight_offset_sec", "value": 3600},
-    #     {"set": "buffer_size", "value": 10}
-    # ],
-    # "infrared/cmd": [
-    #     {"set": "sampling_interval_ms", "value": 500},
-    #     {"set": "gmt_offset_sec", "value": 3600},
-    #     {"set": "daylight_offset_sec", "value": 3600},
-    #     {"set": "buffer_size", "value": 10}
-    # ],
-    # "temperature/cmd": [
-    #     {"set": "sampling_interval_ms", "value": 1000},
-    #     {"set": "gmt_offset_sec", "value": 3600},
-    #     {"set": "daylight_offset_sec", "value": 3600},
-    #     {"set": "buffer_size", "value": 10}
-    # ],
-    # "water_flow/cmd": [
-    #     {"set": "reset", "value": False},
-    #     {"set": "sampling_interval_ms", "value": 2000},
-    #     {"set": "gmt_offset_sec", "value": 3600},
-    #     {"set": "daylight_offset_sec", "value": 3600},
-    #     {"set": "buffer_size", "value": 10}
-    # ]
-# }
-
 def send_config_update(sensor_id, param, value):
     client = mqtt.Client()
     client.connect(mqtt_broker, mqtt_port, 60)
@@ -81,8 +40,6 @@ def send_config_update(sensor_id, param, value):
     print(f"Sent to {topic}: {message}")
 
 if __name__ == "__main__":
-    # for sensor_id, updates in config_updates.items():
-    #     for update in updates:
     for update in config_updates:
         send_config_update(sensor_id, update["set"], update["value"])
 

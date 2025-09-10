@@ -87,9 +87,7 @@ class Machine(MachineBase):
 
 class SensorData(BaseModel):
     id: int
-    time: str
-    timestamp_ms: int
-    sensor_id: str
+    datetime: str
     direction: str
     value: float
     test_relations_id: int

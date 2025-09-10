@@ -60,21 +60,18 @@ def ustvari_sql_bazo(ime_baze):
     orodje.execute('''
         CREATE TABLE IF NOT EXISTS podatki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            time TEXT NOT NULL,
-            timestamp_ms INTEGER NOT NULL,
-            sensor_id TEXT NOT NULL,          
+            datetime TEXT NOT NULL,
             direction TEXT NOT NULL,                       
             value REAL NOT NULL,                       
             test_relation_id INTEGER NOT NULL,
-            FOREIGN KEY (sensor_id) REFERENCES sensors (sensor_id),
             FOREIGN KEY (test_relation_id) REFERENCES test_relations (id)
         )
     ''')
     
     # Create indexes for better performance
-    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_sensor_id ON podatki(sensor_id)')
-    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_test_relations_id ON podatki(test_relations_id)')
-    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_time ON podatki(time)')
+    # orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_sensor_id ON podatki(sensor_id)')
+    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_test_relation_id ON podatki(test_relation_id)')
+    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_datetime ON podatki(datetime)')
     
     # Create MQTT configurations table
     orodje.execute('''
@@ -121,13 +118,16 @@ def ustvari_sql_bazo(ime_baze):
 
 
 
-def vstavi_podatke(ime_baze: str, vzorci: List[Dict], test_id: int):
+def vstavi_podatke(ime_baze: str, meta, data, test_id: int):
     """
     Insert multiple sensor data samples into the database for a running test.
     Saves data from all sensors connected to the test (via test_relations).
     """
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
+
+    sensor_id = meta.get('sensor_id', '')
+    topic = meta.get('mqtt_topic', '')
     
     # Get all test_relation_ids and sensor_ids for this test
     cursor.execute('''
@@ -143,63 +143,43 @@ def vstavi_podatke(ime_baze: str, vzorci: List[Dict], test_id: int):
     sensor_to_test_relation = {row[1]: row[0] for row in relation_rows}
     
     sql = '''
-        INSERT INTO podatki (time, timestamp_ms, sensor_id, direction, value, test_relation_id)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO podatki (datetime, direction, value, test_relation_id)
+        VALUES (?, ?, ?, ?)
     '''
 
     rows_to_insert = []
-    for vzorec in vzorci:
+    for vzorec in data:
         try:
             trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sensor = vzorec.get('sensor_id', '')
-            topic = vzorec.get('mqtt_topic', '')
-            ts_us = vzorec['timestamp_ms']
+            # sensor = vzorec.get('sensor_id', '')
+            # topic = vzorec.get('mqtt_topic', '')
+            datetime = vzorec['datetime']
 
             # Skip sensors not linked to this test
-            if sensor not in sensor_to_test_relation:
+            if sensor_id not in sensor_to_test_relation:
                 continue
-            test_relation_id = sensor_to_test_relation[sensor]
+            test_relation_id = sensor_to_test_relation[sensor_id]
 
             # Update last_seen for sensor
             cursor.execute('''
                 UPDATE sensors SET last_seen = ? WHERE sensor_id = ?
-            ''', (trenutni_cas, sensor))
+            ''', (trenutni_cas, sensor_id))
 
             if topic == "acceleration":
                 rows_to_insert.extend([
-                    (trenutni_cas, ts_us, sensor, 'x', vzorec['ax_g'], test_relation_id),
-                    (trenutni_cas, ts_us, sensor, 'y', vzorec['ay_g'], test_relation_id),
-                    (trenutni_cas, ts_us, sensor, 'z', vzorec['az_g'], test_relation_id)
+                    (datetime, 'x', vzorec['ax_g'], test_relation_id),
+                    (datetime, 'y', vzorec['ay_g'], test_relation_id),
+                    (datetime, 'z', vzorec['az_g'], test_relation_id)
                     ])
-            
-            elif topic == "distance":
-                value = vzorec.get('range_mm', None)
-                if value is not None:
-                    rows_to_insert.append((trenutni_cas, ts_us, sensor, 'None', value, test_relation_id))
         
             elif topic == "temperature":
                 rows_to_insert.extend([
-                    (trenutni_cas, ts_us, sensor, 'Ambient', vzorec['ambient_temp_c'], test_relation_id),
-                    (trenutni_cas, ts_us, sensor, 'Object', vzorec['object_temp_c'], test_relation_id)
+                    (datetime, 'Ambient', vzorec['ambient_temp_c'], test_relation_id),
+                    (datetime, 'Object', vzorec['object_temp_c'], test_relation_id)
                     ])
 
-            elif topic == "current":
-                value = vzorec.get('current_a', None)
-                if value is not None:
-                    rows_to_insert.append((trenutni_cas, ts_us, sensor, 'None', value, test_relation_id))            
-
-            elif topic == "water_flow":
-                value = vzorec.get('flow', None)
-                if value is not None:
-                    rows_to_insert.append((trenutni_cas, ts_us, sensor, 'None', value, test_relation_id))
-
-            elif topic == "infrared":
-                value = vzorec.get('yes_no', None)
-                if value is not None:
-                    rows_to_insert.append((trenutni_cas, ts_us, sensor, 'None', value, test_relation_id))
-
             else:
-                print(f'Unknown topic: {topic}')
+                rows_to_insert.append((datetime, 'None', vzorec.get('value', None), test_relation_id))
 
         except KeyError as e:
             print(f'Manjka ključ v podatkih: {e}')
@@ -325,48 +305,7 @@ def delete_sensor(ime_baze: str, sensor_id: str) -> bool:
     conn.close()
     return success
 
-
-def get_related_machines(ime_baze: str, test_id: int) -> List[Dict]:
-    """Return all machines related to a given test."""
-    conn = sqlite3.connect(ime_baze)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT DISTINCT 
-            m.id, m.machine_name, m.description, m.created_at, m.visible
-        FROM test_relations tr
-        JOIN machines m ON tr.machine_id = m.id
-        WHERE tr.test_id = ?
-    ''', (test_id,))
-    
-    machines = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return machines
-
-
-def get_related_sensors(ime_baze: str, test_id: int) -> List[Dict]:
-    """Return all sensors related to a given test."""
-    conn = sqlite3.connect(ime_baze)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT DISTINCT 
-            s.id, s.sensor_id, s.sensor_type, s.sensor_name, 
-            s.description, s.location, s.mqtt_topic, 
-            s.is_online, s.created_at, s.last_seen, s.visible, s.settings
-        FROM test_relations tr
-        JOIN sensors s ON tr.sensor_id = s.id
-        WHERE tr.test_id = ?
-    ''', (test_id,))
-    
-    sensors = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return sensors
-
-
-
+# Tests
 def get_all_tests(ime_baze: str) -> List[Dict]:
     """Get all tests from the database."""
     conn = sqlite3.connect(ime_baze)
@@ -376,11 +315,11 @@ def get_all_tests(ime_baze: str) -> List[Dict]:
     cursor.execute('''
         SELECT t.*, 
                COUNT(p.id) as data_points,
-               MIN(p.time) as first_data,
-               MAX(p.time) as last_data
+               MIN(p.datetime) as first_data,
+               MAX(p.datetime) as last_data
         FROM tests t
         LEFT JOIN test_relations tr ON t.id = tr.test_id
-        LEFT JOIN podatki p ON tr.id = p.test_relations_id
+        LEFT JOIN podatki p ON tr.id = p.test_relation_id
         GROUP BY t.id
         ORDER BY t.start_time DESC
     ''')
@@ -405,11 +344,11 @@ def get_test_by_id(ime_baze: str, test_id: int) -> Optional[Dict]:
     cursor.execute('''
         SELECT t.*, 
                COUNT(p.id) as data_points,
-               MIN(p.time) as first_data,
-               MAX(p.time) as last_data
+               MIN(p.datetime) as first_data,
+               MAX(p.datetime) as last_data
         FROM tests t
         LEFT JOIN test_relations tr ON t.id = tr.test_id
-        LEFT JOIN podatki p ON tr.id = p.test_relations_id
+        LEFT JOIN podatki p ON tr.id = p.test_relation_id
         WHERE t.id = ?
         GROUP BY t.id
     ''', (test_id,))
@@ -436,13 +375,12 @@ def create_test(ime_baze: str, test_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO tests (test_name, description, start_time, status, created_by, notes)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO tests (test_name, description, status, created_by, notes)
+            VALUES (?, ?, ?, ?, ?)
         ''', (
             test_data['test_name'],
             test_data.get('description', ''),
-            test_data.get('start_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-            test_data.get('status', 'running'),
+            test_data.get('status', 'idle'),
             test_data.get('created_by', 'user'),
             test_data.get('notes', '')
         ))
@@ -461,16 +399,41 @@ def update_test(ime_baze: str, test_id: int, test_data: Dict) -> bool:
     
     cursor.execute('''
         UPDATE tests 
-        SET test_name = ?, description = ?, status = ?, end_time = ?, notes = ?
+        SET test_name = ?, description = ?, start_time = ?, end_time = ?, status = ?, notes = ?
         WHERE id = ?
     ''', (
         test_data.get('test_name', ''),
         test_data.get('description', ''),
+        test_data.get('start_time', None),
+        test_data.get('end_time', None),
         test_data.get('status', 'idle'),
-        test_data.get('end_time'),
         test_data.get('notes', ''),
         test_id
     ))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+def delete_test(ime_baze: str, test_id: int) -> bool:
+    """Delete a test and all related data."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    # Delete related data entries
+    cursor.execute('''
+        DELETE FROM podatki 
+        WHERE test_relations_id IN (
+            SELECT id FROM test_relations WHERE test_id = ?
+        )
+    ''', (test_id,))
+    
+    # Delete test relations
+    cursor.execute('DELETE FROM test_relations WHERE test_id = ?', (test_id,))
+    
+    # Delete test
+    cursor.execute('DELETE FROM tests WHERE id = ?', (test_id,))
     
     success = cursor.rowcount > 0
     conn.commit()
@@ -506,14 +469,14 @@ def get_sensor_data(ime_baze: str, test_id: int, sensor_id: str = None,
         params.append(sensor_id)
     
     if start_time:
-        query += ' AND time >= ?'
+        query += ' AND datetime >= ?'
         params.append(start_time)
     
     if end_time:
-        query += ' AND time <= ?'
+        query += ' AND datetime <= ?'
         params.append(end_time)
     
-    query += ' ORDER BY timestamp_ms DESC'
+    query += ' ORDER BY datetime DESC'
     
     cursor.execute(query, params)
     data = [dict(row) for row in cursor.fetchall()]
@@ -543,17 +506,16 @@ def get_test_summary(ime_baze: str, test_id: int) -> Dict:
         placeholders = ','.join('?' for _ in relation_ids)
         query = f'''
             SELECT 
-                sensor_id,
                 direction,
                 COUNT(*) as count,
                 MIN(value) as min_value,
                 MAX(value) as max_value,
                 AVG(value) as avg_value,
-                MIN(time) as first_reading,
-                MAX(time) as last_reading
+                MIN(datetime) as first_reading,
+                MAX(datetime) as last_reading
             FROM podatki 
-            WHERE test_relations_id IN ({placeholders})
-            GROUP BY sensor_id, direction
+            WHERE test_relation_id IN ({placeholders})
+            GROUP BY test_relation_id, direction
         '''
         cursor.execute(query, relation_ids)
         data_summary = [dict(row) for row in cursor.fetchall()]
@@ -563,6 +525,81 @@ def get_test_summary(ime_baze: str, test_id: int) -> Dict:
         'test_info': test_info,
         'data_summary': data_summary
     }
+
+
+# Test relations
+
+# def get_related_machines(ime_baze: str, test_id: int) -> List[Dict]:
+#     """Return all machines related to a given test."""
+#     conn = sqlite3.connect(ime_baze)
+#     conn.row_factory = sqlite3.Row
+#     cursor = conn.cursor()
+    
+#     cursor.execute('''
+#         SELECT DISTINCT 
+#             m.id, m.machine_name, m.description, m.created_at, m.visible
+#         FROM test_relations tr
+#         JOIN machines m ON tr.machine_id = m.id
+#         WHERE tr.test_id = ?
+#     ''', (test_id,))
+    
+#     machines = [dict(row) for row in cursor.fetchall()]
+#     conn.close()
+#     return machines
+
+
+# def get_related_sensors(ime_baze: str, test_id: int) -> List[Dict]:
+#     """Return all sensors related to a given test."""
+#     conn = sqlite3.connect(ime_baze)
+#     conn.row_factory = sqlite3.Row
+#     cursor = conn.cursor()
+    
+#     cursor.execute('''
+#         SELECT DISTINCT 
+#             s.id, s.sensor_id, s.sensor_type, s.sensor_name, 
+#             s.description, s.location, s.mqtt_topic, 
+#             s.is_online, s.created_at, s.last_seen, s.visible, s.settings
+#         FROM test_relations tr
+#         JOIN sensors s ON tr.sensor_id = s.id
+#         WHERE tr.test_id = ?
+#     ''', (test_id,))
+    
+#     sensors = [dict(row) for row in cursor.fetchall()]
+#     conn.close()
+#     return sensors
+
+def get_test_relations(ime_baze, test_id):
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM test_relations WHERE test_id = ?", (test_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(zip([c[0] for c in cursor.description], row)) for row in rows]
+
+def create_test_relation(ime_baze, test_id, relation_data):
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO test_relations (test_id, machine_id, sensor_id)
+        VALUES (?, ?, ?)
+    ''', (
+        test_id,
+        relation_data.get("machine_id", ''),
+        relation_data.get("sensor_id", '')
+    ))
+    conn.commit()
+    conn.close()
+    return True
+
+def delete_test_relation(ime_baze, relation_id):
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM test_relations WHERE id = ?", (relation_id,))
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
 
 
 # Washing machines
@@ -580,7 +617,7 @@ def get_all_machines(ime_baze: str) -> List[Dict]:
     return machines
 
 
-def get_machine_by_id(ime_baze: str, machine_id: str) -> Optional[Dict]:
+def get_machine_by_id(ime_baze: str, machine_id: int) -> Optional[Dict]:
     """Get a specific washing machine by id."""
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
@@ -615,7 +652,7 @@ def create_machine(ime_baze: str, machine_data: Dict) -> bool:
         conn.close()
 
 
-def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
+def update_machine(ime_baze: str, machine_id: int, machine_data: Dict) -> bool:
     """Update an existing machine."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
@@ -637,7 +674,7 @@ def update_machine(ime_baze: str, machine_id: str, machine_data: Dict) -> bool:
     return success
 
 
-def delete_machine(ime_baze: str, machine_id: str) -> bool:
+def delete_machine(ime_baze: str, machine_id: int) -> bool:
     """Delete a washing machine."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
