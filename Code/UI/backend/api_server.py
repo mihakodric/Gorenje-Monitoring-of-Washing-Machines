@@ -10,19 +10,21 @@ import threading
 
 from models import (
     Sensor, SensorCreate, SensorUpdate, 
-    Test, TestCreate, TestUpdate,         
+    Test, TestCreate, TestUpdate, 
+    Machine, MachineCreate, MachineUpdate, 
     SensorData, TestSummary,
-    MqttConfig, MqttConfigCreate, MqttConfigUpdate,
-    SensorType, SensorTypeCreate, SensorTypeUpdate
+    MqttConfig, MqttConfigUpdate,
+    SensorType, SensorTypeCreate, SensorTypeUpdate,
+    TestRelation
 )
 from database import (
-    ustvari_sql_bazo, get_all_sensors, get_sensor_by_id, create_sensor, 
-    update_sensor, delete_sensor, get_all_tests, get_test_by_name, 
-    create_test, update_test, get_sensor_data, get_test_summary,
-    get_all_mqtt_configs, create_mqtt_config, get_mqtt_config_by_id,
-    update_mqtt_config, delete_mqtt_config,
-    get_all_sensor_types, create_sensor_type, get_sensor_type_by_id,
-    update_sensor_type, delete_sensor_type
+    ustvari_sql_bazo,
+    get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
+    get_all_tests, get_test_by_id, create_test, update_test, get_related_machines, get_related_sensors,
+    get_sensor_data, get_test_summary,
+    get_mqtt_config, create_mqtt_config, update_mqtt_config,
+    get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
+    get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
 )
 from main_mqtt_listener import poberi_podatke_mqtt
 
@@ -51,7 +53,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "acc1",
             "sensor_type": "acceleration",
-            "name": "Accelerometer 1",
+            "sensor_name": "Accelerometer 1",
             "description": "Main washing machine accelerometer",
             "location": "Machine body",
             "mqtt_topic": "acceleration"
@@ -59,7 +61,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "temp1",
             "sensor_type": "temperature",
-            "name": "Temperature Sensor 1",
+            "sensor_name": "Temperature Sensor 1",
             "description": "Water temperature sensor",
             "location": "Water inlet",
             "mqtt_topic": "temperature"
@@ -67,7 +69,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "dist1",
             "sensor_type": "distance",
-            "name": "Distance Sensor 1",
+            "sensor_name": "Distance Sensor 1",
             "description": "Water level measurement",
             "location": "Water tank",
             "mqtt_topic": "distance"
@@ -75,7 +77,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "current1",
             "sensor_type": "current",
-            "name": "Current Sensor 1",
+            "sensor_name": "Current Sensor 1",
             "description": "Motor current measurement",
             "location": "Motor",
             "mqtt_topic": "current"
@@ -83,7 +85,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "flow1",
             "sensor_type": "water_flow",
-            "name": "Flow Sensor 1",
+            "sensor_name": "Flow Sensor 1",
             "description": "Water flow measurement",
             "location": "Water pipe",
             "mqtt_topic": "water_flow"
@@ -91,7 +93,7 @@ async def lifespan(app: FastAPI):
         {
             "sensor_id": "infra1",
             "sensor_type": "infrared",
-            "name": "Infrared Sensor 1",
+            "sensor_name": "Infrared Sensor 1",
             "description": "Door position sensor",
             "location": "Door",
             "mqtt_topic": "infrared"
@@ -100,7 +102,35 @@ async def lifespan(app: FastAPI):
     
     for sensor_data in default_sensors:
         if not get_sensor_by_id(DATABASE_NAME, sensor_data["sensor_id"]):
-            create_sensor(DATABASE_NAME, sensor_data)
+            create_sensor(DATABASE_NAME, sensor_data)     
+
+    # Add default washing machines, if they don't exist
+    default_machines = [
+        {
+            "machine_name": "machine1",
+            "description": "Test Washing Machine 1",
+        },
+        {
+            "machine_name": "machine2",
+            "description": "Test Washing Machine 2",
+        }
+    ]
+
+    for machine_data in default_machines:
+        if not get_machine_by_id(DATABASE_NAME, machine_data["machine_name"]):
+            create_machine(DATABASE_NAME, machine_data)
+
+    # Add default MQTT config if it doesn't exist
+    default_mqtt_config = {
+        "broker_host": MQTT_BROKER,
+        "broker_port": MQTT_PORT,
+        "username": "",
+        "password": "",
+        "is_active": True
+    }
+
+    if not get_mqtt_config(DATABASE_NAME):
+        create_mqtt_config(DATABASE_NAME, default_mqtt_config)
     
     # Add default sensor types if they don't exist
     default_sensor_types = [
@@ -244,10 +274,10 @@ async def get_tests():
     return tests
 
 
-@app.get("/api/tests/{test_name}", response_model=Test)
-async def get_test(test_name: str):
+@app.get("/api/tests/{test_id}", response_model=Test)
+async def get_test(test_id: int):
     """Get a specific test"""
-    test = get_test_by_name(DATABASE_NAME, test_name)
+    test = get_test_by_id(DATABASE_NAME, test_id)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     return test
@@ -256,39 +286,93 @@ async def get_test(test_name: str):
 @app.post("/api/tests", response_model=dict)
 async def add_test(test: TestCreate):
     """Create a new test"""
-    if not test.start_time:
-        test.start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
     success = create_test(DATABASE_NAME, test.dict())
     if not success:
         raise HTTPException(status_code=400, detail="Test with this name already exists")
     return {"message": "Test created successfully"}
 
 
-@app.put("/api/tests/{test_name}", response_model=dict)
-async def modify_test(test_name: str, test: TestUpdate):
+@app.put("/api/tests/{test_id}", response_model=dict)
+async def modify_test(test_id: int, test: TestUpdate):
     """Update a test"""
-    success = update_test(DATABASE_NAME, test_name, test.dict())
+    success = update_test(DATABASE_NAME, test_id, test.dict())
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test updated successfully"}
 
 
-@app.post("/api/tests/{test_name}/stop", response_model=dict)
-async def stop_test(test_name: str):
+@app.post("/api/tests/{test_id}/start", response_model=dict)
+async def start_test(test_id: int):
+    """Start a test"""
+    test_update = {
+        "status": "running",
+        "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    success = update_test(DATABASE_NAME, test_id, test_update)
+    if not success:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return {"message": "Test started successfully"}
+
+
+@app.post("/api/tests/{test_id}/stop", response_model=dict)
+async def stop_test(test_id: str):
     """Stop a test"""
     test_update = {
         "status": "completed",
         "end_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-    success = update_test(DATABASE_NAME, test_name, test_update)
+    success = update_test(DATABASE_NAME, test_id, test_update)
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test stopped successfully"}
 
 
+# Washing machines endpoints
+@app.get("/api/machines", response_model=List[Machine])
+async def get_machines():
+    """Get all washing machines"""
+    sensors = get_all_machines(DATABASE_NAME)
+    return sensors
+
+
+@app.get("/api/machines/{machine_id}", response_model=Machine)
+async def get_machine(machine_id: int):
+    """Get a specific washing machine"""
+    sensor = get_machine_by_id(DATABASE_NAME, machine_id)
+    if not sensor:
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return sensor
+
+
+@app.post("/api/machines", response_model=dict)
+async def add_machine(machine: MachineCreate):
+    """Create a new washing machine"""
+    success = create_machine(DATABASE_NAME, machine.dict())
+    if not success:
+        raise HTTPException(status_code=400, detail="Washing Machine with this ID already exists")
+    return {"message": "Washing Machine created successfully"}
+
+
+@app.put("/api/machines/{machine_id}}", response_model=dict)
+async def modify_machine(machine_id: int, machine: MachineUpdate):
+    """Update a washing machine"""
+    success = update_machine(DATABASE_NAME, machine_id, machine.dict())
+    if not success:
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return {"message": "Washing Machine updated successfully"}
+
+
+@app.delete("/api/machines/{machine_id}", response_model=dict)
+async def remove_machine(machine_id: str):
+    """Delete a washing machine"""
+    success = delete_machine(DATABASE_NAME, machine_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return {"message": "Washing Machine deleted successfully"}
+
+
 # Data endpoints
-@app.get("/api/tests/{test_name}/data", response_model=List[SensorData])
+@app.get("/api/tests/{test_id}/data", response_model=List[SensorData])
 async def get_test_data(
     test_name: str,
     sensor_id: Optional[str] = None,
@@ -301,10 +385,10 @@ async def get_test_data(
     return data
 
 
-@app.get("/api/tests/{test_name}/summary", response_model=TestSummary)
-async def get_test_data_summary(test_name: str):
+@app.get("/api/tests/{test_id}/summary", response_model=TestSummary)
+async def get_test_data_summary(test_id: int):
     """Get test summary with statistics"""
-    summary = get_test_summary(DATABASE_NAME, test_name)
+    summary = get_test_summary(DATABASE_NAME, test_id)
     return summary
 
 
@@ -368,7 +452,7 @@ async def get_system_status():
 @app.get("/api/settings/mqtt-configs", response_model=List[MqttConfig])
 async def get_mqtt_configs():
     """Get all MQTT configurations"""
-    return get_all_mqtt_configs(DATABASE_NAME)
+    return get_mqtt_config(DATABASE_NAME)
 
 
 @app.post("/api/settings/mqtt-configs", response_model=MqttConfig)
