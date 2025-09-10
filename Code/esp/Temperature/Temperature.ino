@@ -186,8 +186,10 @@ void setup()
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
+  String cmd_topic = sensor_id + "/cmd";
+
   mqttClient->setupMQTT();
-  mqttClient->subscribe("temperature/cmd");
+  mqttClient->subscribe(cmd_topic.c_str());
 
     /**
    * adjust sensor sleep mode
@@ -260,9 +262,9 @@ void loop() {
     String jsonObj;
     serializeJson(doc, jsonObj);
 
-    size_t needed = measureJson(doc);
-    Serial.print("JSON size: "); Serial.println(needed);
-    Serial.print("capacity: "); Serial.println(capacity);
+    // size_t needed = measureJson(doc);
+    // Serial.print("JSON size: "); Serial.println(needed);
+    // Serial.print("capacity: "); Serial.println(capacity);
 
     mqttClient->dodajVBuffer(jsonObj);
     sampleIndex = 0;

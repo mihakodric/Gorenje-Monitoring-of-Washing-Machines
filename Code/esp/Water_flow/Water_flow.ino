@@ -189,9 +189,10 @@ void setup() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
-  mqttClient->setupMQTT();
+  String cmd_topic = sensor_id + "/cmd";
 
-  mqttClient->subscribe("water_flow/cmd");
+  mqttClient->setupMQTT();
+  mqttClient->subscribe(cmd_topic.c_str());
 
   waterFlow = 0;
 
@@ -245,16 +246,4 @@ void loop() {
   mqttClient->dodajVBuffer(json);
   sampleIndex = 0; // reset buffer
   }
-  //   // Use ArduinoJson to create JSON
-  // StaticJsonDocument<200> doc; // adjust size as needed
-  // doc["timestamp_ms"] = now;
-  // doc["datetime"] = datetime; 
-  // doc["mqtt_topic"] = mqtt_topic;
-  // doc["sensor_id"] = sensor_id;
-  // doc["flow"] = waterFlow;
-
-  // String json;
-  // serializeJson(doc, json);
-
-  // mqttClient->dodajVBuffer(json);
 }

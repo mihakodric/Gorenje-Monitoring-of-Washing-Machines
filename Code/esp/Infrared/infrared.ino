@@ -184,8 +184,10 @@ void setup() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
+  String cmd_topic = sensor_id + "/cmd";
+
   mqttClient->setupMQTT();
-  mqttClient->subscribe("infrared/cmd");
+  mqttClient->subscribe(cmd_topic.c_str());
 
   pinMode(sensorPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(sensorPin), blink, CHANGE);

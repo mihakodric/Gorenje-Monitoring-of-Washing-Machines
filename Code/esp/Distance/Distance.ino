@@ -158,8 +158,10 @@ void setup() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
+  String cmd_topic = sensor_id + "/cmd";
+
   mqttClient->setupMQTT();
-  mqttClient->subscribe("distance/cmd");
+  mqttClient->subscribe(cmd_topic.c_str());
 }
 
 String getPreciseDatetime() {

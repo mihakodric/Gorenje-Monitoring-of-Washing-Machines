@@ -194,8 +194,10 @@ void setup() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
+  String cmd_topic = sensor_id + "/cmd";
+
   mqtt->setupMQTT();
-  mqtt->subscribe("acceleration/cmd");
+  mqtt->subscribe(cmd_topic.c_str());
   setupAccelerometer();
   lastRead = millis();
 }

@@ -186,8 +186,10 @@ void setup()
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) Serial.println("Failed to obtain time");
 
+  String cmd_topic = sensor_id + "/cmd";
+
   mqttClient->setupMQTT();
-  mqttClient->subscribe("current/cmd");
+  mqttClient->subscribe(cmd_topic.c_str());
 
   // pinMode(13, OUTPUT);  //izhodni signal bo na pinu 13, da se prižge npr. LED, ni nujno, je pa lahko za preverjanje, da vidiš, če teče skozi tok, ker sveti
 }                        //če se zgodi, da hočemo imeti še LED, ga vežemo na 13, možno pa je, da je na našem esp-ju že avtomatsko vgrajen, možno, da na pin 2, v tem primeru samo zamenjamo 2 in 13 v kodi
