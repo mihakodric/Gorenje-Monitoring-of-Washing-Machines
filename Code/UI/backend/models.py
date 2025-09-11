@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
+# Sensor Models
 class SensorBase(BaseModel):
     sensor_id: str
     sensor_type: str  # 'acceleration', 'temperature', 'distance', etc.
@@ -34,6 +35,7 @@ class Sensor(SensorBase):
     last_seen: Optional[str] = None
 
 
+# Test Models
 class TestBase(BaseModel):
     test_name: str
     description: Optional[str] = ""
@@ -63,7 +65,24 @@ class Test(TestBase):
     last_data: Optional[str] = None
 
 
+# Test realtions models
+class TestRelation(BaseModel):
+    id: int
+    test_id: int
+    machine_id: int
+    sensor_id: int
 
+
+class TestRelationCreate(BaseModel):
+    machine_id: int
+    sensor_id: int
+
+
+class MachineUpdateForTest(BaseModel):
+    machine_id: int
+
+
+# Machine Models
 class MachineBase(BaseModel):
     machine_name: str
     description: Optional[str] = ""
@@ -90,7 +109,7 @@ class SensorData(BaseModel):
     datetime: str
     direction: str
     value: float
-    test_relations_id: int
+    test_relation_id: int
 
 
 class TestSummary(BaseModel):
@@ -145,10 +164,3 @@ class SensorTypeUpdate(BaseModel):
 class SensorType(SensorTypeBase):
     id: int
     created_at: str
-
-
-# Test realtions models
-class TestRelation(BaseModel):
-    test_id: int
-    machine_id: int
-    sensor_id: int

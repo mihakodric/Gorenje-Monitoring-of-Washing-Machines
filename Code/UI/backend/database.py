@@ -460,7 +460,7 @@ def get_sensor_data(ime_baze: str, test_id: int, sensor_id: str = None,
     placeholders = ",".join("?" for _ in relation_ids)
     query = f'''
         SELECT * FROM podatki
-        WHERE test_relations_id IN ({placeholders})
+        WHERE test_relation_id IN ({placeholders})
     '''
     params = relation_ids
     
@@ -576,6 +576,7 @@ def get_test_relations(ime_baze, test_id):
     conn.close()
     return [dict(zip([c[0] for c in cursor.description], row)) for row in rows]
 
+
 def create_test_relation(ime_baze, test_id, relation_data):
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
@@ -584,12 +585,27 @@ def create_test_relation(ime_baze, test_id, relation_data):
         VALUES (?, ?, ?)
     ''', (
         test_id,
-        relation_data.get("machine_id", ''),
-        relation_data.get("sensor_id", '')
+        relation_data["machine_id"],
+        relation_data["sensor_id"]
     ))
     conn.commit()
     conn.close()
     return True
+
+
+def update_test_machine(ime_baze, test_id, machine_id):
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE test_relations
+        SET machine_id = ?
+        WHERE test_id = ?
+    ''', (machine_id, test_id))
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
 
 def delete_test_relation(ime_baze, relation_id):
     conn = sqlite3.connect(ime_baze)
@@ -599,7 +615,6 @@ def delete_test_relation(ime_baze, relation_id):
     conn.commit()
     conn.close()
     return success
-
 
 
 # Washing machines

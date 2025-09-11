@@ -11,18 +11,18 @@ import threading
 from models import (
     Sensor, SensorCreate, SensorUpdate, 
     Test, TestCreate, TestUpdate, 
+    TestRelation, TestRelationCreate, MachineUpdateForTest,
     Machine, MachineCreate, MachineUpdate, 
     SensorData, TestSummary,
     MqttConfig, MqttConfigUpdate,
     SensorType, SensorTypeCreate, SensorTypeUpdate,
-    TestRelation
 )
 from database import (
     ustvari_sql_bazo,
     get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
     get_all_tests, get_test_by_id, create_test, update_test, delete_test,
     get_sensor_data, get_test_summary,
-    get_sensor_relations, create_sensor_relation, delete_sensor_relation,
+    get_test_relations, create_test_relation, delete_test_relation, update_test_machine,
     get_mqtt_config, create_mqtt_config, update_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
     get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
@@ -116,9 +116,9 @@ async def lifespan(app: FastAPI):
             "description": "Test Washing Machine 2",
         }
     ]
-
-    for machine_data in default_machines:
-        if not get_all_machines(DATABASE_NAME):
+    
+    if not get_all_machines(DATABASE_NAME):
+        for machine_data in default_machines:
             create_machine(DATABASE_NAME, machine_data)
 
     # Add default MQTT config if it doesn't exist
@@ -330,13 +330,13 @@ async def remove_test(test_id: int):
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test and related data deleted successfully"}
 
+
 # Test relations endpoints
-# Get all relations for a test
 @app.get("/api/tests/{test_id}/relations", response_model=List[TestRelation])
 async def get_relations(test_id: int):
     return get_test_relations(DATABASE_NAME, test_id)
 
-# Add a relation (sensor or machine) to a test
+
 @app.post("/api/tests/{test_id}/relations", response_model=dict)
 async def add_relation(test_id: int, relation: TestRelationCreate):
     success = create_test_relation(DATABASE_NAME, test_id, relation.dict())
@@ -344,13 +344,21 @@ async def add_relation(test_id: int, relation: TestRelationCreate):
         raise HTTPException(status_code=400, detail="Failed to create relation")
     return {"message": "Relation created successfully"}
 
-# Delete a relation (remove a sensor or machine from a test)
+
 @app.delete("/api/tests/{test_id}/relations/{relation_id}", response_model=dict)
 async def remove_relation(test_id: int, relation_id: int):
     success = delete_test_relation(DATABASE_NAME, relation_id)
     if not success:
         raise HTTPException(status_code=404, detail="Relation not found")
     return {"message": "Relation deleted successfully"}
+
+
+@app.put("/api/tests/{test_id}/relations/machine", response_model=dict)
+async def change_machine(test_id: int, update: MachineUpdateForTest):
+    success = update_test_machine(DATABASE_NAME, test_id, update.machine_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="No relations found for this test")
+    return {"message": "Machine updated successfully"}
 
 
 # Washing machines endpoints
