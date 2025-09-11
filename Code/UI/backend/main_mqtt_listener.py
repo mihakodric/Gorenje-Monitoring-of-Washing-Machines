@@ -17,7 +17,8 @@ mqtt_broker = config['mqtt_broker']
 mqtt_port = config['mqtt_port']
 mqtt_topics = config.get('mqtt_topics', [])
 
-
+mqtt_running = False
+mqtt_client = None
 
 
 def povezovanje(client, userdata, flags, rc):
@@ -81,33 +82,63 @@ def prejemanje(client, userdata, msg):
         print(f'Napaka pri prejemanju podatkov prek MQTT: {e}')
 
 
+def start_mqtt(broker=None, port=None):
+    """Start MQTT listener (non-blocking)."""
+    global mqtt_running, mqtt_client
+    if mqtt_running:
+        print("MQTT already running")
+        return
+
+    mqtt_running = True
+    mqtt_client = mqtt.Client(protocol=mqtt.MQTTv311)
+    mqtt_client.on_connect = povezovanje
+    mqtt_client.on_message = prejemanje
+    mqtt_client.connect(broker or mqtt_broker, port or mqtt_port, 60)
+
+    mqtt_client.loop_start()
+    print("MQTT loop started")
 
 
-def poberi_podatke_mqtt(broker='localhost', port=1883):
-    """
-    Connects to the MQTT broker and starts the message loop to receive data.
+def stop_mqtt():
+    """Stop MQTT listener"""
+    global mqtt_running, mqtt_client
+    if not mqtt_running:
+        print("MQTT is not running")
+        return
 
-    Sets the connection (`povezovanje`) and message (`prejemanje`)
-    callbacks. Once connected, runs an infinite loop processing messages
-    until interrupted.
+    mqtt_running = False
+    if mqtt_client:
+        mqtt_client.loop_stop()
+        mqtt_client.disconnect()
+        mqtt_client = None
+    print("MQTT stopped")
 
-    Args:
-        broker (str): Hostname or IP address of the MQTT broker. Defaults to 'localhost'.
-        port (int): Port number for the MQTT broker connection. Defaults to 1883.
 
-    Returns:
-        None
-    """
-    client = mqtt.Client(protocol=mqtt.MQTTv311)
-    client.on_connect = povezovanje
-    client.on_message = prejemanje
+# def poberi_podatke_mqtt(broker='localhost', port=1883):
+#     """
+#     Connects to the MQTT broker and starts the message loop to receive data.
 
-    try:
-        client.connect(broker, port, 60)
-        print(f'Povezovanje na MQTT broker {broker}...')
-        client.loop_forever()
-    except Exception as e:
-        print(f'Napaka pri povezovanju na MQTT: {e}')
+#     Sets the connection (`povezovanje`) and message (`prejemanje`)
+#     callbacks. Once connected, runs an infinite loop processing messages
+#     until interrupted.
+
+#     Args:
+#         broker (str): Hostname or IP address of the MQTT broker. Defaults to 'localhost'.
+#         port (int): Port number for the MQTT broker connection. Defaults to 1883.
+
+#     Returns:
+#         None
+#     """
+#     client = mqtt.Client(protocol=mqtt.MQTTv311)
+#     client.on_connect = povezovanje
+#     client.on_message = prejemanje
+
+#     try:
+#         client.connect(broker, port, 60)
+#         print(f'Povezovanje na MQTT broker {broker}...')
+#         client.loop_forever()
+#     except Exception as e:
+#         print(f'Napaka pri povezovanju na MQTT: {e}')
             
 
 
@@ -126,9 +157,12 @@ if __name__ == "__main__":
     print("Začenjam z zbiranjem podatkov prek MQTT...")
 
     try:
-        poberi_podatke_mqtt(mqtt_broker, mqtt_port)
+        start_mqtt()
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\nZbiranje podatkov prek MQTT prekinjeno.")
+        stop_mqtt()
 
     time.sleep(0.25)
 

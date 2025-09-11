@@ -37,7 +37,7 @@ def ustvari_sql_bazo(ime_baze):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             test_name TEXT NOT NULL,
             description TEXT,
-            start_time TEXT NOT NULL,
+            start_time TEXT,
             end_time TEXT,
             status TEXT DEFAULT 'idle',
             created_by TEXT DEFAULT 'user',
@@ -70,7 +70,7 @@ def ustvari_sql_bazo(ime_baze):
     
     # Create indexes for better performance
     # orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_sensor_id ON podatki(sensor_id)')
-    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_test_relation_id ON podatki(test_relation_id)')
+    # orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_test_relation_id ON podatki(test_relation_id)')
     orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_datetime ON podatki(datetime)')
     
     # Create MQTT configurations table
@@ -118,9 +118,9 @@ def ustvari_sql_bazo(ime_baze):
 
 
 
-def vstavi_podatke(ime_baze: str, meta, data, test_id: int):
+def vstavi_podatke(ime_baze: str, meta, data):
     """
-    Insert multiple sensor data samples into the database for a running test.
+    Insert sensor data samples into the database for a running test the sensor is linked to.
     Saves data from all sensors connected to the test (via test_relations).
     """
     conn = sqlite3.connect(ime_baze)
@@ -128,19 +128,31 @@ def vstavi_podatke(ime_baze: str, meta, data, test_id: int):
 
     sensor_id = meta.get('sensor_id', '')
     topic = meta.get('mqtt_topic', '')
-    
-    # Get all test_relation_ids and sensor_ids for this test
-    cursor.execute('''
-        SELECT id, sensor_id FROM test_relations WHERE test_id = ?
-    ''', (test_id,))
-    relation_rows = cursor.fetchall()
-    if not relation_rows:
-        print(f"No test_relations found for test_id {test_id}")
+
+
+    # Map MQTT sensor_id string to primary key in sensors table
+    cursor.execute("SELECT id FROM sensors WHERE sensor_id = ?", (sensor_id,))
+    sensor_row = cursor.fetchone()
+    if not sensor_row:
+        print(f"Sensor {sensor_id} not found in database, skipping")
         conn.close()
         return
 
-    # Create a mapping: sensor_id -> test_relation_id
-    sensor_to_test_relation = {row[1]: row[0] for row in relation_rows}
+    sensor_primary_key = sensor_row[0]
+
+
+    # Find running tests that include this sensor
+    cursor.execute('''
+        SELECT tr.id, t.id as test_id
+        FROM test_relations tr
+        JOIN tests t ON tr.test_id = t.id
+        WHERE tr.sensor_id = ? AND t.status = 'running'
+    ''', (sensor_primary_key,))
+    relations = cursor.fetchall()
+    if not relations:
+        print(f"No running test found for sensor {sensor_id}, skipping")
+        conn.close()
+        return
     
     sql = '''
         INSERT INTO podatki (datetime, direction, value, test_relation_id)
@@ -151,35 +163,29 @@ def vstavi_podatke(ime_baze: str, meta, data, test_id: int):
     for vzorec in data:
         try:
             trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # sensor = vzorec.get('sensor_id', '')
-            # topic = vzorec.get('mqtt_topic', '')
-            datetime = vzorec['datetime']
+            sample_datetime = vzorec['datetime']
 
-            # Skip sensors not linked to this test
-            if sensor_id not in sensor_to_test_relation:
-                continue
-            test_relation_id = sensor_to_test_relation[sensor_id]
+            for test_relation_id, test_id in relations:
+                # Update last_seen for sensor
+                cursor.execute('''
+                    UPDATE sensors SET last_seen = ? WHERE sensor_id = ?
+                ''', (trenutni_cas, sensor_id))
 
-            # Update last_seen for sensor
-            cursor.execute('''
-                UPDATE sensors SET last_seen = ? WHERE sensor_id = ?
-            ''', (trenutni_cas, sensor_id))
+                if topic == "acceleration":
+                    rows_to_insert.extend([
+                        (sample_datetime, 'x', vzorec['ax_g'], test_relation_id),
+                        (sample_datetime, 'y', vzorec['ay_g'], test_relation_id),
+                        (sample_datetime, 'z', vzorec['az_g'], test_relation_id)
+                        ])
+            
+                elif topic == "temperature":
+                    rows_to_insert.extend([
+                        (sample_datetime, 'Ambient', vzorec['ambient_temp_c'], test_relation_id),
+                        (sample_datetime, 'Object', vzorec['object_temp_c'], test_relation_id)
+                        ])
 
-            if topic == "acceleration":
-                rows_to_insert.extend([
-                    (datetime, 'x', vzorec['ax_g'], test_relation_id),
-                    (datetime, 'y', vzorec['ay_g'], test_relation_id),
-                    (datetime, 'z', vzorec['az_g'], test_relation_id)
-                    ])
-        
-            elif topic == "temperature":
-                rows_to_insert.extend([
-                    (datetime, 'Ambient', vzorec['ambient_temp_c'], test_relation_id),
-                    (datetime, 'Object', vzorec['object_temp_c'], test_relation_id)
-                    ])
-
-            else:
-                rows_to_insert.append((datetime, 'None', vzorec.get('value', None), test_relation_id))
+                else:
+                    rows_to_insert.append((sample_datetime, 'None', vzorec.get('value', None), test_relation_id))
 
         except KeyError as e:
             print(f'Manjka ključ v podatkih: {e}')
@@ -325,12 +331,6 @@ def get_all_tests(ime_baze: str) -> List[Dict]:
     ''')
     tests = [dict(row) for row in cursor.fetchall()]
 
-    # Attach related machines and sensors using helper functions
-    for test in tests:
-        test_id = test["id"]
-        test["machines"] = get_related_machines(ime_baze, test_id)
-        test["sensors"] = get_related_sensors(ime_baze, test_id)
-
     conn.close()
     return tests
 
@@ -358,10 +358,6 @@ def get_test_by_id(ime_baze: str, test_id: int) -> Optional[Dict]:
         conn.close()
         return None
     test = dict(test)
-
-    # Attach related machines and sensors using helper functions
-    test["machines"] = get_related_machines(ime_baze, test_id)
-    test["sensors"] = get_related_sensors(ime_baze, test_id)
 
     conn.close()
 
@@ -396,25 +392,58 @@ def update_test(ime_baze: str, test_id: int, test_data: Dict) -> bool:
     """Update an existing test."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
+
+    fields = []
+    values = []
+
+    for key in ['test_name', 'description', 'notes']:
+        if key in test_data:
+            fields.append(f"{key} = ?")
+            values.append(test_data[key])
+
+    if not fields:
+        conn.close()
+        return False
     
-    cursor.execute('''
-        UPDATE tests 
-        SET test_name = ?, description = ?, start_time = ?, end_time = ?, status = ?, notes = ?
-        WHERE id = ?
-    ''', (
-        test_data.get('test_name', ''),
-        test_data.get('description', ''),
-        test_data.get('start_time', None),
-        test_data.get('end_time', None),
-        test_data.get('status', 'idle'),
-        test_data.get('notes', ''),
-        test_id
-    ))
+    values.append(test_id)
+    sql = f"UPDATE tests SET {', '.join(fields)} WHERE id = ?"
+    cursor.execute(sql, values)
     
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
     return success
+
+
+def start_test(ime_baze: str, test_id: int) -> bool:
+    """Set a test as running and record start_time."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+
+    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sql = "UPDATE tests SET status = ?, start_time = ? WHERE id = ?"
+    cursor.execute(sql, ('running', start_time, test_id))
+
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
+
+def stop_test(ime_baze: str, test_id: int) -> bool:
+    """Set a test as completed and record end_time."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+
+    end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sql = "UPDATE tests SET status = ?, end_time = ? WHERE id = ?"
+    cursor.execute(sql, ('completed', end_time, test_id))
+
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return success
+
 
 def delete_test(ime_baze: str, test_id: int) -> bool:
     """Delete a test and all related data."""
@@ -424,7 +453,7 @@ def delete_test(ime_baze: str, test_id: int) -> bool:
     # Delete related data entries
     cursor.execute('''
         DELETE FROM podatki 
-        WHERE test_relations_id IN (
+        WHERE test_relation_id IN (
             SELECT id FROM test_relations WHERE test_id = ?
         )
     ''', (test_id,))
@@ -490,10 +519,11 @@ def get_test_summary(ime_baze: str, test_id: int) -> Dict:
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    row = cursor.fetchone()
     
     # Get test info
     cursor.execute('SELECT * FROM tests WHERE id = ?', (test_id,))
-    test_info = dict(cursor.fetchone()) if cursor.fetchone() else {}
+    test_info = dict(row) if row else {}
 
     # Get all test_relation_ids for the test
     cursor.execute('SELECT id FROM test_relations WHERE test_id = ?', (test_id,))

@@ -45,20 +45,21 @@ class TestBase(BaseModel):
 
 
 class TestCreate(TestBase):
-    start_time: Optional[str] = None
+    # start_time: Optional[str] = None
+    pass
 
 
 class TestUpdate(BaseModel):
     test_name: Optional[str] = ""
     description: Optional[str] = ""
-    status: Optional[str] = "running"
-    end_time: Optional[str] = None
+    # status: Optional[str] = "running"
+    # end_time: Optional[str] = None
     notes: Optional[str] = ""
 
 
 class Test(TestBase):
     id: int
-    start_time: str
+    start_time: Optional[str] = None
     end_time: Optional[str] = None
     data_points: Optional[int] = 0
     first_data: Optional[str] = None

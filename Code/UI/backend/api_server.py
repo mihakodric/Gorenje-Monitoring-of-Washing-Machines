@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from typing import List, Optional
 import json
 import os
-from datetime import datetime
-import threading
+import time
+import main_mqtt_listener as mqtt_listener
 
 from models import (
     Sensor, SensorCreate, SensorUpdate, 
@@ -20,14 +20,13 @@ from models import (
 from database import (
     ustvari_sql_bazo,
     get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
-    get_all_tests, get_test_by_id, create_test, update_test, delete_test,
+    get_all_tests, get_test_by_id, create_test, update_test, start_test, stop_test, delete_test,
     get_sensor_data, get_test_summary,
     get_test_relations, create_test_relation, delete_test_relation, update_test_machine,
     get_mqtt_config, create_mqtt_config, update_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
     get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
 )
-from main_mqtt_listener import poberi_podatke_mqtt
 
 # Load configuration
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -39,9 +38,7 @@ DATABASE_NAME = config['ime_baze']
 MQTT_BROKER = config['mqtt_broker']
 MQTT_PORT = config['mqtt_port']
 
-# Global variable to track MQTT listener
-mqtt_thread = None
-mqtt_running = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,7 +49,7 @@ async def lifespan(app: FastAPI):
     # Add default sensors if they don't exist
     default_sensors = [
         {
-            "sensor_id": "acc1",
+            "sensor_id": "acc_1",
             "sensor_type": "acceleration",
             "sensor_name": "Accelerometer 1",
             "description": "Main washing machine accelerometer",
@@ -60,7 +57,7 @@ async def lifespan(app: FastAPI):
             "mqtt_topic": "acceleration"
         },
         {
-            "sensor_id": "temp1",
+            "sensor_id": "temp_1",
             "sensor_type": "temperature",
             "sensor_name": "Temperature Sensor 1",
             "description": "Water temperature sensor",
@@ -68,7 +65,7 @@ async def lifespan(app: FastAPI):
             "mqtt_topic": "temperature"
         },
         {
-            "sensor_id": "dist1",
+            "sensor_id": "dist_1",
             "sensor_type": "distance",
             "sensor_name": "Distance Sensor 1",
             "description": "Water level measurement",
@@ -76,7 +73,7 @@ async def lifespan(app: FastAPI):
             "mqtt_topic": "distance"
         },
         {
-            "sensor_id": "current1",
+            "sensor_id": "current_1",
             "sensor_type": "current",
             "sensor_name": "Current Sensor 1",
             "description": "Motor current measurement",
@@ -84,7 +81,7 @@ async def lifespan(app: FastAPI):
             "mqtt_topic": "current"
         },
         {
-            "sensor_id": "flow1",
+            "sensor_id": "flow_1",
             "sensor_type": "water_flow",
             "sensor_name": "Flow Sensor 1",
             "description": "Water flow measurement",
@@ -92,7 +89,7 @@ async def lifespan(app: FastAPI):
             "mqtt_topic": "water_flow"
         },
         {
-            "sensor_id": "infra1",
+            "sensor_id": "infra_1",
             "sensor_type": "infrared",
             "sensor_name": "Infrared Sensor 1",
             "description": "Door position sensor",
@@ -116,10 +113,31 @@ async def lifespan(app: FastAPI):
             "description": "Test Washing Machine 2",
         }
     ]
-    
+
     if not get_all_machines(DATABASE_NAME):
         for machine_data in default_machines:
             create_machine(DATABASE_NAME, machine_data)
+
+    # Add default test and test relation if they don't exist
+    default_test = {
+            "test_name": "Test 1",
+            "description": "Initial test run",
+            "status": "idle",
+            "created_by": "user"
+        }
+
+    if not get_all_tests(DATABASE_NAME):
+        create_test(DATABASE_NAME, default_test)
+        test_id = get_all_tests(DATABASE_NAME)[0]['id']
+        machines = get_all_machines(DATABASE_NAME)
+        sensors = get_all_sensors(DATABASE_NAME)
+        if machines and sensors:
+            create_test_relation(
+                DATABASE_NAME,
+                test_id,
+                {"machine_id": machines[0]['id'], "sensor_id": sensors[4]['id']}
+                )
+
 
     # Add default MQTT config if it doesn't exist
     default_mqtt_config = {
@@ -199,7 +217,15 @@ async def lifespan(app: FastAPI):
             create_sensor_type(DATABASE_NAME, sensor_type_data)
     
     yield
-    # Shutdown - cleanup if needed
+    # Shutdown
+    try:
+        if mqtt_listener.mqtt_running:
+            mqtt_listener.stop_mqtt()
+            time.sleep(1)
+    except Exception as e:
+        print(f"Error stopping MQTT listener on shutdown: {e}")
+
+
 
 app = FastAPI(
     title="Washing Machine Monitoring API", 
@@ -297,26 +323,18 @@ async def modify_test(test_id: int, test: TestUpdate):
 
 
 @app.post("/api/tests/{test_id}/start", response_model=dict)
-async def start_test(test_id: int):
+async def begin_test(test_id: int):
     """Start a test"""
-    test_update = {
-        "status": "running",
-        "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    success = update_test(DATABASE_NAME, test_id, test_update)
+    success = start_test(DATABASE_NAME, test_id)
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test started successfully"}
 
 
 @app.post("/api/tests/{test_id}/stop", response_model=dict)
-async def stop_test(test_id: int):
+async def end_test(test_id: int):
     """Stop a test"""
-    test_update = {
-        "status": "completed",
-        "end_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    success = update_test(DATABASE_NAME, test_id, test_update)
+    success = stop_test(DATABASE_NAME, test_id)
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test stopped successfully"}
@@ -428,40 +446,26 @@ async def get_test_data_summary(test_id: int):
 # MQTT Control endpoints
 @app.post("/api/mqtt/start", response_model=dict)
 async def start_mqtt_listener():
-    """Start MQTT data collection"""
-    global mqtt_thread, mqtt_running
-    
-    if mqtt_running:
+    """Start MQTT data collection"""    
+    if mqtt_listener.mqtt_running:
         return {"message": "MQTT listener is already running"}
-    
-    def mqtt_worker():
-        global mqtt_running
-        mqtt_running = True
-        try:
-            poberi_podatke_mqtt(MQTT_BROKER, MQTT_PORT)
-        except Exception as e:
-            print(f"MQTT error: {e}")
-        finally:
-            mqtt_running = False
-    
-    mqtt_thread = threading.Thread(target=mqtt_worker, daemon=True)
-    mqtt_thread.start()
-    
+    mqtt_listener.start_mqtt()
     return {"message": "MQTT listener started successfully"}
 
 
 @app.post("/api/mqtt/stop", response_model=dict)
 async def stop_mqtt_listener():
     """Stop MQTT data collection"""
-    global mqtt_running
-    mqtt_running = False
-    return {"message": "MQTT listener stop signal sent"}
+    if not mqtt_listener.mqtt_running:
+        return {"message": "MQTT listener is not running"}
+    mqtt_listener.stop_mqtt()
+    return {"message": "MQTT listener stopped successfully"}
 
 
 @app.get("/api/mqtt/status", response_model=dict)
 async def get_mqtt_status():
     """Get MQTT listener status"""
-    return {"running": mqtt_running}
+    return {"running": mqtt_listener.mqtt_running}
 
 
 # System endpoints
@@ -472,11 +476,10 @@ async def get_system_status():
     tests_count = len(get_all_tests(DATABASE_NAME))
     
     return {
-        "status": "running",
         "database": DATABASE_NAME,
         "sensors_count": sensors_count,
         "tests_count": tests_count,
-        "mqtt_status": mqtt_running,
+        "mqtt_status": mqtt_listener.mqtt_running,
         "mqtt_broker": MQTT_BROKER
     }
 
