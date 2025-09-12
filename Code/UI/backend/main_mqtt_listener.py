@@ -1,7 +1,10 @@
 import json
 import os
 import time
-from database import ustvari_sql_bazo, vstavi_podatke
+import threading
+import sqlite3
+from datetime import datetime
+from database import ustvari_sql_bazo, vstavi_podatke, mark_sensor_offline
 import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
@@ -19,6 +22,7 @@ mqtt_topics = config.get('mqtt_topics', [])
 
 mqtt_running = False
 mqtt_client = None
+offline_checker_running = False
 
 
 def povezovanje(client, userdata, flags, rc):
@@ -68,6 +72,23 @@ def prejemanje(client, userdata, msg):
             meta = item.get('meta', {})
             data = item.get('data', [])
 
+            sensor_id = meta.get('sensor_id')
+            if sensor_id:
+                try:
+                    conn = sqlite3.connect(ime_baze)
+                    cursor = conn.cursor()
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                    cursor.execute("""
+                        UPDATE sensors
+                        SET last_seen = ?, is_online = 1
+                        WHERE sensor_id = ?
+                    """, (current_time, sensor_id))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    print(f'Error updating sensor status {sensor_id}: {e}')
+
             if not isinstance(data, list):
                 print("Napačna oblika podatkov: 'data' ni seznam.")
                 return
@@ -101,17 +122,34 @@ def start_mqtt(broker=None, port=None):
 
 def stop_mqtt():
     """Stop MQTT listener"""
-    global mqtt_running, mqtt_client
+    global mqtt_running, mqtt_client, offline_checker_running
     if not mqtt_running:
         print("MQTT is not running")
         return
 
     mqtt_running = False
+    offline_checker_running = False
     if mqtt_client:
         mqtt_client.loop_stop()
         mqtt_client.disconnect()
         mqtt_client = None
     print("MQTT stopped")
+
+
+def start_offline_checker(database_name, interval=1, timeout_seconds=60):
+    """Starts a background thread that marks sensors offline."""
+    global offline_checker_running
+    if offline_checker_running:
+        return
+    offline_checker_running = True
+
+    def loop():
+        while offline_checker_running:
+            time.sleep(interval)
+            mark_sensor_offline(database_name, timeout_seconds)
+
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
 
 
 # def poberi_podatke_mqtt(broker='localhost', port=1883):
@@ -160,6 +198,7 @@ if __name__ == "__main__":
         start_mqtt()
         while True:
             time.sleep(1)
+            mark_sensor_offline(ime_baze, timeout_seconds=60)
     except KeyboardInterrupt:
         print("\nZbiranje podatkov prek MQTT prekinjeno.")
         stop_mqtt()

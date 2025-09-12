@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 
 
 # Sensor Models
@@ -11,9 +10,7 @@ class SensorBase(BaseModel):
     description: Optional[str] = ""
     location: Optional[str] = ""
     mqtt_topic: str
-    is_online: Optional[bool] = True
     visible: Optional[bool] = True
-    settings: Optional[Dict[str, Any]] = None
 
 
 class SensorCreate(SensorBase):
@@ -24,15 +21,17 @@ class SensorUpdate(BaseModel):
     sensor_name: str
     description: Optional[str] = ""
     location: Optional[str] = ""
-    is_online: Optional[bool] = True
     visible: Optional[bool] = True
     settings: Optional[Dict[str, Any]] = None
 
 
 class Sensor(SensorBase):
     id: int
+    is_online: bool
     created_at: str
     last_seen: Optional[str] = None
+    settings: Optional[Dict[str, Any]] = None
+
 
 
 # Test Models

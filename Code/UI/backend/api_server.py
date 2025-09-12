@@ -23,6 +23,7 @@ from database import (
     get_all_tests, get_test_by_id, create_test, update_test, start_test, stop_test, delete_test,
     get_sensor_data, get_test_summary,
     get_test_relations, create_test_relation, delete_test_relation, update_test_machine,
+    get_test_relations_for_sensor, get_test_relations_for_machine, is_sensor_or_machine_available, 
     get_mqtt_config, create_mqtt_config, update_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
     get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
@@ -215,6 +216,10 @@ async def lifespan(app: FastAPI):
     for sensor_type_data in default_sensor_types:
         if sensor_type_data["name"] not in existing_names:
             create_sensor_type(DATABASE_NAME, sensor_type_data)
+
+    if not mqtt_listener.mqtt_running:
+        mqtt_listener.start_mqtt(MQTT_BROKER, MQTT_PORT)
+        mqtt_listener.start_offline_checker(DATABASE_NAME)
     
     yield
     # Shutdown
@@ -280,7 +285,13 @@ async def modify_sensor(sensor_id: str, sensor: SensorUpdate):
 
 @app.delete("/api/sensors/{sensor_id}", response_model=dict)
 async def remove_sensor(sensor_id: str):
-    """Delete a sensor"""
+    """Delete a sensor only if it has no test relations"""
+    relations = get_test_relations_for_sensor(DATABASE_NAME, sensor_id)
+    if relations:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete sensor with existing test relations"
+            )
     success = delete_sensor(DATABASE_NAME, sensor_id)
     if not success:
         raise HTTPException(status_code=404, detail="Sensor not found")
@@ -324,10 +335,16 @@ async def modify_test(test_id: int, test: TestUpdate):
 
 @app.post("/api/tests/{test_id}/start", response_model=dict)
 async def begin_test(test_id: int):
-    """Start a test"""
+    """Start a test, only if it has at least one sensor and machine connected"""
+    relations = get_test_relations(DATABASE_NAME, test_id)
+    if not relations:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot start test: no sensors or machines connected"
+            )
     success = start_test(DATABASE_NAME, test_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Test not found")
+        raise HTTPException(status_code=400, detail="Failed to start test: already running or completed")
     return {"message": "Test started successfully"}
 
 
@@ -357,6 +374,20 @@ async def get_relations(test_id: int):
 
 @app.post("/api/tests/{test_id}/relations", response_model=dict)
 async def add_relation(test_id: int, relation: TestRelationCreate):
+    """Create a new test relation only if the test is idle and sensor/machine are available"""
+    test = get_test_by_id(DATABASE_NAME, test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    if test['status'] != 'idle':
+        raise HTTPException(
+            status_code=400, 
+            detail="Can only add relations to idle tests"
+            )
+    if not is_sensor_or_machine_available(DATABASE_NAME, relation.sensor_id, relation.machine_id):
+        raise HTTPException(
+            status_code=400, 
+            detail="Sensor or Machine is currently used by another running test"
+            )
     success = create_test_relation(DATABASE_NAME, test_id, relation.dict())
     if not success:
         raise HTTPException(status_code=400, detail="Failed to create relation")
@@ -416,7 +447,13 @@ async def modify_machine(machine_id: int, machine: MachineUpdate):
 
 @app.delete("/api/machines/{machine_id}", response_model=dict)
 async def remove_machine(machine_id: str):
-    """Delete a washing machine"""
+    """Delete a washing machine only if it has no test relations"""
+    relations = get_test_relations_for_machine(DATABASE_NAME, machine_id)
+    if relations:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete washing machine with existing test relations"
+            )
     success = delete_machine(DATABASE_NAME, machine_id)
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
@@ -450,6 +487,7 @@ async def start_mqtt_listener():
     if mqtt_listener.mqtt_running:
         return {"message": "MQTT listener is already running"}
     mqtt_listener.start_mqtt()
+    mqtt_listener.start_offline_checker(DATABASE_NAME)
     return {"message": "MQTT listener started successfully"}
 
 

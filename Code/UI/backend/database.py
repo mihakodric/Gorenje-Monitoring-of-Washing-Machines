@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import json
 
@@ -23,7 +23,7 @@ def ustvari_sql_bazo(ime_baze):
             description TEXT,
             location TEXT,
             mqtt_topic TEXT NOT NULL,
-            is_online BOOLEAN DEFAULT 1,
+            is_online BOOLEAN DEFAULT 0,
             created_at TEXT NOT NULL,
             last_seen TEXT,
             visible BOOLEAN DEFAULT 1,
@@ -162,14 +162,9 @@ def vstavi_podatke(ime_baze: str, meta, data):
     rows_to_insert = []
     for vzorec in data:
         try:
-            trenutni_cas = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             sample_datetime = vzorec['datetime']
 
             for test_relation_id, test_id in relations:
-                # Update last_seen for sensor
-                cursor.execute('''
-                    UPDATE sensors SET last_seen = ? WHERE sensor_id = ?
-                ''', (trenutni_cas, sensor_id))
 
                 if topic == "acceleration":
                     rows_to_insert.extend([
@@ -242,6 +237,23 @@ def get_sensor_by_id(ime_baze: str, sensor_id: str) -> Optional[Dict]:
     return None
 
 
+def mark_sensor_offline(ime_baze: str, timeout_seconds: int = 60):
+    """Mark sensors as offline if they haven't sent data within the timeout period."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    threshold_time = (datetime.now() - timedelta(seconds=timeout_seconds)).strftime('%Y-%m-%d %H:%M:%S')
+
+    cursor.execute('''
+        UPDATE sensors
+        SET is_online = 0
+        WHERE last_seen IS NULL OR last_seen < ?
+    ''', (threshold_time,))
+    
+    conn.commit()
+    conn.close()
+
+
 def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
     """Create a new sensor."""
     conn = sqlite3.connect(ime_baze)
@@ -251,9 +263,9 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
         cursor.execute('''
             INSERT INTO sensors (
                        sensor_id, sensor_type, sensor_name, description, location, 
-                       mqtt_topic, created_at, visible, is_online, settings
+                       mqtt_topic, created_at, visible, settings
                        )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             sensor_data['sensor_id'],
             sensor_data['sensor_type'],
@@ -263,7 +275,6 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
             sensor_data['mqtt_topic'],
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             sensor_data.get('visible', True),
-            sensor_data.get('is_online', True),
             json.dumps(sensor_data.get('settings')) if sensor_data.get('settings') else None
         ))
         conn.commit()
@@ -282,13 +293,12 @@ def update_sensor(ime_baze: str, sensor_id: str, sensor_data: Dict) -> bool:
     cursor.execute('''
         UPDATE sensors 
         SET sensor_name = ?, description = ?, location = ?,
-            is_online = ?, visible = ?, settings = ?
+            visible = ?, settings = ?
         WHERE sensor_id = ?
     ''', (
         sensor_data['sensor_name'],
         sensor_data.get('description', ''),
         sensor_data.get('location', ''),
-        sensor_data.get('is_online', True),
         sensor_data.get('visible', True),
         json.dumps(sensor_data.get('settings')) if sensor_data.get('settings') else None,
         sensor_id
@@ -336,7 +346,7 @@ def get_all_tests(ime_baze: str) -> List[Dict]:
 
 
 def get_test_by_id(ime_baze: str, test_id: int) -> Optional[Dict]:
-    """Get a specific test by id with aggregates + related machines and sensors."""
+    """Get a specific test by id with aggregates."""
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -416,13 +426,13 @@ def update_test(ime_baze: str, test_id: int, test_data: Dict) -> bool:
 
 
 def start_test(ime_baze: str, test_id: int) -> bool:
-    """Set a test as running and record start_time."""
+    """Set a test as running and record start_time only if test is idle."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
 
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sql = "UPDATE tests SET status = ?, start_time = ? WHERE id = ?"
-    cursor.execute(sql, ('running', start_time, test_id))
+    sql = "UPDATE tests SET status = ?, start_time = ? WHERE id = ? AND status = ?"
+    cursor.execute(sql, ('running', start_time, test_id, 'idle'))
 
     success = cursor.rowcount > 0
     conn.commit()
@@ -645,6 +655,61 @@ def delete_test_relation(ime_baze, relation_id):
     conn.commit()
     conn.close()
     return success
+
+
+def get_test_relations_for_sensor(database_name, sensor_id):
+    query = "SELECT * FROM test_relations WHERE sensor_id = ?"
+    conn = sqlite3.connect(database_name)
+    cursor = conn.cursor()
+    cursor.execute(query, (sensor_id,))
+    results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+def get_test_relations_for_machine(database_name, machine_id):
+    query = "SELECT * FROM test_relations WHERE machine_id = ?"
+    conn = sqlite3.connect(database_name)
+    cursor = conn.cursor()
+    cursor.execute(query, (machine_id,))
+    results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+def is_sensor_or_machine_available(ime_baze: str, sensor_id: str = None, machine_id: int = None) -> bool:
+    """
+    Returns True if the sensor or machine is not currently part of a running test.
+    """
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+
+    # Check sensor availability
+    if sensor_id:
+        cursor.execute("""
+            SELECT t.id
+            FROM tests t
+            JOIN test_relations tr ON t.id = tr.test_id
+            WHERE t.status = 'running' AND tr.sensor_id = ?
+        """, (sensor_id,))
+        if cursor.fetchone():
+            conn.close()
+            return False
+
+    # Check machine availability
+    if machine_id:
+        cursor.execute("""
+            SELECT t.id
+            FROM tests t
+            JOIN test_relations tr ON t.id = tr.test_id
+            WHERE t.status = 'running' AND tr.machine_id = ?
+        """, (machine_id,))
+        if cursor.fetchone():
+            conn.close()
+            return False
+
+    conn.close()
+    return True
 
 
 # Washing machines
