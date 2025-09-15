@@ -162,6 +162,28 @@ bool loadConfig() {
   return true;
 }
 
+
+void publishConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_interval_ms"] = sampling_interval_ms;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  String json;
+  serializeJson(doc, json);
+
+  String configTopic = mqtt_topic + "/config";
+  mqttClient->publish(configTopic.c_str(), json.c_str());
+}
+
+
 void setup() {
   Serial.begin(9600);
 
@@ -193,6 +215,8 @@ void setup() {
 
   mqttClient->setupMQTT();
   mqttClient->subscribe(cmd_topic.c_str());
+
+  publishConfig();
 
   waterFlow = 0;
 

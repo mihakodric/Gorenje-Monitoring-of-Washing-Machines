@@ -4,7 +4,7 @@ import time
 import threading
 import sqlite3
 from datetime import datetime
-from database import ustvari_sql_bazo, vstavi_podatke, mark_sensor_offline
+from database import ustvari_sql_bazo, insert_settings, vstavi_podatke, mark_sensor_offline
 import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
@@ -42,6 +42,7 @@ def povezovanje(client, userdata, flags, rc):
         print('Povezano na broker, MQTT.')
         for topic in mqtt_topics:
             client.subscribe(topic)
+            client.subscribe(f"{topic}/config")
             print(f'Naročeno na temo: {topic}')
     else:
         print(f'Napaka pri povezavi na broker, MQTT: {rc}')
@@ -68,30 +69,38 @@ def prejemanje(client, userdata, msg):
 
     try:
         podatki = json.loads(msg.payload.decode('utf-8'))
-        for item in podatki:
-            meta = item.get('meta', {})
-            data = item.get('data', [])
+        topic = msg.topic
 
-            sensor_id = meta.get('sensor_id')
-            if sensor_id:
-                try:
-                    conn = sqlite3.connect(ime_baze)
-                    cursor = conn.cursor()
-                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Settings from config
+        if topic.endswith("/config") and isinstance(podatki, dict) and "sensor_id" in podatki:
+            sensor_id = podatki["sensor_id"]
+            insert_settings(ime_baze, sensor_id, podatki)
+            print(f"Config received for {sensor_id}")
+            return
+        
+        # Measurments
+        if isinstance(podatki, list):
+            for item in podatki:
+                meta = item.get('meta', {})
+                data = item.get('data', [])
 
-                    cursor.execute("""
-                        UPDATE sensors
-                        SET last_seen = ?, is_online = 1
-                        WHERE sensor_id = ?
-                    """, (current_time, sensor_id))
-                    conn.commit()
-                    conn.close()
-                except Exception as e:
-                    print(f'Error updating sensor status {sensor_id}: {e}')
+                sensor_id = meta.get('sensor_id')
+                if sensor_id:
+                    try:
+                        conn = sqlite3.connect(ime_baze)
+                        cursor = conn.cursor()
+                        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-            if not isinstance(data, list):
-                print("Napačna oblika podatkov: 'data' ni seznam.")
-                return
+                        cursor.execute("""
+                            UPDATE sensors
+                            SET last_seen = ?, is_online = 1
+                            WHERE sensor_id = ?
+                        """, (current_time, sensor_id))
+                        conn.commit()
+                        conn.close()
+                    except Exception as e:
+                        print(f'Error updating sensor status {sensor_id}: {e}')
+
             if not data:
                 print("Ni vzorcev v 'data'.")
                 return

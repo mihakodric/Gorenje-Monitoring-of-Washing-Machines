@@ -64,6 +64,13 @@ void ClassMQTT::poveziMQTT() {
   }
 }
 
+bool ClassMQTT::publish(const char* topic, const char* payload) {
+    if (!client.connected()) {
+        poveziMQTT();
+    }
+    return client.publish(topic, payload);
+}
+
 void ClassMQTT::dodajVBuffer(String jsonObject) {
   if (bufferIndex < bufferSize) {
     buffer[bufferIndex] = jsonObject;

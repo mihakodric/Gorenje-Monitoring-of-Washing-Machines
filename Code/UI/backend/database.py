@@ -117,6 +117,45 @@ def ustvari_sql_bazo(ime_baze):
 
 
 
+def insert_settings(ime_baze: str, sensor_id: str, settings: Dict[str, Any]):
+    try:
+        conn = sqlite3.connect(ime_baze)
+        cursor = conn.cursor()
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        settings_json = json.dumps(settings)
+
+        cursor.execute("""
+            INSERT INTO sensors (sensor_id, sensor_type, sensor_name, description, location, mqtt_topic, 
+                                 is_online, created_at, last_seen, visible, settings)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(sensor_id) DO UPDATE SET
+                settings   = excluded.settings,
+                last_seen  = excluded.last_seen,
+                is_online  = excluded.is_online
+        """, (
+            sensor_id,
+            settings.get("mqtt_topic", ""),                         # default sensor_type
+            sensor_id,                      # default sensor_name
+            None,                           # description
+            None,                           # location
+            settings.get("mqtt_topic", ""),
+            1,                              # is_online
+            now,                            # created_at
+            now,                            # last_seen
+            1,                              # visible
+            settings_json
+        ))
+
+        conn.commit()
+        conn.close()
+        print(f"Settings stored for sensor {sensor_id}")
+        return True
+    except Exception as e:
+        print(f"Error saving settings for {sensor_id}: {e}")
+        return False
+    
+
 
 def vstavi_podatke(ime_baze: str, meta, data):
     """
