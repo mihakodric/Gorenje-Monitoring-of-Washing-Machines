@@ -18,11 +18,14 @@ class SensorCreate(SensorBase):
 
 
 class SensorUpdate(BaseModel):
-    sensor_name: str
+    sensor_name: Optional[str] = ""
     description: Optional[str] = ""
     location: Optional[str] = ""
     visible: Optional[bool] = True
-    settings: Optional[Dict[str, Any]] = None
+
+
+class SensorSettingsUpdate(BaseModel):
+    settings: Dict[str, Any]
 
 
 class Sensor(SensorBase):
@@ -123,7 +126,6 @@ class MqttConfigBase(BaseModel):
     broker_port: Optional[int] = 1883
     username: Optional[str] = ""
     password: Optional[str] = ""
-    is_active: Optional[bool] = True
 
 
 class MqttConfigUpdate(BaseModel):
@@ -131,11 +133,11 @@ class MqttConfigUpdate(BaseModel):
     broker_port: Optional[int] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    is_active: Optional[bool] = None
 
 
 class MqttConfig(MqttConfigBase):
-    pass
+    is_active: bool
+
 
 
 # Sensor Type Models
