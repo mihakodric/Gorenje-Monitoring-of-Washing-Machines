@@ -117,7 +117,7 @@ def ustvari_sql_bazo(ime_baze):
 
 
 def insert_settings(ime_baze: str, sensor_id: str, settings: Dict[str, Any]):
-    """insert sensor settings if sensor_id exists, otherwise create new sensor with settings"""
+    """ on connection insert sensor settings if sensor_id exists, otherwise create new sensor with settings"""
     try:
         conn = sqlite3.connect(ime_baze)
         cursor = conn.cursor()
@@ -348,7 +348,7 @@ def update_sensor(ime_baze: str, sensor_id: str, sensor_data: Dict) -> bool:
 
 
 def update_sensor_settings(ime_baze: str, sensor_id: str, new_settings: Dict[str, Any]) -> bool:
-    """Update sensor settings and send via MQTT."""
+    """Update sensor settings."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
 

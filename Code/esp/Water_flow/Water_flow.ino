@@ -127,36 +127,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
             Serial.println("Failed to save configuration.");
         }
     }
-
-    // String set = doc["set"] | "";
-
-    // if (set == "reset") {
-    //     bool doReset = doc["value"] | false;  // privzeto false
-    //     if (doReset) {
-    //         waterFlow = 0;
-    //         Serial.println("Vodomer resetiran!");
-    //     } else {
-    //         Serial.println("Reset ukaz prejet, a value=false, reset ni izveden.");
-    //     }
-    // } 
-    // else if (set == "sampling_interval_ms") {
-    //     sampling_interval_ms = doc["value"].as<unsigned long>();
-    //     saveConfig();
-    //     Serial.print("Sampling interval nastavljen na: ");
-    //     Serial.println(sampling_interval_ms);
-    // } else if (set == "gmt_offset_sec") {
-    // gmt_offset_sec = doc["value"];
-    // saveConfig();
-    // configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-    // } else if (set == "daylight_offset_sec") {
-    //   daylight_offset_sec = doc["value"];
-    //   saveConfig();
-    //   configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-    // } else if (set == "buffer_size") {
-    // buffer_size = doc["value"];
-    // saveConfig();
-    // mqttClient->setBufferSize(buffer_size);
-  // }
 }
 
 
@@ -280,8 +250,8 @@ void setup() {
 
   waterFlow = 0;
 
-  pinMode(27, INPUT_PULLUP);  //na pin 27 pride signal iz senzorja, privzeto HIGH, ne pa da plava, ko stikalo/senzor poveže pin na GND, ostane LOW
-  attachInterrupt(digitalPinToInterrupt(27), pulse, RISING); //ko vidi, da signal raste, pokliče funkcijo pulse, prekine rast
+  pinMode(D11, INPUT_PULLUP);  //na pin 27 pride signal iz senzorja, privzeto HIGH, ne pa da plava, ko stikalo/senzor poveže pin na GND, ostane LOW
+  attachInterrupt(digitalPinToInterrupt(D11), pulse, RISING); //ko vidi, da signal raste, pokliče funkcijo pulse, prekine rast
 }
 
 void loop() {  
