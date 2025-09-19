@@ -32,7 +32,7 @@ struct Sample {
 Sample* samples = nullptr;
 int sampleIndex = 0;
 
-ClassMQTT* mqtt = nullptr;
+ClassMQTT* mqttClient = nullptr;
 unsigned long lastRead = 0;
 unsigned long sampleIntervalMillis = 0;
 
@@ -95,6 +95,29 @@ bool loadConfig() {
 }
 
 
+void publishConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["sensitivity"] = sensitivity;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_frequency_Hz"] = sampling_frequency;
+  doc["range_g"] = range_g;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  String json;
+  serializeJson(doc, json);
+
+  String configTopic = mqtt_topic + "/config";
+  mqttClient->publish(configTopic.c_str(), json.c_str());
+}
+
+
 void setupAccelerometer() {
   Wire.beginTransmission(LIS2DW12_ADDR);
   Wire.write(0x0F);
@@ -148,31 +171,74 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  String set = doc["set"] | "";
-  if (set == "sensitivity") {
-    sensitivity = doc["value"];
-    saveConfig();
-  } else if (set == "sampling_frequency_Hz") {
-    sampling_frequency = doc["value"];
-    sampleIntervalMillis = 1000UL / sampling_frequency;
-    setupAccelerometer();
-    saveConfig();
-  } else if (set == "range_g") {
-    range_g = doc["value"];
-    setupAccelerometer();
-    saveConfig();
-  } else if (set == "gmt_offset_sec") {
-    gmt_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-  } else if (set == "daylight_offset_sec") {
-    daylight_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-  } else if (set == "buffer_size") {
-    buffer_size = doc["value"];
-    saveConfig();
-    // mqtt->setBufferSize(buffer_size);
+  bool configChanged = false;
+
+  // Loop over all keys in the JSON
+  for (JsonPair kv : doc.as<JsonObject>()) {
+      const char* key = kv.key().c_str();
+
+      if (strcmp(key, "sensitivity") == 0) {
+          sensitivity = kv.value().as<float>();
+          configChanged = true;
+      }
+      else if (strcmp(key, "sampling_frequency_Hz") == 0) {
+          int newFreq = kv.value().as<int>();
+          if (newFreq > 0) {
+              sampling_frequency = newFreq;
+              sampleIntervalMillis = 1000UL / sampling_frequency;
+              Serial.print("Sampling frequency set to: ");
+              Serial.println(sampling_frequency);
+              setupAccelerometer(); // Reconfigure accelerometer with new frequency
+              configChanged = true;
+          } else {
+              Serial.println("Invalid sampling frequency received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "range_g") == 0) {
+          int newRange = kv.value().as<int>();
+          if (newRange == 2 || newRange == 4 || newRange == 8 || newRange == 16) {
+              range_g = newRange;
+              Serial.print("Range set to: ");
+              Serial.println(range_g);
+              setupAccelerometer(); // Reconfigure accelerometer with new range
+              configChanged = true;
+          } else {
+              Serial.println("Invalid range_g received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "buffer_size") == 0) {
+          int newBuffer = kv.value().as<int>();
+          if (newBuffer > 0) {
+              buffer_size = newBuffer;
+              Serial.print("Buffer size set to: ");
+              Serial.println(buffer_size);
+              configChanged = true;
+          } else {
+              Serial.println("Invalid buffer_size received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "gmt_offset_sec") == 0) {
+          gmt_offset_sec = kv.value().as<long>();
+          configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+          configChanged = true;
+      } 
+      else if (strcmp(key, "daylight_offset_sec") == 0) {
+          daylight_offset_sec = kv.value().as<long>();
+          configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+          configChanged = true;
+      } 
+      else {
+          Serial.print("Unknown key received: ");
+          Serial.println(key);
+      }
+  }
+
+  if (configChanged) {
+      if (saveConfig()) {
+          Serial.println("Configuration updated and saved.");
+      } else {
+          Serial.println("Failed to save configuration.");
+      }
   }
 }
 
@@ -186,9 +252,9 @@ void setup() {
   samples = new Sample[buffer_size];
   sampleIntervalMillis = 1000UL / sampling_frequency;
 
-  mqtt = new ClassMQTT(wifi_ssid.c_str(), wifi_password.c_str(), mqtt_server.c_str(), mqtt_port, mqtt_topic.c_str(), 1);    // buffer size inside classmqtt is set to 1, because we send all samples in one json object
-  mqtt->setCallback(mqttCallback);
-  mqtt->setupWiFi();
+  mqttClient = new ClassMQTT(wifi_ssid.c_str(), wifi_password.c_str(), mqtt_server.c_str(), mqtt_port, mqtt_topic.c_str(), 1);    // buffer size inside classmqtt is set to 1, because we send all samples in one json object
+  mqttClient->setCallback(mqttCallback);
+  mqttClient->setupWiFi();
 
   configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
   struct tm timeinfo;
@@ -196,9 +262,10 @@ void setup() {
 
   String cmd_topic = sensor_id + "/cmd";
 
-  mqtt->setupMQTT();
-  mqtt->subscribe(cmd_topic.c_str());
+  mqttClient->setupMQTT();
+  mqttClient->subscribe(cmd_topic.c_str());
   setupAccelerometer();
+  publishConfig();
   lastRead = millis();
 }
 
@@ -284,11 +351,11 @@ void loop() {
       Serial.print("JSON size: "); Serial.println(needed);
       Serial.print("capacity: "); Serial.println(capacity);
 
-      mqtt->dodajVBuffer(jsonObj);
+      mqttClient->dodajVBuffer(jsonObj);
       sampleIndex = 0;
     }
   }
   
-  mqtt->loop();
+  mqttClient->loop();
 }
 

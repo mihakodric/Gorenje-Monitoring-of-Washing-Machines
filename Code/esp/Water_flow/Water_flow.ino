@@ -56,47 +56,77 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
     message.trim();
 
-    Serial.print("Prejet ukaz na ");
+    Serial.print("Received command on ");
     Serial.print(topic);
     Serial.print(": ");
     Serial.println(message);
 
-    StaticJsonDocument<200> doc;
+    StaticJsonDocument<512> doc;
     DeserializationError error = deserializeJson(doc, message);
     if (error) {
-        Serial.println("Napaka: neveljaven JSON ukaz");
+        Serial.println("Invalid JSON command");
         return;
     }
 
-    String set = doc["set"] | "";
+    bool configChanged = false;
 
-    if (set == "reset") {
-        bool doReset = doc["value"] | false;  // privzeto false
-        if (doReset) {
-            waterFlow = 0;
-            Serial.println("Vodomer resetiran!");
-        } else {
-            Serial.println("Reset ukaz prejet, a value=false, reset ni izveden.");
+    // Loop over all keys in the JSON
+    for (JsonPair kv : doc.as<JsonObject>()) {
+        const char* key = kv.key().c_str();
+
+        if (strcmp(key, "reset") == 0) {
+            bool doReset = kv.value().as<bool>();
+            if (doReset) {
+                waterFlow = 0;
+                Serial.println("Water meter reset!");
+                configChanged = true;
+            }
+        } 
+        else if (strcmp(key, "sampling_interval_ms") == 0) {
+            unsigned long newInterval = kv.value().as<unsigned long>();
+            if (newInterval > 0) {
+                sampling_interval_ms = newInterval;
+                Serial.print("Sampling interval set to: ");
+                Serial.println(sampling_interval_ms);
+                configChanged = true;
+            } else {
+                Serial.println("Invalid sampling_interval_ms received, ignoring.");
+            }
+        } 
+        else if (strcmp(key, "buffer_size") == 0) {
+            int newBuffer = kv.value().as<int>();
+            if (newBuffer > 0) {
+                buffer_size = newBuffer;
+                Serial.print("Buffer size set to: ");
+                Serial.println(buffer_size);
+                configChanged = true;
+            } else {
+                Serial.println("Invalid buffer_size received, ignoring.");
+            }
+        } 
+        else if (strcmp(key, "gmt_offset_sec") == 0) {
+            gmt_offset_sec = kv.value().as<long>();
+            configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+            configChanged = true;
+        } 
+        else if (strcmp(key, "daylight_offset_sec") == 0) {
+            daylight_offset_sec = kv.value().as<long>();
+            configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+            configChanged = true;
+        } 
+        else {
+            Serial.print("Unknown key received: ");
+            Serial.println(key);
         }
-    } 
-    else if (set == "sampling_interval_ms") {
-        sampling_interval_ms = doc["value"].as<unsigned long>();
-        saveConfig();
-        Serial.print("Sampling interval nastavljen na: ");
-        Serial.println(sampling_interval_ms);
-    } else if (set == "gmt_offset_sec") {
-    gmt_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-    } else if (set == "daylight_offset_sec") {
-      daylight_offset_sec = doc["value"];
-      saveConfig();
-      configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-    } else if (set == "buffer_size") {
-    buffer_size = doc["value"];
-    saveConfig();
-    // mqttClient->setBufferSize(buffer_size);
-  }
+    }
+
+    if (configChanged) {
+        if (saveConfig()) {
+            Serial.println("Configuration updated and saved.");
+        } else {
+            Serial.println("Failed to save configuration.");
+        }
+    }
 }
 
 
@@ -220,8 +250,8 @@ void setup() {
 
   waterFlow = 0;
 
-  pinMode(27, INPUT_PULLUP);  //na pin 27 pride signal iz senzorja, privzeto HIGH, ne pa da plava, ko stikalo/senzor poveže pin na GND, ostane LOW
-  attachInterrupt(digitalPinToInterrupt(27), pulse, RISING); //ko vidi, da signal raste, pokliče funkcijo pulse, prekine rast
+  pinMode(D11, INPUT_PULLUP);  //na pin 27 pride signal iz senzorja, privzeto HIGH, ne pa da plava, ko stikalo/senzor poveže pin na GND, ostane LOW
+  attachInterrupt(digitalPinToInterrupt(D11), pulse, RISING); //ko vidi, da signal raste, pokliče funkcijo pulse, prekine rast
 }
 
 void loop() {  

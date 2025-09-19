@@ -7,9 +7,10 @@ import json
 import os
 import time
 import main_mqtt_listener as mqtt_listener
+import main_mqtt_publisher as mqtt_publisher
 
 from models import (
-    Sensor, SensorCreate, SensorUpdate, 
+    Sensor, SensorCreate, SensorUpdate, SensorSettingsUpdate, 
     Test, TestCreate, TestUpdate, 
     TestRelation, TestRelationCreate, MachineUpdateForTest,
     Machine, MachineCreate, MachineUpdate, 
@@ -19,7 +20,7 @@ from models import (
 )
 from database import (
     ustvari_sql_bazo,
-    get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, delete_sensor,
+    get_all_sensors, get_sensor_by_id, create_sensor, update_sensor, update_sensor_settings, delete_sensor,
     get_all_tests, get_test_by_id, create_test, update_test, start_test, stop_test, delete_test,
     get_sensor_data, get_test_summary,
     get_test_relations, create_test_relation, delete_test_relation, update_test_machine,
@@ -146,7 +147,6 @@ async def lifespan(app: FastAPI):
         "broker_port": MQTT_PORT,
         "username": "",
         "password": "",
-        "is_active": True
     }
 
     if not get_mqtt_config(DATABASE_NAME):
@@ -280,6 +280,17 @@ async def modify_sensor(sensor_id: str, sensor: SensorUpdate):
     success = update_sensor(DATABASE_NAME, sensor_id, sensor.dict())
     if not success:
         raise HTTPException(status_code=404, detail="Sensor not found")
+    return {"message": "Sensor updated successfully"}
+
+
+@app.put("/api/sensors/{sensor_id}/settings", response_model=dict)
+async def modify_sensor_settings(sensor_id: str, sensor: SensorSettingsUpdate):
+    """Update sensor settings"""
+    success = update_sensor_settings(DATABASE_NAME, sensor_id, sensor.settings)
+    if not success:
+        raise HTTPException(status_code=404, detail="Sensor not found")
+    
+    mqtt_publisher.send_config_update(sensor_id, sensor.settings)
     return {"message": "Sensor updated successfully"}
 
 
@@ -523,8 +534,8 @@ async def get_system_status():
 
 
 # Settings endpoints
-@app.get("/api/settings/mqtt-configs", response_model=List[MqttConfig])
-async def get_mqtt_configs():
+@app.get("/api/settings/mqtt-config", response_model=MqttConfig)
+async def get_mqtt_config_endpoint():
     """Get all MQTT configurations"""
     return get_mqtt_config(DATABASE_NAME)
 
@@ -536,13 +547,24 @@ async def get_mqtt_configs():
 #     return create_mqtt_config(DATABASE_NAME, config_dict)
 
 
-@app.put("/api/settings/mqtt-configs/{config_id}", response_model=MqttConfig)
-async def update_mqtt_config_endpoint(config_id: int, config: MqttConfigUpdate):
+@app.put("/api/settings/mqtt-config", response_model=MqttConfig)
+async def update_mqtt_config_endpoint(config: MqttConfigUpdate):
     """Update MQTT configuration"""
     config_dict = {k: v for k, v in config.dict().items() if v is not None}
     result = update_mqtt_config(DATABASE_NAME, config_dict)
     if not result:
         raise HTTPException(status_code=404, detail="MQTT configuration not found")
+    
+    try:
+        if mqtt_listener.mqtt_running:
+            mqtt_listener.stop_mqtt()
+            time.sleep(1)
+        mqtt_listener.start_mqtt(result['broker_host'], result['broker_port'])
+        mqtt_listener.start_offline_checker(DATABASE_NAME)
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to restart MQTT listener: {e}")
+
     return result
 
 

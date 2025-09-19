@@ -34,9 +34,9 @@ int sampleIndex = 0;
 
 ClassMQTT* mqttClient;
 
-const int ACPin = 34;           // vhodni signal bo na pinu GPIO2
+const int ACPin = A2;           // vhodni signal na pinu A2? (pri 0,3 A na A2 kaže 1,1 A, na ostalih pa 0), star esp: pin 34
 #define ACTectionRange 20      // definiramo območje senzorja (v A)
-#define VREF 3.7               // referenčna napetost na esp32
+#define VREF 3.3              // referenčna napetost na esp32
 
 float readACCurrentValue()  //funkcija, ki bo brala tok
 {
@@ -123,6 +123,28 @@ bool loadConfig() {
   return true;
 }
 
+
+void publishConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_interval_ms"] = sampling_interval_ms;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  String json;
+  serializeJson(doc, json);
+
+  String configTopic = mqtt_topic + "/config";
+  mqttClient->publish(configTopic.c_str(), json.c_str());
+}
+
+
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message;
   for (unsigned int i = 0; i < length; i++) message += (char)payload[i];
@@ -138,22 +160,56 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  String set = doc["set"] | "";
-  if (set == "sampling_interval_ms") {
-    sampling_interval_ms = doc["value"];
-    saveConfig();
-  } else if (set == "gmt_offset_sec") {
-    gmt_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-  } else if (set == "daylight_offset_sec") {
-    daylight_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-  } else if (set == "buffer_size") {
-    buffer_size = doc["value"];
-    saveConfig();
-    // mqttClient->setBufferSize(buffer_size);
+  bool configChanged = false;
+
+  // Loop over all keys in the JSON
+  for (JsonPair kv : doc.as<JsonObject>()) {
+      const char* key = kv.key().c_str();
+
+      if (strcmp(key, "sampling_interval_ms") == 0) {
+          unsigned long newInterval = kv.value().as<unsigned long>();
+          if (newInterval > 0) {
+              sampling_interval_ms = newInterval;
+              Serial.print("Sampling interval set to: ");
+              Serial.println(sampling_interval_ms);
+              configChanged = true;
+          } else {
+              Serial.println("Invalid sampling_interval_ms received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "buffer_size") == 0) {
+          int newBuffer = kv.value().as<int>();
+          if (newBuffer > 0) {
+              buffer_size = newBuffer;
+              Serial.print("Buffer size set to: ");
+              Serial.println(buffer_size);
+              configChanged = true;
+          } else {
+              Serial.println("Invalid buffer_size received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "gmt_offset_sec") == 0) {
+          gmt_offset_sec = kv.value().as<long>();
+          configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+          configChanged = true;
+      } 
+      else if (strcmp(key, "daylight_offset_sec") == 0) {
+          daylight_offset_sec = kv.value().as<long>();
+          configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+          configChanged = true;
+      } 
+      else {
+          Serial.print("Unknown key received: ");
+          Serial.println(key);
+      }
+  }
+
+  if (configChanged) {
+      if (saveConfig()) {
+          Serial.println("Configuration updated and saved.");
+      } else {
+          Serial.println("Failed to save configuration.");
+      }
   }
 }
 
@@ -190,6 +246,7 @@ void setup()
 
   mqttClient->setupMQTT();
   mqttClient->subscribe(cmd_topic.c_str());
+  publishConfig();
 
   // pinMode(13, OUTPUT);  //izhodni signal bo na pinu 13, da se prižge npr. LED, ni nujno, je pa lahko za preverjanje, da vidiš, če teče skozi tok, ker sveti
 }                        //če se zgodi, da hočemo imeti še LED, ga vežemo na 13, možno pa je, da je na našem esp-ju že avtomatsko vgrajen, možno, da na pin 2, v tem primeru samo zamenjamo 2 in 13 v kodi

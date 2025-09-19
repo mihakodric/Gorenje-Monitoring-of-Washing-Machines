@@ -5,7 +5,6 @@ import json
 
 
 
-
 def ustvari_sql_bazo(ime_baze):
     """
     Create an SQLite database and tables for storing sensor data, sensors, and tests.
@@ -118,6 +117,7 @@ def ustvari_sql_bazo(ime_baze):
 
 
 def insert_settings(ime_baze: str, sensor_id: str, settings: Dict[str, Any]):
+    """ on connection insert sensor settings if sensor_id exists, otherwise create new sensor with settings"""
     try:
         conn = sqlite3.connect(ime_baze)
         cursor = conn.cursor()
@@ -149,7 +149,6 @@ def insert_settings(ime_baze: str, sensor_id: str, settings: Dict[str, Any]):
 
         conn.commit()
         conn.close()
-        print(f"Settings stored for sensor {sensor_id}")
         return True
     except Exception as e:
         print(f"Error saving settings for {sensor_id}: {e}")
@@ -302,9 +301,9 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
         cursor.execute('''
             INSERT INTO sensors (
                        sensor_id, sensor_type, sensor_name, description, location, 
-                       mqtt_topic, created_at, visible, settings
+                       mqtt_topic, created_at, visible
                        )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             sensor_data['sensor_id'],
             sensor_data['sensor_type'],
@@ -314,7 +313,6 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
             sensor_data['mqtt_topic'],
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             sensor_data.get('visible', True),
-            json.dumps(sensor_data.get('settings')) if sensor_data.get('settings') else None
         ))
         conn.commit()
         return True
@@ -325,27 +323,58 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
 
 
 def update_sensor(ime_baze: str, sensor_id: str, sensor_data: Dict) -> bool:
-    """Update an existing sensor."""
+    """Update an existing sensor and send settings via MQTT."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         UPDATE sensors 
         SET sensor_name = ?, description = ?, location = ?,
-            visible = ?, settings = ?
+            visible = ?
         WHERE sensor_id = ?
     ''', (
         sensor_data['sensor_name'],
         sensor_data.get('description', ''),
         sensor_data.get('location', ''),
         sensor_data.get('visible', True),
-        json.dumps(sensor_data.get('settings')) if sensor_data.get('settings') else None,
         sensor_id
     ))
     
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
+
+    return success
+
+
+def update_sensor_settings(ime_baze: str, sensor_id: str, new_settings: Dict[str, Any]) -> bool:
+    """Update sensor settings."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+
+    # Get current settings
+    cursor.execute("SELECT settings FROM sensors WHERE sensor_id = ?", (sensor_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return False
+
+    current_settings = json.loads(row[0]) if row[0] else {}
+
+    # Merge new settings into current settings
+    current_settings.update(new_settings)
+
+    # Save merged settings back
+    cursor.execute("""
+        UPDATE sensors
+        SET settings = ?
+        WHERE sensor_id = ?
+    """, (json.dumps(current_settings), sensor_id))
+    
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+
     return success
 
 
@@ -880,7 +909,7 @@ def update_mqtt_config(ime_baze: str, config_data: Dict) -> Optional[Dict]:
     set_clauses = []
     params = []
     
-    for field in ['broker_host', 'broker_port', 'username', 'password', 'is_active']:
+    for field in ['broker_host', 'broker_port', 'username', 'password']:
         if field in config_data:
             set_clauses.append(f'{field} = ?')
             params.append(config_data[field])
@@ -896,6 +925,15 @@ def update_mqtt_config(ime_baze: str, config_data: Dict) -> Optional[Dict]:
     conn.close()
     
     return get_mqtt_config(ime_baze)
+
+
+def sync_mqtt_active_state(ime_baze: str, mqtt_running: bool):
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE mqtt_configs SET is_active = ?', (1 if mqtt_running else 0,))
+    conn.commit()
+    conn.close()
+
 
 
 # Sensor Type functions

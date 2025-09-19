@@ -4,7 +4,7 @@ import time
 import threading
 import sqlite3
 from datetime import datetime
-from database import ustvari_sql_bazo, insert_settings, vstavi_podatke, mark_sensor_offline
+from database import ustvari_sql_bazo, insert_settings, vstavi_podatke, mark_sensor_offline, sync_mqtt_active_state, get_mqtt_config
 import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
@@ -119,14 +119,19 @@ def start_mqtt(broker=None, port=None):
         print("MQTT already running")
         return
 
+    mqtt_config = get_mqtt_config(ime_baze)
+    broker = broker or (mqtt_config["broker_host"] if mqtt_config else mqtt_broker)
+    port = port or (mqtt_config["broker_port"] if mqtt_config else mqtt_port)
+
     mqtt_running = True
     mqtt_client = mqtt.Client(protocol=mqtt.MQTTv311)
     mqtt_client.on_connect = povezovanje
     mqtt_client.on_message = prejemanje
-    mqtt_client.connect(broker or mqtt_broker, port or mqtt_port, 60)
+    mqtt_client.connect(broker, port, 60)
 
     mqtt_client.loop_start()
-    print("MQTT loop started")
+    sync_mqtt_active_state(ime_baze, mqtt_running)
+    print("MQTT started")
 
 
 def stop_mqtt():
@@ -142,6 +147,8 @@ def stop_mqtt():
         mqtt_client.loop_stop()
         mqtt_client.disconnect()
         mqtt_client = None
+
+    sync_mqtt_active_state(ime_baze, mqtt_running)
     print("MQTT stopped")
 
 
