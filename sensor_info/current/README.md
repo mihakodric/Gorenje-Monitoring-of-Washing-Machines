@@ -6,7 +6,7 @@ Website: [Gravity_Analog_AC_Current_Sensor](https://wiki.dfrobot.com/Gravity_Ana
 
 - VCC (Red wire) → 3.3V  
 - GND (Black wire) → GND  
-- Signal (Blue wire) → GPIO 34
+- Signal (Blue wire) → A2 (GPIO 34) ? ne deluje pravilno
 
 ## Notes
 
@@ -15,8 +15,4 @@ Website: [Gravity_Analog_AC_Current_Sensor](https://wiki.dfrobot.com/Gravity_Ana
 
 
 <img src="SEN0211_connection_attention.png" alt="Alt text" width="400">
-
-
-opombe: če hočemo, lahko uporabimo še LEDico, da preverimo, če deluje, v tem primeru jo lahko vežemo na enega od pinov, ali pa je že vgrajena 
-(možno da na pin2), in samo zamenjamo pina 2 in 13 v kodi (pojasnjeno z komentarji v kodi)
 

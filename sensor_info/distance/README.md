@@ -6,6 +6,6 @@ Website: [DFRobot_VL6180X_TOF_Distance_Ranging_Sensor](https://wiki.dfrobot.com/
 
 - VCC → 3.3V
 - GND → GND
-- SCL → GPIO 22
-- SDA → GPIO 21
+- SCL → SCL (GPIO 22)
+- SDA → SDA (GPIO 21)
 

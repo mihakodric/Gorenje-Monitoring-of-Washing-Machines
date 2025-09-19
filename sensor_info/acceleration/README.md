@@ -6,8 +6,8 @@ Website: [LIS2DW12 Triple Axis Accelerometer (DFRobot)](https://wiki.dfrobot.com
 
 - VCC → 3.3V
 - GND → GND
-- SCL → GPIO 22
-- SDA → GPIO 21
+- SCL → SCL (star esp - GPIO 22)
+- SDA → SDA (GPIO 21)
 
 
 <img src="connection_diagram_accelerometer.jpg" alt="Alt text" width="400">

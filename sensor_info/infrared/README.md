@@ -6,5 +6,5 @@ Website: [Grove - Infrared Reflective Sensor](https://wiki.seeedstudio.com/Grove
 
 - VCC (Red wire) → 3.3V  
 - GND (Black wire) → GND  
-- Signal (Yellow wire) → GPIO 4
+- Signal (Yellow wire) → D11 (GPIO 4) (any digital pin)
 

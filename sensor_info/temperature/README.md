@@ -6,5 +6,5 @@ Website: [IR Thermometer Sensor MLX90614](https://wiki.dfrobot.com/IR_Thermomete
 
 - VCC (Red wire) → 3.3V
 - GND (black wire )→ GND
-- SCL (Blue wire) → GPIO 22
-- SDA (Green wire) → GPIO 21
+- SCL (Blue wire) → SCL (GPIO 22)
+- SDA (Green wire) → SDA (GPIO 21)
