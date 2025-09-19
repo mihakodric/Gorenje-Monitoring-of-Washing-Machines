@@ -88,7 +88,7 @@ bool loadConfig() {
 
   wifi_ssid            = doc["wifi_ssid"] | "TP-Link_B0E0";
   wifi_password        = doc["wifi_password"] | "89846834";
-  mqtt_server          = doc["mqtt_server"] | "192.168.0.77";
+  mqtt_server          = doc["mqtt_server"] | "192.168.0.183";
   mqtt_port            = doc["mqtt_port"] | 1883;
   mqtt_topic           = doc["mqtt_topic"] | "temperature";
   sensor_id            = doc["sensor_id"] | "temp_1";
@@ -100,12 +100,34 @@ bool loadConfig() {
   return true;
 }
 
+
+void publishConfig() {
+  StaticJsonDocument<512> doc;
+  doc["wifi_ssid"] = wifi_ssid;
+  doc["wifi_password"] = wifi_password;
+  doc["mqtt_server"] = mqtt_server;
+  doc["mqtt_port"] = mqtt_port;
+  doc["mqtt_topic"] = mqtt_topic;
+  doc["sensor_id"] = sensor_id;
+  doc["buffer_size"] = buffer_size;
+  doc["sampling_interval_ms"] = sampling_interval_ms;
+  doc["gmt_offset_sec"] = gmt_offset_sec;
+  doc["daylight_offset_sec"] = daylight_offset_sec;
+
+  String json;
+  serializeJson(doc, json);
+
+  String configTopic = mqtt_topic + "/config";
+  mqttClient->publish(configTopic.c_str(), json.c_str());
+}
+
+
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message;
   for (unsigned int i = 0; i < length; i++) message += (char)payload[i];
   message.trim();
 
-  Serial.print("Prejet ukaz na "); Serial.print(topic);
+  Serial.print("Received command on "); Serial.print(topic);
   Serial.print(": "); Serial.println(message);
 
   StaticJsonDocument<200> doc;
@@ -115,22 +137,56 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  String set = doc["set"] | "";
-  if (set == "sampling_interval_ms") {
-    sampling_interval_ms = doc["value"];
-    saveConfig();
-  } else if (set == "gmt_offset_sec") {
-    gmt_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-  } else if (set == "daylight_offset_sec") {
-    daylight_offset_sec = doc["value"];
-    saveConfig();
-    configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
-  } else if (set == "buffer_size") {
-    buffer_size = doc["value"];
-    saveConfig();
-    // mqttClient->setBufferSize(buffer_size);
+  bool configChanged = false;
+
+  // Loop over all keys in the JSON
+  for (JsonPair kv : doc.as<JsonObject>()) {
+      const char* key = kv.key().c_str();
+
+      if (strcmp(key, "sampling_interval_ms") == 0) {
+          unsigned long newInterval = kv.value().as<unsigned long>();
+          if (newInterval > 0) {
+              sampling_interval_ms = newInterval;
+              Serial.print("Sampling interval set to: ");
+              Serial.println(sampling_interval_ms);
+              configChanged = true;
+          } else {
+              Serial.println("Invalid sampling_interval_ms received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "buffer_size") == 0) {
+          int newBuffer = kv.value().as<int>();
+          if (newBuffer > 0) {
+              buffer_size = newBuffer;
+              Serial.print("Buffer size set to: ");
+              Serial.println(buffer_size);
+              configChanged = true;
+          } else {
+              Serial.println("Invalid buffer_size received, ignoring.");
+          }
+      } 
+      else if (strcmp(key, "gmt_offset_sec") == 0) {
+          gmt_offset_sec = kv.value().as<long>();
+          configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+          configChanged = true;
+      } 
+      else if (strcmp(key, "daylight_offset_sec") == 0) {
+          daylight_offset_sec = kv.value().as<long>();
+          configTime(gmt_offset_sec, daylight_offset_sec, "pool.ntp.org");
+          configChanged = true;
+      } 
+      else {
+          Serial.print("Unknown key received: ");
+          Serial.println(key);
+      }
+  }
+
+  if (configChanged) {
+      if (saveConfig()) {
+          Serial.println("Configuration updated and saved.");
+      } else {
+          Serial.println("Failed to save configuration.");
+      }
   }
 }
 
@@ -190,6 +246,8 @@ void setup()
 
   mqttClient->setupMQTT();
   mqttClient->subscribe(cmd_topic.c_str());
+
+  publishConfig();
 
     /**
    * adjust sensor sleep mode
