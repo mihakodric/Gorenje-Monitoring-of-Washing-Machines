@@ -1,6 +1,6 @@
 {
   "ime_baze": "prebrani_podatki.db",
-  "mqtt_broker": "192.168.0.77",
+  "mqtt_broker": "192.168.0.183",
   "mqtt_port": 1883,
   "mqtt_topics": ["acceleration", "distance", "temperature", "current", "water_flow", "infrared"]
 }

@@ -88,7 +88,7 @@ bool loadConfig() {
 
   wifi_ssid            = doc["wifi_ssid"] | "TP-Link_B0E0";
   wifi_password        = doc["wifi_password"] | "89846834";
-  mqtt_server          = doc["mqtt_server"] | "192.168.0.77";
+  mqtt_server          = doc["mqtt_server"] | "192.168.0.183";
   mqtt_port            = doc["mqtt_port"] | 1883;
   mqtt_topic           = doc["mqtt_topic"] | "temperature";
   sensor_id            = doc["sensor_id"] | "temp_1";

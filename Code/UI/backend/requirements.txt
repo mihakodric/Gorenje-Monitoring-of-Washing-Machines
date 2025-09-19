@@ -4,3 +4,4 @@ paho-mqtt
 pandas
 python-multipart
 pydantic
+paho-mqtt
