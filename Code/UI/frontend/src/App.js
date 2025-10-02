@@ -7,6 +7,7 @@ import Tests from './components/Tests';
 import TestDetails from './components/TestDetails';
 import WashingMachines from './components/WashingMachines';
 import Settings from './components/Settings';
+import Settings1 from './components/Settings1';
 import './App.css';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
             <Route path="/tests/:testName" element={<TestDetails />} />
             <Route path="/washing-machines" element={<WashingMachines/>} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings1" element={<Settings1 />} />
           </Routes>
         </div>
       </div>

@@ -91,17 +91,7 @@ const Settings = () => {
     }
   };
 
-  const handleDeleteMqttConfig = async (configId) => {
-    if (window.confirm('Are you sure you want to delete this MQTT configuration? This will mark related sensors as inactive.')) {
-      try {
-        await settingsAPI.deleteMqttConfig(configId);
-        loadSettings();
-      } catch (error) {
-        console.error('Error deleting MQTT config:', error);
-        alert('Error deleting MQTT configuration');
-      }
-    }
-  };
+
 
   // Sensor Type handlers
   const handleAddSensorType = () => {
@@ -257,57 +247,7 @@ const Settings = () => {
             </button>
           </div>
 
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Broker</th>
-                  <th>Topic Prefix</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mqttConfigs.map((config) => (
-                  <tr key={config.id}>
-                    <td>
-                      <strong>{config.name}</strong>
-                      {config.description && (
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {config.description}
-                        </div>
-                      )}
-                    </td>
-                    <td>{config.broker_host}:{config.broker_port}</td>
-                    <td>{config.topic_prefix || '-'}</td>
-                    <td>
-                      <span className={`status ${config.is_active ? 'status-running' : 'status-inactive'}`}>
-                        {config.is_active ? <Check size={12} /> : <X size={12} />}
-                        {config.is_active ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleEditMqttConfig(config)}
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteMqttConfig(config.id)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          Test
         </div>
       )}
 

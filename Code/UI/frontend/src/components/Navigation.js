@@ -27,6 +27,7 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/washing-machines', label: 'Washing Machines', icon: Droplet },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings },
+    { path: '/settings1', label: 'Settings1', icon: Settings },
   ];
 
   return (

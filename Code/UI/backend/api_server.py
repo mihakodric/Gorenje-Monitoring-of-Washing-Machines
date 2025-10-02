@@ -576,6 +576,9 @@ async def update_mqtt_config_endpoint(config: MqttConfigUpdate):
 #         raise HTTPException(status_code=404, detail="MQTT configuration not found")
 #     return {"message": "MQTT configuration deleted successfully"}
 
+@app.get("/api/settings/mqtt-configs/")
+async def delete_mqtt_config_endpoint():
+    return {"data": {"broker_host": "192.168.220.121", "broker_port": "1883"}}
 
 @app.get("/api/settings/sensor-types", response_model=List[SensorType])
 async def get_sensor_types():
