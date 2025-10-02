@@ -1,35 +1,39 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Wifi, Cpu, Edit, Trash2, Plus, X, Check } from "lucide-react";
+import { settingsAPI } from "../api.js";
 
 const Settings1 = () => {
-  // ---- State za MQTT ----
-  const [mqttForm, setMqttForm] = useState({
-    ip: "192.168.1.100",
-    port: "1883",
-  });
+  // ---- State ----
+  const [mqttForm, setMqttForm] = useState({ ip: "192.168.1.100", port: "1883" });
   const [showMqttModal, setShowMqttModal] = useState(false);
 
-  // ---- State za Sensor Types ----
-  const [sensorTypes, setSensorTypes] = useState([
-    { name: "infrared", display_name: "Infrared Sensor", default_topic: "infrared", unit: "RPM", description: "Detects presence or position using infrared" },
-    { name: "water_flow", display_name: "Water Flow Sensor", default_topic: "water_flow", unit: "L/min", description: "Measures water flow rate" },
-    { name: "current", display_name: "Current Sensor", default_topic: "current", unit: "A", description: "Measures electrical current consumption" },
-    { name: "distance", display_name: "Distance/Ultrasonic Sensor", default_topic: "distance", unit: "cm", description: "Measures distance or water level" },
-    { name: "temperature", display_name: "Temperature Sensor", default_topic: "temperature", unit: "°C", description: "Measures temperature of water or ambient" },
-    { name: "acceleration", display_name: "Accelerometer", default_topic: "acceleration", unit: "g", description: "Measures vibration and movement acceleration" },
-  ]);
-
+  const [sensorTypes, setSensorTypes] = useState([]);
   const [showSensorModal, setShowSensorModal] = useState(false);
   const [sensorForm, setSensorForm] = useState({ name: "", display_name: "", default_topic: "", unit: "", description: "" });
   const [editingSensor, setEditingSensor] = useState(null);
 
+  const [loading, setLoading] = useState(true);
+
+  // ---- Load sensor types from backend ----
+  const loadSensorTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await settingsAPI.getSensorTypes();
+      setSensorTypes(response.data);
+    } catch (error) {
+      console.error("Error loading sensor types:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSensorTypes();
+  }, []);
+
   // ---- Handlers ----
   const handleEditMqtt = () => setShowMqttModal(true);
-
-  const handleSaveMqtt = () => {
-    setShowMqttModal(false);
-    // Tu lahko dodamo logiko za shranjevanje MQTT
-  };
+  const handleSaveMqtt = () => setShowMqttModal(false); // Dodaj kasneje shranjevanje, če želiš
 
   const handleAddSensor = () => {
     setSensorForm({ name: "", display_name: "", default_topic: "", unit: "", description: "" });
@@ -39,26 +43,38 @@ const Settings1 = () => {
 
   const handleEditSensor = (sensor) => {
     setSensorForm({ ...sensor });
-    setEditingSensor(sensor.name);
+    setEditingSensor(sensor.id); // predvidevamo, da backend daje id
     setShowSensorModal(true);
   };
 
-  const handleSaveSensor = () => {
-    if (editingSensor) {
-      setSensorTypes(sensorTypes.map(s => s.name === editingSensor ? sensorForm : s));
-    } else {
-      setSensorTypes([...sensorTypes, sensorForm]);
+  const handleSaveSensor = async () => {
+    try {
+      if (editingSensor) {
+        await settingsAPI.updateSensorType(editingSensor, sensorForm);
+      } else {
+        await settingsAPI.createSensorType(sensorForm);
+      }
+      await loadSensorTypes();
+      setShowSensorModal(false);
+    } catch (error) {
+      console.error("Error saving sensor type:", error);
+      alert("Error saving sensor type");
     }
-    setShowSensorModal(false);
   };
 
-  const handleDeleteSensor = (name) => {
-    setSensorTypes(sensorTypes.filter(s => s.name !== name));
+  const handleDeleteSensor = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this sensor?")) return;
+    try {
+      await settingsAPI.deleteSensorType(id);
+      await loadSensorTypes();
+    } catch (error) {
+      console.error("Error deleting sensor type:", error);
+      alert("Error deleting sensor type");
+    }
   };
 
   return (
     <div style={{ padding: "30px" }}>
-      {/* --- Glavni naslov --- */}
       <div style={{ marginBottom: "30px" }}>
         <h1 style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: "10px", fontSize: "28px", fontWeight: "bold" }}>
           System Settings
@@ -68,7 +84,7 @@ const Settings1 = () => {
         </p>
       </div>
 
-      {/* --- MQTT Config Kvadratek --- */}
+      {/* MQTT Config Box */}
       <div style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 4px 8px rgba(0,0,0,0.1)", marginBottom: "20px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
@@ -82,9 +98,7 @@ const Settings1 = () => {
             <Edit size={18} color="#667eea" />
           </button>
         </div>
-
         <hr style={{ margin: "15px 0", border: "none", borderTop: "1px solid #e5e7eb" }} />
-
         <div style={{ display: "flex", gap: "10px" }}>
           <span style={{ fontWeight: "500", minWidth: "100px" }}>IP Address:</span>
           <span style={{ color: "#374151" }}>{mqttForm.ip}</span>
@@ -95,7 +109,7 @@ const Settings1 = () => {
         </div>
       </div>
 
-      {/* --- Sensor Types Kvadratek --- */}
+      {/* Sensor Types Box */}
       <div style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
@@ -123,7 +137,7 @@ const Settings1 = () => {
             </thead>
             <tbody>
               {sensorTypes.map(sensor => (
-                <tr key={sensor.name} style={{ borderBottom: "1px solid #e5e7eb", height: "70px", backgroundColor: "#f9f9ff" }}>
+                <tr key={sensor.id} style={{ borderBottom: "1px solid #e5e7eb", height: "70px", backgroundColor: "#f9f9ff" }}>
                   <td style={{ padding: "12px" }}>
                     <strong>{sensor.name}</strong>
                     <div style={{ fontSize: "12px", color: "#666" }}>{sensor.description}</div>
@@ -136,7 +150,7 @@ const Settings1 = () => {
                       <button onClick={() => handleEditSensor(sensor)} style={{ background: "#e0e7ff", borderRadius: "6px", border: "none", cursor: "pointer", padding: "6px" }}>
                         <Edit size={18} color="#667eea" />
                       </button>
-                      <button onClick={() => handleDeleteSensor(sensor.name)} style={{ background: "#fee2e2", borderRadius: "6px", border: "none", cursor: "pointer", padding: "6px" }}>
+                      <button onClick={() => handleDeleteSensor(sensor.id)} style={{ background: "#fee2e2", borderRadius: "6px", border: "none", cursor: "pointer", padding: "6px" }}>
                         <Trash2 size={18} color="red" />
                       </button>
                     </div>
@@ -148,7 +162,7 @@ const Settings1 = () => {
         </div>
       </div>
 
-      {/* --- MQTT Modal --- */}
+      {/* MQTT Modal */}
       {showMqttModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "30px", width: "400px", display: "flex", flexDirection: "column", gap: "15px" }}>
@@ -165,7 +179,7 @@ const Settings1 = () => {
         </div>
       )}
 
-      {/* --- Sensor Modal --- */}
+      {/* Sensor Modal */}
       {showSensorModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "30px", width: "500px", display: "flex", flexDirection: "column", gap: "15px" }}>
@@ -187,7 +201,6 @@ const Settings1 = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
