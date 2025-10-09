@@ -11,6 +11,7 @@ const WashingMachines = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingMachine, setEditingMachine] = useState(null);
   const [sensors, setSensors] = useState([]);
+  const [machineTypes, setMachineTypes] = useState([]);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -20,6 +21,7 @@ const WashingMachines = () => {
   useEffect(() => {
     loadMachines();
     loadSensors();
+    loadMachineTypes();
   }, []);
 
   useEffect(() => {
@@ -45,6 +47,15 @@ const WashingMachines = () => {
       console.error("Error loading sensors:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMachineTypes = async () => {
+    try {
+      const response = await washingMachinesAPI.getTypes();
+      setMachineTypes(response.data);
+    } catch (error) {
+      console.error("Error loading machine types:", error);
     }
   };
 
@@ -125,6 +136,12 @@ const WashingMachines = () => {
     setEditingMachine(null);
     loadMachines();
     loadSensors();
+    loadMachineTypes();
+  };
+
+  const getMachineTypeName = (machineTypeId) => {
+    const type = machineTypes.find(type => type.id === machineTypeId);
+    return type ? type.display_name : 'Unknown Type';
   };
 
   if (loading) {
@@ -340,7 +357,17 @@ const WashingMachines = () => {
                         </div>
                         <div
                           style={{
-                            marginTop: "6px",
+                            marginTop: "4px",
+                            fontSize: "12px",
+                            color: "#667eea",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {getMachineTypeName(machine.machine_type_id)}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: "4px",
                             fontSize: "13px",
                             color: "#6b7280",
                           }}

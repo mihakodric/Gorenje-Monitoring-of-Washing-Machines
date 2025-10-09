@@ -123,11 +123,16 @@ def start_mqtt(broker=None, port=None):
     broker = broker or (mqtt_config["broker_host"] if mqtt_config else mqtt_broker)
     port = port or (mqtt_config["broker_port"] if mqtt_config else mqtt_port)
 
-    mqtt_running = True
     mqtt_client = mqtt.Client(protocol=mqtt.MQTTv311)
     mqtt_client.on_connect = povezovanje
     mqtt_client.on_message = prejemanje
+    
+    # Set a shorter socket timeout to fail faster if broker is not available
+    mqtt_client.socket_timeout = 5.0  # 5 seconds timeout
+    
+    # This will raise an exception if connection fails
     mqtt_client.connect(broker, port, 60)
+    mqtt_running = True
 
     mqtt_client.loop_start()
     sync_mqtt_active_state(ime_baze, mqtt_running)

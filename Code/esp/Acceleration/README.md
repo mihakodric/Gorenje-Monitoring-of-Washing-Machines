@@ -27,3 +27,19 @@ Instructions for config.json:
     
     "range_g": 16
     (Set the sensor measurement range, default is ±16g. Choose between: 2 / 4 / 8 / 16) 
+
+
+
+Example data structure that ESP device sends to MQTT broker:
+
+    {
+        "sensor_id": "acc_1",
+        "topic": "acceleration",
+        "data": [
+            { "datetime": 1697055600000, "value": 0.123 },
+            { "datetime": 1697055660000, "value": 0.234 },
+            { "datetime": 1697055720000, "value": 0.345 }
+        ]
+    }
+
+Where:

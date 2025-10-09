@@ -1,27 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { testsAPI, washingMachinesAPI } from '../api';
+import { testsAPI } from '../api';
 import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock } from 'lucide-react';
-import TestModal from './TestModal';
 
 const Tests = () => {
   const [tests, setTests] = useState([]);
   const [filteredTests, setFilteredTests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingTest, setEditingTest] = useState(null);
-  const [machines, setMachines] = useState([]);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, running, completed
   const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
-  const [sortField, setSortField] = useState('start_time');
+  const [sortField, setSortField] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
     loadTests();
-    loadMachines();
   }, []);
 
   const loadTests = async () => {
@@ -36,16 +31,7 @@ const Tests = () => {
     }
   };
 
-  const loadMachines = async () => {
-    try {
-      const response = await washingMachinesAPI.getAll();
-      setMachines(response.data);
-    } catch (error) {
-      console.error('Error loading machines:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   // Filter and sort function
   const filterAndSortTests = () => {
@@ -61,8 +47,8 @@ const Tests = () => {
       }
 
       let matchesDate = true;
-      if (dateFilter !== 'all' && test.start_time) {
-        const testDate = new Date(test.start_time);
+      if (dateFilter !== 'all' && test.created_at) {
+        const testDate = new Date(test.created_at);
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
@@ -86,7 +72,7 @@ const Tests = () => {
       let bValue = b[sortField];
       
       // Handle dates
-      if (sortField === 'start_time' || sortField === 'end_time') {
+      if (sortField === 'created_at' || sortField === 'last_modified_at') {
         aValue = aValue ? new Date(aValue) : new Date(0);
         bValue = bValue ? new Date(bValue) : new Date(0);
       }
@@ -98,7 +84,7 @@ const Tests = () => {
       }
       
       // Handle numbers
-      if (sortField === 'data_points') {
+      if (sortField === 'sensor_count' || sortField === 'data_points') {
         aValue = Number(aValue) || 0;
         bValue = Number(bValue) || 0;
       }
@@ -131,19 +117,15 @@ const Tests = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDateFilter('all');
-    setSortField('start_time');
+    setSortField('created_at');
     setSortDirection('desc');
   };
 
-  const handleAddTest = () => {
-    setEditingTest(null);
-    setShowModal(true);
-  };
-
-  const handleEditTest = (test) => {
-    setEditingTest(test);
-    setShowModal(true);
-  };
+  // Remove the old modal-based edit functionality
+  // const handleEditTest = (test) => {
+  //   setEditingTest(test);
+  //   setShowModal(true);
+  // };
 
   const handleStopTest = async (testName) => {
     if (window.confirm('Are you sure you want to stop this test?')) {
@@ -157,17 +139,7 @@ const Tests = () => {
     }
   };
 
-  const handleModalClose = () => {
-    setShowModal(false);
-    setEditingTest(null);
-  };
 
-  const handleModalSave = () => {
-    setShowModal(false);
-    setEditingTest(null);
-    loadTests();
-    loadMachines();
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -221,18 +193,22 @@ const Tests = () => {
               </p>
             </div>
           </div>
-          <button 
+          <Link 
+            to="/tests/new"
             className="btn btn-primary" 
-            onClick={handleAddTest}
             style={{ 
               padding: '12px 24px',
               fontSize: '14px',
-              fontWeight: '600'
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              textDecoration: 'none'
             }}
           >
             <Plus size={18} />
             New Test
-          </button>
+          </Link>
         </div>
 
         {/* Filter Controls */}
@@ -378,33 +354,22 @@ const Tests = () => {
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('start_time')}
-                    className={`sortable ${sortField === 'start_time' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('created_at')}
+                    className={`sortable ${sortField === 'created_at' ? 'sorted' : ''}`}
                   >
-                    Start Time
-                    {sortField === 'start_time' && (
+                    Created
+                    {sortField === 'created_at' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('end_time')}
-                    className={`sortable ${sortField === 'end_time' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('sensor_count')}
+                    className={`sortable ${sortField === 'sensor_count' ? 'sorted' : ''}`}
                   >
-                    End Time
-                    {sortField === 'end_time' && (
-                      <span className={`sort-indicator ${sortDirection}`}>
-                        {sortDirection === 'asc' ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </th>
-                  <th 
-                    onClick={() => handleSort('data_points')}
-                    className={`sortable ${sortField === 'data_points' ? 'sorted' : ''}`}
-                  >
-                    Data Points
-                    {sortField === 'data_points' && (
+                    Sensors
+                    {sortField === 'sensor_count' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
@@ -431,31 +396,19 @@ const Tests = () => {
                       </span>
                     </td>
                     <td>
-                      {new Date(test.start_time).toLocaleString()}
+                      {new Date(test.created_at).toLocaleString()}
                     </td>
                     <td>
-                      {test.end_time ? 
-                        new Date(test.end_time).toLocaleString() : 
-                        '-'
-                      }
-                    </td>
-                    <td>
-                      <strong>{test.data_points || 0}</strong>
+                      <strong>{test.sensor_count || 0}</strong>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '5px' }}>
                         <Link
-                          to={`/tests/${test.test_name}`}
+                          to={`/tests/edit/${test.id}`}
                           className="btn btn-secondary btn-sm"
-                        >
-                          <Eye size={14} />
-                        </Link>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleEditTest(test)}
                         >
                           <Edit size={14} />
-                        </button>
+                        </Link>
                         {test.status === 'running' && (
                           <button
                             className="btn btn-danger btn-sm"
@@ -474,14 +427,6 @@ const Tests = () => {
         )}
       </div>
 
-      {showModal && (
-        <TestModal
-          test={editingTest}
-          machines={machines}
-          onClose={handleModalClose}
-          onSave={handleModalSave}
-        />
-      )}
     </div>
   );
 };

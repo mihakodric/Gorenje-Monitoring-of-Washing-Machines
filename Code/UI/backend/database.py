@@ -20,7 +20,6 @@ def ustvari_sql_bazo(ime_baze):
             sensor_type TEXT NOT NULL,
             sensor_name TEXT NOT NULL,
             description TEXT,
-            location TEXT,
             mqtt_topic TEXT NOT NULL,
             is_online BOOLEAN DEFAULT 0,
             created_at TEXT NOT NULL,
@@ -36,11 +35,11 @@ def ustvari_sql_bazo(ime_baze):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             test_name TEXT NOT NULL,
             description TEXT,
-            start_time TEXT,
-            end_time TEXT,
+            notes TEXT,
+            created_by TEXT NOT NULL,
             status TEXT DEFAULT 'idle',
-            created_by TEXT DEFAULT 'user',
-            notes TEXT
+            created_at TEXT NOT NULL,
+            last_modified_at TEXT NOT NULL
         )
     ''')
 
@@ -50,8 +49,21 @@ def ustvari_sql_bazo(ime_baze):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             machine_name TEXT NOT NULL,
             description TEXT,
+            machine_type_id INTEGER,
             created_at TEXT NOT NULL,
-            visible BOOLEAN DEFAULT 1
+            visible BOOLEAN DEFAULT 1,
+            FOREIGN KEY (machine_type_id) REFERENCES machine_types (id)
+        )
+    ''')
+    
+    # Create machine types table
+    orodje.execute('''
+        CREATE TABLE IF NOT EXISTS machine_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            display_name TEXT NOT NULL,
+            description TEXT,
+            created_by TEXT NOT NULL,
+            created_at TEXT NOT NULL
         )
     ''')
     
@@ -70,7 +82,7 @@ def ustvari_sql_bazo(ime_baze):
     # Create indexes for better performance
     # orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_sensor_id ON podatki(sensor_id)')
     # orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_test_relation_id ON podatki(test_relation_id)')
-    orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_datetime ON podatki(datetime)')
+    # orodje.execute('CREATE INDEX IF NOT EXISTS idx_podatki_datetime ON podatki(datetime)')
     
     # Create MQTT configurations table
     orodje.execute('''
@@ -87,13 +99,10 @@ def ustvari_sql_bazo(ime_baze):
     orodje.execute('''
         CREATE TABLE IF NOT EXISTS sensor_types (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
+            mqtt_topic TEXT UNIQUE NOT NULL,
             display_name TEXT NOT NULL,
-            description TEXT,
-            default_topic TEXT,
             unit TEXT,
-            min_value REAL,
-            max_value REAL,
+            description TEXT,
             created_at TEXT NOT NULL
         )
     ''')
@@ -105,6 +114,7 @@ def ustvari_sql_bazo(ime_baze):
             test_id INTEGER NOT NULL,
             machine_id INTEGER NOT NULL,
             sensor_id INTEGER NOT NULL,
+            sensor_location TEXT,
             FOREIGN KEY (test_id) REFERENCES tests(id),
             FOREIGN KEY (machine_id) REFERENCES machines(id),
             FOREIGN KEY (sensor_id) REFERENCES sensors(id)
@@ -126,9 +136,9 @@ def insert_settings(ime_baze: str, sensor_id: str, settings: Dict[str, Any]):
         settings_json = json.dumps(settings)
 
         cursor.execute("""
-            INSERT INTO sensors (sensor_id, sensor_type, sensor_name, description, location, mqtt_topic, 
+            INSERT INTO sensors (sensor_id, sensor_type, sensor_name, description, mqtt_topic, 
                                  is_online, created_at, last_seen, visible, settings)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(sensor_id) DO UPDATE SET
                 settings   = excluded.settings,
                 last_seen  = excluded.last_seen,
@@ -138,7 +148,6 @@ def insert_settings(ime_baze: str, sensor_id: str, settings: Dict[str, Any]):
             settings.get("mqtt_topic", ""),                         # default sensor_type
             sensor_id,                      # default sensor_name
             None,                           # description
-            None,                           # location
             settings.get("mqtt_topic", ""),
             1,                              # is_online
             now,                            # created_at
@@ -300,16 +309,15 @@ def create_sensor(ime_baze: str, sensor_data: Dict) -> bool:
     try:
         cursor.execute('''
             INSERT INTO sensors (
-                       sensor_id, sensor_type, sensor_name, description, location, 
+                       sensor_id, sensor_type, sensor_name, description, 
                        mqtt_topic, created_at, visible
                        )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             sensor_data['sensor_id'],
             sensor_data['sensor_type'],
             sensor_data['sensor_name'],
             sensor_data.get('description', ''),
-            sensor_data.get('location', ''),
             sensor_data['mqtt_topic'],
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             sensor_data.get('visible', True),
@@ -329,13 +337,11 @@ def update_sensor(ime_baze: str, sensor_id: str, sensor_data: Dict) -> bool:
 
     cursor.execute('''
         UPDATE sensors 
-        SET sensor_name = ?, description = ?, location = ?,
-            visible = ?
+        SET sensor_name = ?, description = ?, visible = ?
         WHERE sensor_id = ?
     ''', (
         sensor_data['sensor_name'],
         sensor_data.get('description', ''),
-        sensor_data.get('location', ''),
         sensor_data.get('visible', True),
         sensor_id
     ))
@@ -398,6 +404,7 @@ def get_all_tests(ime_baze: str) -> List[Dict]:
     
     cursor.execute('''
         SELECT t.*, 
+               COUNT(DISTINCT tr.sensor_id) as sensor_count,
                COUNT(p.id) as data_points,
                MIN(p.datetime) as first_data,
                MAX(p.datetime) as last_data
@@ -405,7 +412,7 @@ def get_all_tests(ime_baze: str) -> List[Dict]:
         LEFT JOIN test_relations tr ON t.id = tr.test_id
         LEFT JOIN podatki p ON tr.id = p.test_relation_id
         GROUP BY t.id
-        ORDER BY t.start_time DESC
+        ORDER BY t.created_at DESC
     ''')
     tests = [dict(row) for row in cursor.fetchall()]
 
@@ -448,15 +455,18 @@ def create_test(ime_baze: str, test_data: Dict) -> bool:
     cursor = conn.cursor()
     
     try:
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute('''
-            INSERT INTO tests (test_name, description, status, created_by, notes)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO tests (test_name, description, notes, created_by, status, created_at, last_modified_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             test_data['test_name'],
             test_data.get('description', ''),
-            test_data.get('status', 'idle'),
-            test_data.get('created_by', 'user'),
-            test_data.get('notes', '')
+            test_data.get('notes', ''),
+            test_data['created_by'],
+            'idle',
+            current_time,
+            current_time
         ))
         conn.commit()
         return True
@@ -473,8 +483,9 @@ def update_test(ime_baze: str, test_id: int, test_data: Dict) -> bool:
 
     fields = []
     values = []
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    for key in ['test_name', 'description', 'notes']:
+    for key in ['test_name', 'description', 'notes', 'created_by']:
         if key in test_data:
             fields.append(f"{key} = ?")
             values.append(test_data[key])
@@ -483,7 +494,11 @@ def update_test(ime_baze: str, test_id: int, test_data: Dict) -> bool:
         conn.close()
         return False
     
+    # Always update last_modified_at
+    fields.append("last_modified_at = ?")
+    values.append(current_time)
     values.append(test_id)
+    
     sql = f"UPDATE tests SET {', '.join(fields)} WHERE id = ?"
     cursor.execute(sql, values)
     
@@ -494,13 +509,12 @@ def update_test(ime_baze: str, test_id: int, test_data: Dict) -> bool:
 
 
 def start_test(ime_baze: str, test_id: int) -> bool:
-    """Set a test as running and record start_time only if test is idle."""
+    """Set a test as running only if test is idle."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
 
-    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sql = "UPDATE tests SET status = ?, start_time = ? WHERE id = ? AND status = ?"
-    cursor.execute(sql, ('running', start_time, test_id, 'idle'))
+    sql = "UPDATE tests SET status = ? WHERE id = ? AND status = ?"
+    cursor.execute(sql, ('running', test_id, 'idle'))
 
     success = cursor.rowcount > 0
     conn.commit()
@@ -509,13 +523,12 @@ def start_test(ime_baze: str, test_id: int) -> bool:
 
 
 def stop_test(ime_baze: str, test_id: int) -> bool:
-    """Set a test as completed and record end_time."""
+    """Set a test as completed."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
 
-    end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sql = "UPDATE tests SET status = ?, end_time = ? WHERE id = ?"
-    cursor.execute(sql, ('completed', end_time, test_id))
+    sql = "UPDATE tests SET status = ? WHERE id = ?"
+    cursor.execute(sql, ('completed', test_id))
 
     success = cursor.rowcount > 0
     conn.commit()
@@ -548,8 +561,7 @@ def delete_test(ime_baze: str, test_id: int) -> bool:
     return success
 
 
-def get_sensor_data(ime_baze: str, test_id: int, sensor_id: str = None, 
-                   start_time: str = None, end_time: str = None) -> List[Dict]:
+def get_sensor_data(ime_baze: str, test_id: int, sensor_id: str = None) -> List[Dict]:
     """Get sensor data for a test."""
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
@@ -574,14 +586,6 @@ def get_sensor_data(ime_baze: str, test_id: int, sensor_id: str = None,
     if sensor_id:
         query += ' AND sensor_id = ?'
         params.append(sensor_id)
-    
-    if start_time:
-        query += ' AND datetime >= ?'
-        params.append(start_time)
-    
-    if end_time:
-        query += ' AND datetime <= ?'
-        params.append(end_time)
     
     query += ' ORDER BY datetime DESC'
     
@@ -780,6 +784,116 @@ def is_sensor_or_machine_available(ime_baze: str, sensor_id: str = None, machine
     return True
 
 
+def create_test_with_relations(ime_baze: str, test_data: Dict, machine_id: int, sensors: List[Dict]) -> Optional[int]:
+    """Create a test with machine and sensor relations in a single transaction."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    try:
+        # Create the test
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute('''
+            INSERT INTO tests (test_name, description, notes, created_by, status, created_at, last_modified_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            test_data['test_name'],
+            test_data.get('description', ''),
+            test_data.get('notes', ''),
+            test_data['created_by'],
+            'idle',
+            current_time,
+            current_time
+        ))
+        
+        test_id = cursor.lastrowid
+        
+        # Create relations for each sensor
+        for sensor in sensors:
+            cursor.execute('''
+                INSERT INTO test_relations (test_id, machine_id, sensor_id, sensor_location)
+                VALUES (?, ?, ?, ?)
+            ''', (test_id, machine_id, sensor['sensor_id'], sensor.get('sensor_location', '')))
+        
+        conn.commit()
+        return test_id
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error creating test with relations: {e}")
+        return None
+    finally:
+        conn.close()
+
+
+def get_test_with_relations(ime_baze: str, test_id: int) -> Optional[Dict]:
+    """Get a test with its machine and sensor relations."""
+    conn = sqlite3.connect(ime_baze)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get test info
+    cursor.execute('SELECT * FROM tests WHERE id = ?', (test_id,))
+    test_row = cursor.fetchone()
+    if not test_row:
+        conn.close()
+        return None
+    
+    test = dict(test_row)
+    
+    # Get relations
+    cursor.execute('''
+        SELECT tr.machine_id, tr.sensor_id, tr.sensor_location, m.machine_name, s.sensor_name
+        FROM test_relations tr
+        LEFT JOIN machines m ON tr.machine_id = m.id
+        LEFT JOIN sensors s ON tr.sensor_id = s.id
+        WHERE tr.test_id = ?
+    ''', (test_id,))
+    relations = cursor.fetchall()
+    
+    if relations:
+        test['machine_id'] = relations[0]['machine_id']
+        test['machine_name'] = relations[0]['machine_name']
+        test['sensors'] = [{
+            'sensor_id': rel['sensor_id'],
+            'sensor_name': rel['sensor_name'],
+            'sensor_location': rel['sensor_location'] or ''
+        } for rel in relations]
+    else:
+        test['machine_id'] = None
+        test['machine_name'] = None
+        test['sensors'] = []
+    
+    conn.close()
+    return test
+
+
+def update_test_relations(ime_baze: str, test_id: int, machine_id: int, sensors: List[Dict]) -> bool:
+    """Update test relations by replacing all existing relations."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    try:
+        # Delete existing relations
+        cursor.execute('DELETE FROM test_relations WHERE test_id = ?', (test_id,))
+        
+        # Create new relations
+        for sensor in sensors:
+            cursor.execute('''
+                INSERT INTO test_relations (test_id, machine_id, sensor_id, sensor_location)
+                VALUES (?, ?, ?, ?)
+            ''', (test_id, machine_id, sensor['sensor_id'], sensor.get('sensor_location', '')))
+        
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"Error updating test relations: {e}")
+        return False
+    finally:
+        conn.close()
+
+
 # Washing machines
 def get_all_machines(ime_baze: str) -> List[Dict]:
     """Get all washing machines from the database."""
@@ -814,11 +928,12 @@ def create_machine(ime_baze: str, machine_data: Dict) -> bool:
     
     try:
         cursor.execute('''
-            INSERT INTO machines (machine_name, description, created_at, visible)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO machines (machine_name, description, machine_type_id, created_at, visible)
+            VALUES (?, ?, ?, ?, ?)
         ''', (
             machine_data['machine_name'],
             machine_data.get('description', ''),
+            machine_data.get('machine_type_id'),
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             machine_data.get('visible', True)
         ))
@@ -837,11 +952,12 @@ def update_machine(ime_baze: str, machine_id: int, machine_data: Dict) -> bool:
     
     cursor.execute('''
         UPDATE machines 
-        SET machine_name = ?, description = ?, visible = ?
+        SET machine_name = ?, description = ?, machine_type_id = ?, visible = ?
         WHERE id = ?
     ''', (
         machine_data.get('machine_name', ''),
         machine_data.get('description', ''),
+        machine_data.get('machine_type_id'),
         machine_data.get('visible', True),
         machine_id
     ))
@@ -958,12 +1074,11 @@ def create_sensor_type(ime_baze: str, sensor_type: Dict) -> Dict:
     
     cursor.execute('''
         INSERT INTO sensor_types 
-        (name, display_name, description, default_topic, unit, min_value, max_value, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (mqtt_topic, display_name, unit, description, created_at)
+        VALUES (?, ?, ?, ?, ?)
     ''', (
-        sensor_type['name'], sensor_type['display_name'], sensor_type.get('description', ''),
-        sensor_type.get('default_topic', ''),
-        sensor_type.get('unit', ''), sensor_type.get('min_value'), sensor_type.get('max_value'),
+        sensor_type['mqtt_topic'], sensor_type['display_name'], 
+        sensor_type.get('unit', ''), sensor_type.get('description', ''),
         current_time
     ))
     
@@ -995,7 +1110,7 @@ def update_sensor_type(ime_baze: str, type_id: int, type_data: Dict) -> Optional
     set_clauses = []
     params = []
     
-    for field in ['display_name', 'description', 'default_topic', 'unit', 'min_value', 'max_value']:
+    for field in ['mqtt_topic', 'display_name', 'unit', 'description']:
         if field in type_data:
             set_clauses.append(f'{field} = ?')
             params.append(type_data[field])
@@ -1019,20 +1134,110 @@ def delete_sensor_type(ime_baze: str, type_id: int) -> bool:
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
     
-    # Get the sensor type name before deletion
-    cursor.execute('SELECT name FROM sensor_types WHERE id = ?', (type_id,))
+    # Get the sensor type mqtt_topic before deletion
+    cursor.execute('SELECT mqtt_topic FROM sensor_types WHERE id = ?', (type_id,))
     result = cursor.fetchone()
     if not result:
         conn.close()
         return False
     
-    type_name = result[0]
+    mqtt_topic = result[0]
     
     # Mark sensors of this type as invisible
-    cursor.execute('UPDATE sensors SET visible = 0 WHERE sensor_type = ?', (type_name,))
+    cursor.execute('UPDATE sensors SET visible = 0 WHERE sensor_type = ?', (mqtt_topic,))
     
     # Delete the sensor type
     cursor.execute('DELETE FROM sensor_types WHERE id = ?', (type_id,))
+    rows_affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return rows_affected > 0
+
+
+# Machine Types
+def get_all_machine_types(ime_baze: str) -> List[Dict]:
+    """Get all machine types."""
+    conn = sqlite3.connect(ime_baze)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM machine_types ORDER BY created_at DESC')
+    types = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return types
+
+
+def get_machine_type_by_id(ime_baze: str, type_id: int) -> Optional[Dict]:
+    """Get machine type by ID."""
+    conn = sqlite3.connect(ime_baze)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM machine_types WHERE id = ?', (type_id,))
+    result = cursor.fetchone()
+    conn.close()
+    
+    return dict(result) if result else None
+
+
+def create_machine_type(ime_baze: str, type_data: Dict) -> Dict:
+    """Create new machine type."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    cursor.execute('''
+        INSERT INTO machine_types (display_name, description, created_by, created_at)
+        VALUES (?, ?, ?, ?)
+    ''', (
+        type_data['display_name'],
+        type_data.get('description', ''),
+        type_data['created_by'],
+        created_at
+    ))
+    
+    type_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return get_machine_type_by_id(ime_baze, type_id)
+
+
+def update_machine_type(ime_baze: str, type_id: int, type_data: Dict) -> Optional[Dict]:
+    """Update machine type."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    set_clauses = []
+    params = []
+    
+    for field in ['display_name', 'description']:
+        if field in type_data and type_data[field] is not None:
+            set_clauses.append(f'{field} = ?')
+            params.append(type_data[field])
+    
+    if not set_clauses:
+        conn.close()
+        return None
+    
+    query = f'UPDATE machine_types SET {", ".join(set_clauses)} WHERE id = ?'
+    params.append(type_id)
+    
+    cursor.execute(query, params)
+    conn.commit()
+    conn.close()
+    
+    return get_machine_type_by_id(ime_baze, type_id)
+
+
+def delete_machine_type(ime_baze: str, type_id: int) -> bool:
+    """Delete machine type."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM machine_types WHERE id = ?', (type_id,))
     rows_affected = cursor.rowcount
     conn.commit()
     conn.close()

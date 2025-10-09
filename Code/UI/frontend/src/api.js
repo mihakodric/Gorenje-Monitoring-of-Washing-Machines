@@ -14,17 +14,28 @@ export const sensorsAPI = {
   create: (sensor) => api.post('/api/sensors', sensor),
   update: (id, sensor) => api.put(`/api/sensors/${id}`, sensor),
   delete: (id) => api.delete(`/api/sensors/${id}`),
+  getTypes: () => api.get('/api/sensor-types'),
 };
 
 // Tests API
 export const testsAPI = {
   getAll: () => api.get('/api/tests'),
-  getById: (name) => api.get(`/api/tests/${name}`),
+  getById: (id) => api.get(`/api/tests/${id}`),
   create: (test) => api.post('/api/tests', test),
-  update: (name, test) => api.put(`/api/tests/${name}`, test),
-  stop: (name) => api.post(`/api/tests/${name}/stop`),
-  getData: (name, params = {}) => api.get(`/api/tests/${name}/data`, { params }),
-  getSummary: (name) => api.get(`/api/tests/${name}/summary`),
+  createWithRelations: (testData) => api.post('/api/tests/create-with-relations', testData),
+  getWithRelations: (id) => api.get(`/api/tests/${id}/with-relations`),
+  update: (id, test) => api.put(`/api/tests/${id}`, test),
+  updateRelations: (id, relationsData) => api.put(`/api/tests/${id}/relations`, relationsData),
+  start: (id) => api.post(`/api/tests/${id}/start`),
+  stop: (id) => api.post(`/api/tests/${id}/stop`),
+  delete: (id) => api.delete(`/api/tests/${id}`),
+  getData: (id, params = {}) => api.get(`/api/tests/${id}/data`, { params }),
+  getSummary: (id) => api.get(`/api/tests/${id}/summary`),
+  
+  // Relations
+  getRelations: (id) => api.get(`/api/tests/${id}/relations`),
+  addRelation: (id, relation) => api.post(`/api/tests/${id}/relations`, relation),
+  deleteRelation: (testId, relationId) => api.delete(`/api/tests/${testId}/relations/${relationId}`),
 };
 
 // Washing machines API
@@ -34,6 +45,7 @@ export const washingMachinesAPI = {
   create: (machine) => api.post('/api/machines', machine),
   update: (name, machine) => api.put(`/api/machines/${name}`, machine),
   delete: (name) => api.delete(`/api/machines/${name}`),
+  getTypes: () => api.get('/api/machine-types'),
 };
 
 // MQTT API
@@ -50,17 +62,22 @@ export const systemAPI = {
 
 // Settings API
 export const settingsAPI = {
-  // MQTT Configurations
-  getMqttConfigs: () => api.get('/api/settings/mqtt-configs'),
-  createMqttConfig: (config) => api.post('/api/settings/mqtt-configs', config),
-  updateMqttConfig: (id, config) => api.put(`/api/settings/mqtt-configs/${id}`, config),
-  deleteMqttConfig: (id) => api.delete(`/api/settings/mqtt-configs/${id}`),
+  // MQTT Configuration (Single config)
+  getMqttConfig: () => api.get('/api/settings/mqtt-config'),
+  createMqttConfig: (config) => api.post('/api/settings/mqtt-config', config),
+  updateMqttConfig: (id, config) => api.put(`/api/settings/mqtt-config/${id}`, config),
   
   // Sensor Types
   getSensorTypes: () => api.get('/api/settings/sensor-types'),
   createSensorType: (sensorType) => api.post('/api/settings/sensor-types', sensorType),
   updateSensorType: (id, sensorType) => api.put(`/api/settings/sensor-types/${id}`, sensorType),
   deleteSensorType: (id) => api.delete(`/api/settings/sensor-types/${id}`),
+  
+  // Machine Types
+  getMachineTypes: () => api.get('/api/settings/machine-types'),
+  createMachineType: (machineType) => api.post('/api/settings/machine-types', machineType),
+  updateMachineType: (id, machineType) => api.put(`/api/settings/machine-types/${id}`, machineType),
+  deleteMachineType: (id) => api.delete(`/api/settings/machine-types/${id}`),
 };
 
 export default api;

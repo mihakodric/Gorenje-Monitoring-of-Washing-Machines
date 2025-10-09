@@ -30,7 +30,6 @@ const Sensors = () => {
       // Search filter
       const matchesSearch = sensor.sensor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            sensor.sensor_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           sensor.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            sensor.mqtt_topic.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Status filter
@@ -383,7 +382,7 @@ const Sensors = () => {
                     onClick={() => handleSort('sensor_type')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      Type & Location
+                      Type
                       {sortField === 'sensor_type' && (
                         <span style={{ fontSize: '12px' }}>
                           {sortDirection === 'asc' ? '↑' : '↓'}
@@ -456,14 +455,16 @@ const Sensors = () => {
                           <IconComponent size={14} />
                           {sensor.sensor_type.replace('_', ' ')}
                         </div>
-                        <div style={{ 
-                          marginTop: '8px', 
-                          fontSize: '12px', 
-                          color: '#6b7280',
-                          fontWeight: '500'
-                        }}>
-                          📍 {sensor.location || 'No location set'}
-                        </div>
+                        {sensor.description && (
+                          <div style={{ 
+                            marginTop: '8px', 
+                            fontSize: '12px', 
+                            color: '#6b7280',
+                            fontWeight: '500'
+                          }}>
+                            {sensor.description}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div style={{

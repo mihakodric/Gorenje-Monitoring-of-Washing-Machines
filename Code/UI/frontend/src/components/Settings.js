@@ -3,36 +3,38 @@ import { settingsAPI } from '../api';
 import { Settings as SettingsIcon, Plus, Edit, Trash2, Save, X, Wifi, Zap, AlertTriangle, Check } from 'lucide-react';
 
 const Settings = () => {
-  const [mqttConfigs, setMqttConfigs] = useState([]);
+  const [mqttConfig, setMqttConfig] = useState(null);
   const [sensorTypes, setSensorTypes] = useState([]);
+  const [machineTypes, setMachineTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('mqtt');
+  const [mqttSaving, setMqttSaving] = useState(false);
   
-  // MQTT Config states
-  const [showMqttModal, setShowMqttModal] = useState(false);
-  const [editingMqttConfig, setEditingMqttConfig] = useState(null);
+  // MQTT Config form state - directly editable
   const [mqttForm, setMqttForm] = useState({
-    name: '',
-    broker_host: '',
+    broker_host: 'localhost',
     broker_port: 1883,
     username: '',
-    password: '',
-    topic_prefix: '',
-    description: ''
+    password: ''
   });
 
   // Sensor Type states
   const [showSensorTypeModal, setShowSensorTypeModal] = useState(false);
   const [editingSensorType, setEditingSensorType] = useState(null);
   const [sensorTypeForm, setSensorTypeForm] = useState({
-    name: '',
+    mqtt_topic: '',
+    display_name: '',
+    unit: '',
+    description: ''
+  });
+
+  // Machine Type states
+  const [showMachineTypeModal, setShowMachineTypeModal] = useState(false);
+  const [editingMachineType, setEditingMachineType] = useState(null);
+  const [machineTypeForm, setMachineTypeForm] = useState({
     display_name: '',
     description: '',
-    default_topic: '',
-    data_format: 'json',
-    unit: '',
-    min_value: '',
-    max_value: ''
+    created_by: 'admin' // Default value, should be from user context in real app
   });
 
   useEffect(() => {
@@ -42,12 +44,26 @@ const Settings = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const [mqttResponse, typesResponse] = await Promise.all([
-        settingsAPI.getMqttConfigs(),
-        settingsAPI.getSensorTypes()
+      const [mqttResponse, typesResponse, machineTypesResponse] = await Promise.all([
+        settingsAPI.getMqttConfig(), // Get single MQTT config
+        settingsAPI.getSensorTypes(),
+        settingsAPI.getMachineTypes()
       ]);
-      setMqttConfigs(mqttResponse.data);
+      
+      // Set the MQTT config data to both state and form
+      const mqttData = mqttResponse.data;
+      setMqttConfig(mqttData);
+      if (mqttData) {
+        setMqttForm({
+          broker_host: mqttData.broker_host || 'localhost',
+          broker_port: mqttData.broker_port || 1883,
+          username: mqttData.username || '',
+          password: mqttData.password || ''
+        });
+      }
+      
       setSensorTypes(typesResponse.data);
+      setMachineTypes(machineTypesResponse.data);
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
@@ -56,50 +72,38 @@ const Settings = () => {
   };
 
   // MQTT Config handlers
-  const handleAddMqttConfig = () => {
-    setEditingMqttConfig(null);
-    setMqttForm({
-      name: '',
-      broker_host: '',
-      broker_port: 1883,
-      username: '',
-      password: '',
-      topic_prefix: '',
-      description: ''
-    });
-    setShowMqttModal(true);
-  };
-
-  const handleEditMqttConfig = (config) => {
-    setEditingMqttConfig(config);
-    setMqttForm(config);
-    setShowMqttModal(true);
-  };
-
   const handleSaveMqttConfig = async () => {
     try {
-      if (editingMqttConfig) {
-        await settingsAPI.updateMqttConfig(editingMqttConfig.id, mqttForm);
+      setMqttSaving(true);
+      if (mqttConfig && mqttConfig.id) {
+        await settingsAPI.updateMqttConfig(mqttConfig.id, mqttForm);
       } else {
         await settingsAPI.createMqttConfig(mqttForm);
       }
-      loadSettings();
-      setShowMqttModal(false);
+      await loadSettings(); // Reload to get updated data
     } catch (error) {
       console.error('Error saving MQTT config:', error);
       alert('Error saving MQTT configuration');
+    } finally {
+      setMqttSaving(false);
     }
   };
 
-  const handleDeleteMqttConfig = async (configId) => {
-    if (window.confirm('Are you sure you want to delete this MQTT configuration? This will mark related sensors as inactive.')) {
-      try {
-        await settingsAPI.deleteMqttConfig(configId);
-        loadSettings();
-      } catch (error) {
-        console.error('Error deleting MQTT config:', error);
-        alert('Error deleting MQTT configuration');
-      }
+  const handleResetMqttConfig = () => {
+    if (mqttConfig) {
+      setMqttForm({
+        broker_host: mqttConfig.broker_host || 'localhost',
+        broker_port: mqttConfig.broker_port || 1883,
+        username: mqttConfig.username || '',
+        password: mqttConfig.password || ''
+      });
+    } else {
+      setMqttForm({
+        broker_host: 'localhost',
+        broker_port: 1883,
+        username: '',
+        password: ''
+      });
     }
   };
 
@@ -107,14 +111,10 @@ const Settings = () => {
   const handleAddSensorType = () => {
     setEditingSensorType(null);
     setSensorTypeForm({
-      name: '',
+      mqtt_topic: '',
       display_name: '',
-      description: '',
-      default_topic: '',
-      data_format: 'json',
       unit: '',
-      min_value: '',
-      max_value: ''
+      description: ''
     });
     setShowSensorTypeModal(true);
   };
@@ -152,6 +152,54 @@ const Settings = () => {
     }
   };
 
+  // Machine Type handlers
+  const handleAddMachineType = () => {
+    setEditingMachineType(null);
+    setMachineTypeForm({
+      display_name: '',
+      description: '',
+      created_by: 'admin' // Default value
+    });
+    setShowMachineTypeModal(true);
+  };
+
+  const handleEditMachineType = (machineType) => {
+    setEditingMachineType(machineType);
+    setMachineTypeForm({
+      display_name: machineType.display_name,
+      description: machineType.description || '',
+      created_by: machineType.created_by
+    });
+    setShowMachineTypeModal(true);
+  };
+
+  const handleSaveMachineType = async () => {
+    try {
+      if (editingMachineType) {
+        await settingsAPI.updateMachineType(editingMachineType.id, machineTypeForm);
+      } else {
+        await settingsAPI.createMachineType(machineTypeForm);
+      }
+      loadSettings();
+      setShowMachineTypeModal(false);
+    } catch (error) {
+      console.error('Error saving machine type:', error);
+      alert('Error saving machine type');
+    }
+  };
+
+  const handleDeleteMachineType = async (typeId) => {
+    if (window.confirm('Are you sure you want to delete this machine type?')) {
+      try {
+        await settingsAPI.deleteMachineType(typeId);
+        loadSettings();
+      } catch (error) {
+        console.error('Error deleting machine type:', error);
+        alert('Error deleting machine type');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading">
@@ -173,7 +221,7 @@ const Settings = () => {
           System Settings
         </h1>
         <p style={{ color: '#6b7280', fontSize: '16px', fontWeight: '500' }}>
-          Configure MQTT connections and sensor types
+          Configure MQTT broker connection and sensor types
         </p>
       </div>
 
@@ -221,6 +269,25 @@ const Settings = () => {
           <Zap size={16} />
           Sensor Types
         </button>
+        <button
+          onClick={() => setActiveTab('machines')}
+          style={{
+            padding: '12px 24px',
+            border: 'none',
+            background: activeTab === 'machines' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+            color: activeTab === 'machines' ? 'white' : '#6b7280',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <SettingsIcon size={16} />
+          Machine Types
+        </button>
       </div>
 
       {/* MQTT Configuration Tab */}
@@ -231,7 +298,7 @@ const Settings = () => {
               <Wifi size={28} style={{ color: '#667eea' }} />
               <div>
                 <h2 className="card-title" style={{ margin: 0, fontSize: '20px' }}>
-                  MQTT Configurations
+                  MQTT Configuration
                 </h2>
                 <p style={{ 
                   margin: 0, 
@@ -239,74 +306,161 @@ const Settings = () => {
                   color: '#6b7280',
                   fontWeight: '500'
                 }}>
-                  Manage MQTT broker connections and topics
+                  Configure MQTT broker connection and topics
                 </p>
               </div>
             </div>
-            <button 
-              className="btn btn-primary" 
-              onClick={handleAddMqttConfig}
-              style={{ 
-                padding: '12px 24px',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              <Plus size={18} />
-              Add Configuration
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleResetMqttConfig}
+                style={{ 
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                <X size={16} />
+                Reset
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSaveMqttConfig}
+                disabled={mqttSaving}
+                style={{ 
+                  padding: '12px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                <Save size={16} />
+                {mqttSaving ? 'Saving...' : 'Save Configuration'}
+              </button>
+            </div>
           </div>
 
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Broker</th>
-                  <th>Topic Prefix</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mqttConfigs.map((config) => (
-                  <tr key={config.id}>
-                    <td>
-                      <strong>{config.name}</strong>
-                      {config.description && (
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {config.description}
-                        </div>
-                      )}
-                    </td>
-                    <td>{config.broker_host}:{config.broker_port}</td>
-                    <td>{config.topic_prefix || '-'}</td>
-                    <td>
-                      <span className={`status ${config.is_active ? 'status-running' : 'status-inactive'}`}>
-                        {config.is_active ? <Check size={12} /> : <X size={12} />}
-                        {config.is_active ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleEditMqttConfig(config)}
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteMqttConfig(config.id)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ padding: '30px' }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+              gap: '20px' 
+            }}>
+              {/* Broker Configuration */}
+              <div>
+                <h4 style={{ 
+                  color: '#374151', 
+                  marginBottom: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Wifi size={18} />
+                  Broker Connection
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
+                      Broker Host *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={mqttForm.broker_host}
+                      onChange={(e) => setMqttForm({...mqttForm, broker_host: e.target.value})}
+                      placeholder="localhost or IP address"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
+                      Port
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={mqttForm.broker_port}
+                      onChange={(e) => setMqttForm({...mqttForm, broker_port: parseInt(e.target.value) || 1883})}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Authentication */}
+              <div>
+                <h4 style={{ 
+                  color: '#374151', 
+                  marginBottom: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <SettingsIcon size={18} />
+                  Authentication (Optional)
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={mqttForm.username}
+                      onChange={(e) => setMqttForm({...mqttForm, username: e.target.value})}
+                      placeholder="Optional"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      value={mqttForm.password}
+                      onChange={(e) => setMqttForm({...mqttForm, password: e.target.value})}
+                      placeholder="Optional"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+
+            </div>
+
+            {/* Connection Status */}
+            {mqttConfig && (
+              <div style={{
+                marginTop: '30px',
+                padding: '20px',
+                backgroundColor: mqttConfig.is_active ? '#f0f9ff' : '#fef3c7',
+                border: `2px solid ${mqttConfig.is_active ? '#3b82f6' : '#f59e0b'}`,
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                {mqttConfig.is_active ? <Check size={20} style={{ color: '#3b82f6' }} /> : <AlertTriangle size={20} style={{ color: '#f59e0b' }} />}
+                <div>
+                  <p style={{ margin: 0, fontWeight: '600', color: mqttConfig.is_active ? '#1e40af' : '#92400e' }}>
+                    Connection Status: {mqttConfig.is_active ? 'Connected' : 'Disconnected'}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '14px', color: mqttConfig.is_active ? '#3730a3' : '#78350f' }}>
+                    {mqttConfig.is_active ? 
+                      `Connected to ${mqttConfig.broker_host}:${mqttConfig.broker_port}` : 
+                      'MQTT broker is not reachable or configuration is invalid'
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -349,11 +503,10 @@ const Settings = () => {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Type Name</th>
                   <th>Display Name</th>
-                  <th>Default Topic</th>
+                  <th>MQTT Topic</th>
                   <th>Unit</th>
-                  <th>Range</th>
+                  <th>Description</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -361,21 +514,18 @@ const Settings = () => {
                 {sensorTypes.map((sensorType) => (
                   <tr key={sensorType.id}>
                     <td>
-                      <strong>{sensorType.name}</strong>
-                      {sensorType.description && (
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {sensorType.description}
-                        </div>
-                      )}
+                      <strong>{sensorType.display_name}</strong>
                     </td>
-                    <td>{sensorType.display_name}</td>
-                    <td>{sensorType.default_topic || '-'}</td>
+                    <td>
+                      <code style={{ fontSize: '12px', backgroundColor: '#f5f5f5', padding: '2px 4px', borderRadius: '3px' }}>
+                        {sensorType.mqtt_topic}
+                      </code>
+                    </td>
                     <td>{sensorType.unit || '-'}</td>
                     <td>
-                      {sensorType.min_value && sensorType.max_value ? 
-                        `${sensorType.min_value} - ${sensorType.max_value}` : 
-                        '-'
-                      }
+                      <div style={{ maxWidth: '200px', fontSize: '14px' }}>
+                        {sensorType.description || '-'}
+                      </div>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '5px' }}>
@@ -401,8 +551,120 @@ const Settings = () => {
         </div>
       )}
 
-      {/* MQTT Config Modal */}
-      {showMqttModal && (
+      {/* Machine Types Tab */}
+      {activeTab === 'machines' && (
+        <div className="card">
+          <div className="card-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <SettingsIcon size={28} style={{ color: '#667eea' }} />
+              <div>
+                <h2 className="card-title" style={{ margin: 0, fontSize: '20px' }}>
+                  Machine Types
+                </h2>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '14px', 
+                  color: '#6b7280',
+                  fontWeight: '500'
+                }}>
+                  Define and manage different types of washing machines
+                </p>
+              </div>
+            </div>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleAddMachineType}
+              style={{ 
+                padding: '12px 24px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            >
+              <Plus size={18} />
+              Add Machine Type
+            </button>
+          </div>
+
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Display Name</th>
+                  <th>Description</th>
+                  <th>Created By</th>
+                  <th>Created At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {machineTypes.map((machineType) => (
+                  <tr key={machineType.id}>
+                    <td>
+                      <strong>{machineType.display_name}</strong>
+                    </td>
+                    <td>
+                      <div style={{ maxWidth: '300px', fontSize: '14px' }}>
+                        {machineType.description || '-'}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ 
+                        fontSize: '14px', 
+                        color: '#6b7280',
+                        fontWeight: '500'
+                      }}>
+                        {machineType.created_by}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                        {new Date(machineType.created_at).toLocaleDateString()}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleEditMachineType(machineType)}
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteMachineType(machineType.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {machineTypes.length === 0 && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px',
+                color: '#6b7280'
+              }}>
+                <p>No machine types defined yet.</p>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleAddMachineType}
+                  style={{ marginTop: '10px' }}
+                >
+                  <Plus size={16} />
+                  Create First Machine Type
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Machine Type Modal */}
+      {showMachineTypeModal && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -425,9 +687,9 @@ const Settings = () => {
             overflow: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3>{editingMqttConfig ? 'Edit MQTT Configuration' : 'Add MQTT Configuration'}</h3>
+              <h3>{editingMachineType ? 'Edit Machine Type' : 'Add Machine Type'}</h3>
               <button
-                onClick={() => setShowMqttModal(false)}
+                onClick={() => setShowMachineTypeModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 <X size={24} />
@@ -437,78 +699,14 @@ const Settings = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Configuration Name *
+                  Display Name *
                 </label>
                 <input
                   type="text"
                   className="form-control"
-                  value={mqttForm.name}
-                  onChange={(e) => setMqttForm({...mqttForm, name: e.target.value})}
-                  placeholder="e.g., Main MQTT Broker"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Broker Host *
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={mqttForm.broker_host}
-                  onChange={(e) => setMqttForm({...mqttForm, broker_host: e.target.value})}
-                  placeholder="localhost or IP address"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Port
-                </label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={mqttForm.broker_port}
-                  onChange={(e) => setMqttForm({...mqttForm, broker_port: parseInt(e.target.value)})}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Username
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={mqttForm.username}
-                  onChange={(e) => setMqttForm({...mqttForm, username: e.target.value})}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Password
-                </label>
-                <input
-                  type="password"
-                  className="form-control"
-                  value={mqttForm.password}
-                  onChange={(e) => setMqttForm({...mqttForm, password: e.target.value})}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Topic Prefix
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={mqttForm.topic_prefix}
-                  onChange={(e) => setMqttForm({...mqttForm, topic_prefix: e.target.value})}
-                  placeholder="e.g., sensors/"
+                  value={machineTypeForm.display_name}
+                  onChange={(e) => setMachineTypeForm({...machineTypeForm, display_name: e.target.value})}
+                  placeholder="e.g., Front Load Washer, Top Load Washer"
                 />
               </div>
 
@@ -518,10 +716,23 @@ const Settings = () => {
                 </label>
                 <textarea
                   className="form-control"
-                  value={mqttForm.description}
-                  onChange={(e) => setMqttForm({...mqttForm, description: e.target.value})}
-                  rows="3"
-                  placeholder="Optional description"
+                  value={machineTypeForm.description}
+                  onChange={(e) => setMachineTypeForm({...machineTypeForm, description: e.target.value})}
+                  rows="4"
+                  placeholder="Describe the characteristics and features of this machine type"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                  Created By
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={machineTypeForm.created_by}
+                  onChange={(e) => setMachineTypeForm({...machineTypeForm, created_by: e.target.value})}
+                  placeholder="Enter creator name"
                 />
               </div>
             </div>
@@ -529,17 +740,17 @@ const Settings = () => {
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
               <button
                 className="btn btn-secondary"
-                onClick={() => setShowMqttModal(false)}
+                onClick={() => setShowMachineTypeModal(false)}
               >
                 Cancel
               </button>
               <button
                 className="btn btn-primary"
-                onClick={handleSaveMqttConfig}
-                disabled={!mqttForm.name || !mqttForm.broker_host}
+                onClick={handleSaveMachineType}
+                disabled={!machineTypeForm.display_name || !machineTypeForm.created_by}
               >
                 <Save size={16} />
-                Save Configuration
+                Save Machine Type
               </button>
             </div>
           </div>
@@ -582,14 +793,14 @@ const Settings = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Type Name * (lowercase, no spaces)
+                  MQTT Topic *
                 </label>
                 <input
                   type="text"
                   className="form-control"
-                  value={sensorTypeForm.name}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, name: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
-                  placeholder="e.g., custom_pressure"
+                  value={sensorTypeForm.mqtt_topic}
+                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, mqtt_topic: e.target.value})}
+                  placeholder="e.g., sensors/pressure"
                 />
               </div>
 
@@ -602,36 +813,8 @@ const Settings = () => {
                   className="form-control"
                   value={sensorTypeForm.display_name}
                   onChange={(e) => setSensorTypeForm({...sensorTypeForm, display_name: e.target.value})}
-                  placeholder="e.g., Custom Pressure Sensor"
+                  placeholder="e.g., Pressure Sensor"
                 />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Default Topic
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={sensorTypeForm.default_topic}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, default_topic: e.target.value})}
-                  placeholder="e.g., sensors/pressure"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Data Format
-                </label>
-                <select
-                  className="form-control"
-                  value={sensorTypeForm.data_format}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, data_format: e.target.value})}
-                >
-                  <option value="json">JSON</option>
-                  <option value="string">String</option>
-                  <option value="number">Number</option>
-                </select>
               </div>
 
               <div>
@@ -643,35 +826,8 @@ const Settings = () => {
                   className="form-control"
                   value={sensorTypeForm.unit}
                   onChange={(e) => setSensorTypeForm({...sensorTypeForm, unit: e.target.value})}
-                  placeholder="e.g., bar, psi, °C"
+                  placeholder="e.g., bar, psi, °C, g"
                 />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                    Min Value
-                  </label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={sensorTypeForm.min_value}
-                    onChange={(e) => setSensorTypeForm({...sensorTypeForm, min_value: e.target.value})}
-                    placeholder="0"
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                    Max Value
-                  </label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={sensorTypeForm.max_value}
-                    onChange={(e) => setSensorTypeForm({...sensorTypeForm, max_value: e.target.value})}
-                    placeholder="100"
-                  />
-                </div>
               </div>
 
               <div>
@@ -683,7 +839,7 @@ const Settings = () => {
                   value={sensorTypeForm.description}
                   onChange={(e) => setSensorTypeForm({...sensorTypeForm, description: e.target.value})}
                   rows="3"
-                  placeholder="Describe this sensor type"
+                  placeholder="Describe this sensor type and its purpose"
                 />
               </div>
             </div>
@@ -698,7 +854,7 @@ const Settings = () => {
               <button
                 className="btn btn-primary"
                 onClick={handleSaveSensorType}
-                disabled={!sensorTypeForm.name || !sensorTypeForm.display_name}
+                disabled={!sensorTypeForm.mqtt_topic || !sensorTypeForm.display_name}
               >
                 <Save size={16} />
                 Save Type

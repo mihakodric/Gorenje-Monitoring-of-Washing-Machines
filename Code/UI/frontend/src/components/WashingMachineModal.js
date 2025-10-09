@@ -6,30 +6,54 @@ const WashingMachineModal = ({ machine, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     machine_name: "",
     description: "",
+    machine_type_id: 1,
   });
   const [loading, setLoading] = useState(false);
+  const [machineTypes, setMachineTypes] = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
 
+
+useEffect(() => {
+  loadMachineTypes();
+}, []);
 
 useEffect(() => {
   if (machine) {
     setFormData({
       machine_name: machine.machine_name || "",
       description: machine.description || "",
+      machine_type_id: machine.machine_type_id || (machineTypes.length > 0 ? machineTypes[0].id : 1),
     });
-  } else {
-    setFormData({
-      machine_name: "",
-      description: "",
-    });
+  } else if (machineTypes.length > 0) {
+    setFormData(prev => ({
+      ...prev,
+      machine_type_id: machineTypes[0].id
+    }));
   }
-}, [machine]);
+}, [machine, machineTypes]);
+
+const loadMachineTypes = async () => {
+  try {
+    const response = await washingMachinesAPI.getTypes();
+    setMachineTypes(response.data);
+  } catch (error) {
+    console.error('Error loading machine types:', error);
+    // Fallback to hardcoded types if API fails
+    setMachineTypes([
+      { id: 1, display_name: 'Washing Machine' },
+      { id: 2, display_name: 'Dishwasher' }
+    ]);
+  } finally {
+    setLoadingTypes(false);
+  }
+};
 
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'machine_type_id' ? parseInt(value, 10) : value,
     }));
   };
 
@@ -44,6 +68,7 @@ useEffect(() => {
         // Update existing machine
         await washingMachinesAPI.update(machine.machine_name, {
           description: formData.description,
+          machine_type_id: formData.machine_type_id,
         });
         machineName = machine.machine_name;
       } else {
@@ -86,6 +111,29 @@ useEffect(() => {
               disabled={!!machine} // cannot edit Name once created
               placeholder="e.g., Main Washing Machine"
             />
+          </div>
+
+          {/* Machine Type */}
+          <div className="form-group">
+            <label className="form-label">Machine Type *</label>
+            <select
+              name="machine_type_id"
+              value={formData.machine_type_id}
+              onChange={handleChange}
+              className="form-control"
+              required
+              disabled={loadingTypes}
+            >
+              {loadingTypes ? (
+                <option value="">Loading machine types...</option>
+              ) : (
+                machineTypes.map(type => (
+                  <option key={type.id} value={type.id}>
+                    {type.display_name}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           {/* Description */}

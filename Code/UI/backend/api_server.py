@@ -14,6 +14,7 @@ from models import (
     Test, TestCreate, TestUpdate, 
     TestRelation, TestRelationCreate, MachineUpdateForTest,
     Machine, MachineCreate, MachineUpdate, 
+    MachineType, MachineTypeCreate, MachineTypeUpdate,
     SensorData, TestSummary,
     MqttConfig, MqttConfigUpdate,
     SensorType, SensorTypeCreate, SensorTypeUpdate,
@@ -27,7 +28,8 @@ from database import (
     get_test_relations_for_sensor, get_test_relations_for_machine, is_sensor_or_machine_available, 
     get_mqtt_config, create_mqtt_config, update_mqtt_config,
     get_all_sensor_types, create_sensor_type, get_sensor_type_by_id, update_sensor_type, delete_sensor_type,
-    get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine
+    get_all_machines, get_machine_by_id, create_machine, update_machine, delete_machine,
+    get_all_machine_types, get_machine_type_by_id, create_machine_type, update_machine_type, delete_machine_type
 )
 
 # Load configuration
@@ -104,19 +106,53 @@ async def lifespan(app: FastAPI):
         if not get_sensor_by_id(DATABASE_NAME, sensor_data["sensor_id"]):
             create_sensor(DATABASE_NAME, sensor_data)     
 
-    # Add default washing machines, if they don't exist
-    default_machines = [
+    # Add default machine types if they don't exist
+    default_machine_types = [
         {
-            "machine_name": "machine1",
-            "description": "Test Washing Machine 1",
+            "display_name": "Washing Machine",
+            "description": "Standard household washing machine for cleaning clothes and textiles",
+            "created_by": "system"
         },
         {
-            "machine_name": "machine2",
-            "description": "Test Washing Machine 2",
+            "display_name": "Dishwasher",
+            "description": "Automatic dishwashing appliance for cleaning dishes and utensils",
+            "created_by": "system"
         }
     ]
+    
+    existing_machine_types = get_all_machine_types(DATABASE_NAME)
+    existing_machine_names = [mt['display_name'] for mt in existing_machine_types]
+    
+    for machine_type_data in default_machine_types:
+        if machine_type_data["display_name"] not in existing_machine_names:
+            create_machine_type(DATABASE_NAME, machine_type_data)
 
+    # Add default washing machines, if they don't exist
     if not get_all_machines(DATABASE_NAME):
+        # Get the first machine type (washing machine) for default assignment
+        machine_types = get_all_machine_types(DATABASE_NAME)
+        washing_machine_type_id = None
+        if machine_types:
+            for mt in machine_types:
+                if "washing" in mt['display_name'].lower():
+                    washing_machine_type_id = mt['id']
+                    break
+            if not washing_machine_type_id:
+                washing_machine_type_id = machine_types[0]['id']
+        
+        default_machines = [
+            {
+                "machine_name": "machine1",
+                "description": "Test Washing Machine 1",
+                "machine_type_id": washing_machine_type_id
+            },
+            {
+                "machine_name": "machine2", 
+                "description": "Test Washing Machine 2",
+                "machine_type_id": washing_machine_type_id
+            }
+        ]
+
         for machine_data in default_machines:
             create_machine(DATABASE_NAME, machine_data)
 
@@ -155,71 +191,61 @@ async def lifespan(app: FastAPI):
     # Add default sensor types if they don't exist
     default_sensor_types = [
         {
-            "name": "acceleration",
+            "mqtt_topic": "acceleration",
             "display_name": "Accelerometer",
             "description": "Measures vibration and movement acceleration",
-            "default_topic": "acceleration",
-            "unit": "g",
-            "min_value": -10.0,
-            "max_value": 10.0
+            "unit": "g"
         },
         {
-            "name": "temperature",
+            "mqtt_topic": "temperature", 
             "display_name": "Temperature Sensor",
             "description": "Measures temperature of water or ambient",
-            "default_topic": "temperature",
-            "unit": "°C",
-            "min_value": -20.0,
-            "max_value": 100.0
+            "unit": "°C"
         },
         {
-            "name": "distance",
+            "mqtt_topic": "distance",
             "display_name": "Distance/Ultrasonic Sensor",
             "description": "Measures distance or water level",
-            "default_topic": "distance",
-            "unit": "cm",
-            "min_value": 0.0,
-            "max_value": 400.0
+            "unit": "cm"
         },
         {
-            "name": "current",
-            "display_name": "Current Sensor",
+            "mqtt_topic": "current",
+            "display_name": "Current Sensor", 
             "description": "Measures electrical current consumption",
-            "default_topic": "current",
-            "unit": "A",
-            "min_value": 0.0,
-            "max_value": 30.0
+            "unit": "A"
         },
         {
-            "name": "water_flow",
+            "mqtt_topic": "water_flow",
             "display_name": "Water Flow Sensor",
             "description": "Measures water flow rate",
-            "default_topic": "water_flow",
-            "unit": "L/min",
-            "min_value": 0.0,
-            "max_value": 50.0
+            "unit": "L/min"
         },
         {
-            "name": "infrared",
+            "mqtt_topic": "infrared",
             "display_name": "Infrared Sensor",
             "description": "Detects presence or position using infrared",
-            "default_topic": "infrared",
-            "unit": "",
-            "min_value": 0.0,
-            "max_value": 1.0
+            "unit": ""
         }
     ]
     
     existing_sensor_types = get_all_sensor_types(DATABASE_NAME)
-    existing_names = [st['name'] for st in existing_sensor_types]
+    existing_topics = [st['mqtt_topic'] for st in existing_sensor_types]
     
     for sensor_type_data in default_sensor_types:
-        if sensor_type_data["name"] not in existing_names:
+        if sensor_type_data["mqtt_topic"] not in existing_topics:
             create_sensor_type(DATABASE_NAME, sensor_type_data)
 
+    # Try to start MQTT connection, but don't fail if broker is not available
     if not mqtt_listener.mqtt_running:
-        mqtt_listener.start_mqtt(MQTT_BROKER, MQTT_PORT)
-        mqtt_listener.start_offline_checker(DATABASE_NAME)
+        try:
+            print(f"Attempting to connect to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}...")
+            mqtt_listener.start_mqtt(MQTT_BROKER, MQTT_PORT)
+            mqtt_listener.start_offline_checker(DATABASE_NAME)
+            print("MQTT broker connected successfully.")
+        except Exception as e:
+            print(f"Warning: Could not connect to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}")
+            print(f"MQTT Error: {e}")
+            print("Server will start without MQTT functionality. You can configure MQTT later.")
     
     yield
     # Shutdown
@@ -254,6 +280,12 @@ async def get_sensors():
     """Get all sensors"""
     sensors = get_all_sensors(DATABASE_NAME)
     return sensors
+
+
+@app.get("/api/sensor-types", response_model=List[SensorType])
+async def get_sensor_types_for_sensors():
+    """Get all sensor types for sensor selection"""
+    return get_all_sensor_types(DATABASE_NAME)
 
 
 @app.get("/api/sensors/{sensor_id}", response_model=Sensor)
@@ -425,8 +457,14 @@ async def change_machine(test_id: int, update: MachineUpdateForTest):
 @app.get("/api/machines", response_model=List[Machine])
 async def get_machines():
     """Get all washing machines"""
-    sensors = get_all_machines(DATABASE_NAME)
-    return sensors
+    machines = get_all_machines(DATABASE_NAME)
+    return machines
+
+
+@app.get("/api/machine-types", response_model=List[MachineType])
+async def get_machine_types_for_machines():
+    """Get all machine types for machine selection"""
+    return get_all_machine_types(DATABASE_NAME)
 
 
 @app.get("/api/machines/{machine_id}", response_model=Machine)
@@ -607,6 +645,47 @@ async def delete_sensor_type_endpoint(type_id: int):
     if not success:
         raise HTTPException(status_code=404, detail="Sensor type not found")
     return {"message": "Sensor type deleted successfully. Related sensors marked as inactive."}
+
+
+# Machine Types endpoints
+@app.get("/api/settings/machine-types", response_model=List[MachineType])
+async def get_machine_types():
+    """Get all machine types"""
+    return get_all_machine_types(DATABASE_NAME)
+
+
+@app.get("/api/settings/machine-types/{type_id}", response_model=MachineType)
+async def get_machine_type(type_id: int):
+    """Get machine type by ID"""
+    machine_type = get_machine_type_by_id(DATABASE_NAME, type_id)
+    if not machine_type:
+        raise HTTPException(status_code=404, detail="Machine type not found")
+    return machine_type
+
+
+@app.post("/api/settings/machine-types", response_model=dict)
+async def create_machine_type_endpoint(machine_type: MachineTypeCreate):
+    """Create new machine type"""
+    result = create_machine_type(DATABASE_NAME, machine_type.dict())
+    return {"message": "Machine type created successfully", "machine_type": result}
+
+
+@app.put("/api/settings/machine-types/{type_id}", response_model=dict)
+async def update_machine_type_endpoint(type_id: int, machine_type: MachineTypeUpdate):
+    """Update machine type"""
+    result = update_machine_type(DATABASE_NAME, type_id, machine_type.dict(exclude_unset=True))
+    if not result:
+        raise HTTPException(status_code=404, detail="Machine type not found")
+    return {"message": "Machine type updated successfully", "machine_type": result}
+
+
+@app.delete("/api/settings/machine-types/{type_id}")
+async def delete_machine_type_endpoint(type_id: int):
+    """Delete machine type"""
+    success = delete_machine_type(DATABASE_NAME, type_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Machine type not found")
+    return {"message": "Machine type deleted successfully"}
 
 
 @app.get("/")
