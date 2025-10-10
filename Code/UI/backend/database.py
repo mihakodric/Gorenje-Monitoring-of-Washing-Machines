@@ -1034,7 +1034,7 @@ def get_mqtt_config(ime_baze: str) -> Optional[Dict]:
     return dict(config) if config else None
 
 
-def create_mqtt_config(ime_baze: str, config_data: Dict) -> bool:
+def create_mqtt_config(ime_baze: str, config_data: Dict) -> Optional[Dict]:
     """Create the MQTT configuration."""
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
@@ -1050,11 +1050,13 @@ def create_mqtt_config(ime_baze: str, config_data: Dict) -> bool:
             config_data.get('is_active', True)
         ))
         conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False
-    finally:
         conn.close()
+        
+        # Return the created config
+        return get_mqtt_config(ime_baze)
+    except sqlite3.IntegrityError:
+        conn.close()
+        return None
 
 
 

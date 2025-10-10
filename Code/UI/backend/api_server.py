@@ -709,11 +709,36 @@ async def get_mqtt_config_endpoint():
     return get_mqtt_config(DATABASE_NAME)
 
 
-# @app.post("/api/settings/mqtt-configs", response_model=MqttConfig)
-# async def create_mqtt_config_endpoint(config: MqttConfigCreate):
-#     """Create a new MQTT configuration"""
-#     config_dict = config.dict()
-#     return create_mqtt_config(DATABASE_NAME, config_dict)
+@app.post("/api/settings/mqtt-config", response_model=MqttConfig)
+async def create_mqtt_config_endpoint(config: MqttConfigUpdate):
+    """Create or update MQTT configuration"""
+    config_dict = {k: v for k, v in config.model_dump().items() if v is not None}
+    
+    # Check if config already exists
+    existing_config = get_mqtt_config(DATABASE_NAME)
+    if existing_config:
+        # If config exists, update it instead
+        result = update_mqtt_config(DATABASE_NAME, config_dict)
+        if not result:
+            raise HTTPException(status_code=404, detail="MQTT configuration not found")
+    else:
+        # Create new config
+        result = create_mqtt_config(DATABASE_NAME, config_dict)
+        if not result:
+            raise HTTPException(status_code=400, detail="Failed to create MQTT configuration")
+    
+    try:
+        if mqtt_listener.mqtt_running:
+            mqtt_listener.stop_mqtt()
+            time.sleep(1)
+        mqtt_listener.start_mqtt(result['broker_host'], result['broker_port'])
+        mqtt_listener.start_offline_checker(DATABASE_NAME)
+        
+    except Exception as e:
+        print(f"Warning: Failed to restart MQTT listener: {e}")
+        # Don't raise an exception here, just log the warning
+    
+    return result
 
 
 @app.put("/api/settings/mqtt-config", response_model=MqttConfig)
@@ -744,10 +769,6 @@ async def update_mqtt_config_endpoint(config: MqttConfigUpdate):
 #     if not success:
 #         raise HTTPException(status_code=404, detail="MQTT configuration not found")
 #     return {"message": "MQTT configuration deleted successfully"}
-
-@app.get("/api/settings/mqtt-configs/")
-async def delete_mqtt_config_endpoint():
-    return {"data": {"broker_host": "192.168.220.121", "broker_port": "1883"}}
 
 @app.get("/api/settings/sensor-types", response_model=List[SensorType])
 async def get_sensor_types():

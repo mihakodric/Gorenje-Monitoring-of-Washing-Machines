@@ -65,7 +65,7 @@ export const settingsAPI = {
   // MQTT Configuration (Single config)
   getMqttConfig: () => api.get('/api/settings/mqtt-config'),
   createMqttConfig: (config) => api.post('/api/settings/mqtt-config', config),
-  updateMqttConfig: (id, config) => api.put(`/api/settings/mqtt-config/${id}`, config),
+  updateMqttConfig: (config) => api.put('/api/settings/mqtt-config', config),
   
   // Sensor Types
   getSensorTypes: () => api.get('/api/settings/sensor-types'),

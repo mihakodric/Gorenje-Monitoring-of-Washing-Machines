@@ -76,7 +76,7 @@ const Settings = () => {
     try {
       setMqttSaving(true);
       if (mqttConfig && mqttConfig.id) {
-        await settingsAPI.updateMqttConfig(mqttConfig.id, mqttForm);
+        await settingsAPI.updateMqttConfig(mqttForm);
       } else {
         await settingsAPI.createMqttConfig(mqttForm);
       }
