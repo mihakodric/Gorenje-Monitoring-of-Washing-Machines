@@ -27,6 +27,7 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/tests', label: 'Tests', icon: TestTube },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings },
+    { path: '/settings1', label: 'Settings1', icon: Settings },
   ];
 
   return (

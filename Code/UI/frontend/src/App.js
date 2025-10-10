@@ -7,6 +7,7 @@ import Tests from './components/Tests';
 import NewTest from './components/NewTest';
 import Machines from './components/Machines';
 import Settings from './components/Settings';
+import Settings1 from './components/Settings1';
 import './App.css';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
             <Route path="/tests/edit/:id" element={<NewTest />} />
             <Route path="/machines" element={<Machines/>} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings1" element={<Settings1 />} />
           </Routes>
         </div>
       </div>
