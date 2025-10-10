@@ -59,7 +59,7 @@ class Test(TestBase):
     status: Optional[str] = "idle"  # 'idle', 'running', 'completed', 'failed'
     created_at: str
     last_modified_at: str
-    data_points: Optional[int] = 0
+    sensor_count: Optional[int] = 0
     first_data: Optional[str] = None
     last_data: Optional[str] = None
 

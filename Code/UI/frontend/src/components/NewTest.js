@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { testsAPI, sensorsAPI, washingMachinesAPI } from '../api';
+import { testsAPI, sensorsAPI, washingMachinesAPI as machinesAPI } from '../api';
 import { 
   Save, X, User, FileText, Settings, Check, AlertTriangle, 
   Search, Filter, ChevronDown, Wifi, WifiOff, ChevronRight,
@@ -18,6 +18,7 @@ const NewTest = () => {
   // Available data
   const [machines, setMachines] = useState([]);
   const [sensors, setSensors] = useState([]);
+  const [machineTypes, setMachineTypes] = useState([]);
   
   // Form data
   const [testForm, setTestForm] = useState({
@@ -32,7 +33,7 @@ const NewTest = () => {
   
   // Filtering and search states for machines
   const [machineSearch, setMachineSearch] = useState('');
-  const [machineStatusFilter, setMachineStatusFilter] = useState('all');
+  const [machineTypeFilter, setMachineTypeFilter] = useState('all');
   
   // Filtering and search states for available sensors
   const [availableSensorSearch, setAvailableSensorSearch] = useState('');
@@ -59,13 +60,15 @@ const NewTest = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [machinesResponse, sensorsResponse] = await Promise.all([
-        washingMachinesAPI.getAll(),
-        sensorsAPI.getAll()
+      const [machinesResponse, sensorsResponse, machineTypesResponse] = await Promise.all([
+        machinesAPI.getAll(),
+        sensorsAPI.getAll(),
+        machinesAPI.getTypes()
       ]);
       
       setMachines(machinesResponse.data || []);
       setSensors(sensorsResponse.data || []);
+      setMachineTypes(machineTypesResponse.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
       alert('Error loading machines and sensors');
@@ -182,11 +185,10 @@ const NewTest = () => {
       const matchesSearch = machine.machine_name.toLowerCase().includes(machineSearch.toLowerCase()) ||
                            (machine.description && machine.description.toLowerCase().includes(machineSearch.toLowerCase()));
       
-      const matchesStatus = machineStatusFilter === 'all' || 
-                           (machineStatusFilter === 'visible' && machine.visible) ||
-                           (machineStatusFilter === 'hidden' && !machine.visible);
+      const matchesType = machineTypeFilter === 'all' || 
+                         machine.machine_type_id === parseInt(machineTypeFilter);
       
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesType;
     });
   };
 
@@ -420,13 +422,16 @@ const NewTest = () => {
             </div>
             <select
               className="form-control"
-              value={machineStatusFilter}
-              onChange={(e) => setMachineStatusFilter(e.target.value)}
+              value={machineTypeFilter}
+              onChange={(e) => setMachineTypeFilter(e.target.value)}
               style={{ width: '140px' }}
             >
-              <option value="all">All Status</option>
-              <option value="visible">Visible</option>
-              <option value="hidden">Hidden</option>
+              <option value="all">All Types</option>
+              {machineTypes.map(type => (
+                <option key={type.id} value={type.id}>
+                  {type.display_name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -465,7 +470,7 @@ const NewTest = () => {
                 <tr>
                   <th>Machine Name</th>
                   <th>Description</th>
-                  <th>Status</th>
+                  <th>Type</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -481,10 +486,10 @@ const NewTest = () => {
                         padding: '2px 8px', 
                         borderRadius: '12px', 
                         fontSize: '11px',
-                        backgroundColor: machine.visible ? '#dcfce7' : '#fef2f2',
-                        color: machine.visible ? '#166534' : '#991b1b'
+                        backgroundColor: '#f3f4f6',
+                        color: '#374151'
                       }}>
-                        {machine.visible ? 'Visible' : 'Hidden'}
+                        {machineTypes.find(type => type.id === machine.machine_type_id)?.display_name || 'Unknown'}
                       </span>
                     </td>
                     <td>

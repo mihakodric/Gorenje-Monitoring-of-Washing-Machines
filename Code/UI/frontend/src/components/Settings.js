@@ -826,7 +826,7 @@ const Settings = () => {
                   className="form-control"
                   value={sensorTypeForm.unit}
                   onChange={(e) => setSensorTypeForm({...sensorTypeForm, unit: e.target.value})}
-                  placeholder="e.g., bar, psi, °C, g"
+                  placeholder="e.g., bar, °C, g, mm"
                 />
               </div>
 

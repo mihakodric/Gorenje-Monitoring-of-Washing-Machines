@@ -73,12 +73,14 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
           description: formData.description
         });
       } else {
-        // Create new sensor - backend will handle auto-generated fields
+        // Create new sensor - include all required fields
         const sensorData = {
           sensor_id: formData.sensor_id,
           sensor_name: formData.sensor_name,
           sensor_type: formData.sensor_type,
-          description: formData.description
+          description: formData.description,
+          mqtt_topic: formData.sensor_type, // Use sensor_type as mqtt_topic
+          visible: true
         };
         await sensorsAPI.create(sensorData);
       }

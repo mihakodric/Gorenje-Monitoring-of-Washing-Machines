@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard';
 import Sensors from './components/Sensors';
 import Tests from './components/Tests';
 import NewTest from './components/NewTest';
-import WashingMachines from './components/WashingMachines';
+import Machines from './components/Machines';
 import Settings from './components/Settings';
 import './App.css';
 
@@ -41,7 +41,7 @@ function App() {
             <Route path="/tests" element={<Tests />} />
             <Route path="/tests/new" element={<NewTest />} />
             <Route path="/tests/edit/:id" element={<NewTest />} />
-            <Route path="/washing-machines" element={<WashingMachines/>} />
+            <Route path="/machines" element={<Machines/>} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </div>

@@ -119,7 +119,21 @@ def ustvari_sql_bazo(ime_baze):
             FOREIGN KEY (machine_id) REFERENCES machines(id),
             FOREIGN KEY (sensor_id) REFERENCES sensors(id)
         )
-    ''')    
+    ''')
+
+    # Create test_summaries table for performance optimization
+    orodje.execute('''
+        CREATE TABLE IF NOT EXISTS test_summaries (
+            test_id INTEGER PRIMARY KEY,
+            sensor_count INTEGER DEFAULT 0,
+            data_points INTEGER DEFAULT 0,
+            first_data TEXT,
+            last_data TEXT,
+            test_duration_minutes REAL DEFAULT 0,
+            last_updated TEXT NOT NULL,
+            FOREIGN KEY (test_id) REFERENCES tests(id)
+        )
+    ''')
     
     povezava_do_baze.commit()
     povezava_do_baze.close()
@@ -234,8 +248,18 @@ def vstavi_podatke(ime_baze: str, meta, data):
             
     if rows_to_insert:
         cursor.executemany(sql, rows_to_insert)
-    conn.commit()
-    conn.close()
+        
+        # Update test summaries for all affected tests
+        affected_test_ids = set([test_id for _, test_id in relations])
+        conn.commit()
+        conn.close()
+        
+        # Update summaries after committing data (using separate connections)
+        for test_id in affected_test_ids:
+            update_test_summary(ime_baze, test_id)
+    else:
+        conn.commit()
+        conn.close()
 
 
 # New database functions for the API
@@ -397,21 +421,20 @@ def delete_sensor(ime_baze: str, sensor_id: str) -> bool:
 
 # Tests
 def get_all_tests(ime_baze: str) -> List[Dict]:
-    """Get all tests from the database."""
+    """Get all tests from the database with cached summary data."""
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT t.*, 
-               COUNT(DISTINCT tr.sensor_id) as sensor_count,
-               COUNT(p.id) as data_points,
-               MIN(p.datetime) as first_data,
-               MAX(p.datetime) as last_data
+               COALESCE(ts.sensor_count, 0) as sensor_count,
+               COALESCE(ts.data_points, 0) as data_points,
+               ts.first_data,
+               ts.last_data,
+               COALESCE(ts.test_duration_minutes, 0) as test_duration_minutes
         FROM tests t
-        LEFT JOIN test_relations tr ON t.id = tr.test_id
-        LEFT JOIN podatki p ON tr.id = p.test_relation_id
-        GROUP BY t.id
+        LEFT JOIN test_summaries ts ON t.id = ts.test_id
         ORDER BY t.created_at DESC
     ''')
     tests = [dict(row) for row in cursor.fetchall()]
@@ -421,21 +444,21 @@ def get_all_tests(ime_baze: str) -> List[Dict]:
 
 
 def get_test_by_id(ime_baze: str, test_id: int) -> Optional[Dict]:
-    """Get a specific test by id with aggregates."""
+    """Get a specific test by id with cached summary data."""
     conn = sqlite3.connect(ime_baze)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT t.*, 
-               COUNT(p.id) as data_points,
-               MIN(p.datetime) as first_data,
-               MAX(p.datetime) as last_data
+               COALESCE(ts.sensor_count, 0) as sensor_count,
+               COALESCE(ts.data_points, 0) as data_points,
+               ts.first_data,
+               ts.last_data,
+               COALESCE(ts.test_duration_minutes, 0) as test_duration_minutes
         FROM tests t
-        LEFT JOIN test_relations tr ON t.id = tr.test_id
-        LEFT JOIN podatki p ON tr.id = p.test_relation_id
+        LEFT JOIN test_summaries ts ON t.id = ts.test_id
         WHERE t.id = ?
-        GROUP BY t.id
     ''', (test_id,))
 
     test = cursor.fetchone()
@@ -551,6 +574,9 @@ def delete_test(ime_baze: str, test_id: int) -> bool:
     
     # Delete test relations
     cursor.execute('DELETE FROM test_relations WHERE test_id = ?', (test_id,))
+    
+    # Delete test summary
+    cursor.execute('DELETE FROM test_summaries WHERE test_id = ?', (test_id,))
     
     # Delete test
     cursor.execute('DELETE FROM tests WHERE id = ?', (test_id,))
@@ -693,15 +719,19 @@ def create_test_relation(ime_baze, test_id, relation_data):
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO test_relations (test_id, machine_id, sensor_id)
-        VALUES (?, ?, ?)
+        INSERT INTO test_relations (test_id, machine_id, sensor_id, sensor_location)
+        VALUES (?, ?, ?, ?)
     ''', (
         test_id,
         relation_data["machine_id"],
-        relation_data["sensor_id"]
+        relation_data["sensor_id"],
+        relation_data.get("sensor_location", "")
     ))
     conn.commit()
     conn.close()
+    
+    # Update test summary after relation changes
+    update_test_summary(ime_baze, test_id)
     return True
 
 
@@ -722,10 +752,21 @@ def update_test_machine(ime_baze, test_id, machine_id):
 def delete_test_relation(ime_baze, relation_id):
     conn = sqlite3.connect(ime_baze)
     cursor = conn.cursor()
+    
+    # Get test_id before deletion for summary update
+    cursor.execute("SELECT test_id FROM test_relations WHERE id = ?", (relation_id,))
+    result = cursor.fetchone()
+    test_id = result[0] if result else None
+    
     cursor.execute("DELETE FROM test_relations WHERE id = ?", (relation_id,))
     success = cursor.rowcount > 0
     conn.commit()
     conn.close()
+    
+    # Update test summary after relation deletion
+    if success and test_id:
+        update_test_summary(ime_baze, test_id)
+    
     return success
 
 
@@ -1243,3 +1284,133 @@ def delete_machine_type(ime_baze: str, type_id: int) -> bool:
     conn.close()
     
     return rows_affected > 0
+
+
+# Test Summary Functions for Performance Optimization
+def update_test_summary(ime_baze: str, test_id: int) -> bool:
+    """Update or create summary statistics for a test based on atual data from podatki table."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    try:
+        # Get sensor count for this test
+        cursor.execute('''
+            SELECT COUNT(DISTINCT tr.sensor_id) as sensor_count
+            FROM test_relations tr
+            WHERE tr.test_id = ?
+        ''', (test_id,))
+        sensor_count = cursor.fetchone()[0] or 0
+        
+        # Get data statistics from podatki table
+        cursor.execute('''
+            SELECT 
+                COUNT(p.id) as data_points,
+                MIN(p.datetime) as first_data,
+                MAX(p.datetime) as last_data
+            FROM test_relations tr
+            LEFT JOIN podatki p ON tr.id = p.test_relation_id
+            WHERE tr.test_id = ?
+        ''', (test_id,))
+        
+        row = cursor.fetchone()
+        data_points = row[0] or 0
+        first_data = row[1]
+        last_data = row[2]
+        
+        # Calculate test duration in minutes
+        test_duration_minutes = 0
+        if first_data and last_data:
+            try:
+                first_dt = datetime.fromisoformat(first_data.replace('Z', '+00:00'))
+                last_dt = datetime.fromisoformat(last_data.replace('Z', '+00:00'))
+                duration_seconds = (last_dt - first_dt).total_seconds()
+                test_duration_minutes = duration_seconds / 60
+            except:
+                test_duration_minutes = 0
+        
+        # Upsert summary record
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute('''
+            INSERT INTO test_summaries 
+            (test_id, sensor_count, data_points, first_data, last_data, test_duration_minutes, last_updated)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(test_id) DO UPDATE SET
+                sensor_count = excluded.sensor_count,
+                data_points = excluded.data_points,
+                first_data = excluded.first_data,
+                last_data = excluded.last_data,
+                test_duration_minutes = excluded.test_duration_minutes,
+                last_updated = excluded.last_updated
+        ''', (test_id, sensor_count, data_points, first_data, last_data, test_duration_minutes, current_time))
+        
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        print(f"Error updating test summary for test {test_id}: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+
+def get_test_summary_by_id(ime_baze: str, test_id: int) -> Optional[Dict]:
+    """Get cached summary for a specific test."""
+    conn = sqlite3.connect(ime_baze)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM test_summaries WHERE test_id = ?', (test_id,))
+    summary = cursor.fetchone()
+    conn.close()
+    
+    return dict(summary) if summary else None
+
+
+def ensure_test_summary_exists(ime_baze: str, test_id: int) -> Dict:
+    """Ensure a test summary exists, create/update if missing or outdated."""
+    # Check if summary exists and is recent (within last hour)
+    summary = get_test_summary_by_id(ime_baze, test_id)
+    
+    if summary:
+        try:
+            last_updated = datetime.fromisoformat(summary['last_updated'])
+            if (datetime.now() - last_updated).total_seconds() < 3600:  # Less than 1 hour old
+                return summary
+        except:
+            pass  # If parsing fails, update anyway
+    
+    # Update/create summary
+    update_test_summary(ime_baze, test_id)
+    return get_test_summary_by_id(ime_baze, test_id) or {}
+
+
+def rebuild_all_test_summaries(ime_baze: str) -> int:
+    """Rebuild summaries for all tests. Use for maintenance or after schema changes."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    # Get all test IDs
+    cursor.execute('SELECT id FROM tests')
+    test_ids = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    
+    updated_count = 0
+    for test_id in test_ids:
+        if update_test_summary(ime_baze, test_id):
+            updated_count += 1
+    
+    return updated_count
+
+
+def delete_test_summary(ime_baze: str, test_id: int) -> bool:
+    """Delete summary when test is deleted."""
+    conn = sqlite3.connect(ime_baze)
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM test_summaries WHERE test_id = ?', (test_id,))
+    success = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    
+    return success

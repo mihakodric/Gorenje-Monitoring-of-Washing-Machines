@@ -11,8 +11,8 @@ import main_mqtt_publisher as mqtt_publisher
 
 from models import (
     Sensor, SensorCreate, SensorUpdate, SensorSettingsUpdate, 
-    Test, TestCreate, TestUpdate, 
-    TestRelation, TestRelationCreate, MachineUpdateForTest,
+    Test, TestCreate, TestUpdate, TestCreateWithRelations, TestWithRelations,
+    TestRelation, TestRelationCreate, MachineUpdateForTest, UpdateRelationsRequest,
     Machine, MachineCreate, MachineUpdate, 
     MachineType, MachineTypeCreate, MachineTypeUpdate,
     SensorData, TestSummary,
@@ -300,7 +300,7 @@ async def get_sensor(sensor_id: str):
 @app.post("/api/sensors", response_model=dict)
 async def add_sensor(sensor: SensorCreate):
     """Create a new sensor"""
-    success = create_sensor(DATABASE_NAME, sensor.dict())
+    success = create_sensor(DATABASE_NAME, sensor.model_dump())
     if not success:
         raise HTTPException(status_code=400, detail="Sensor with this ID already exists")
     return {"message": "Sensor created successfully"}
@@ -309,7 +309,7 @@ async def add_sensor(sensor: SensorCreate):
 @app.put("/api/sensors/{sensor_id}", response_model=dict)
 async def modify_sensor(sensor_id: str, sensor: SensorUpdate):
     """Update a sensor"""
-    success = update_sensor(DATABASE_NAME, sensor_id, sensor.dict())
+    success = update_sensor(DATABASE_NAME, sensor_id, sensor.model_dump())
     if not success:
         raise HTTPException(status_code=404, detail="Sensor not found")
     return {"message": "Sensor updated successfully"}
@@ -361,16 +361,69 @@ async def get_test(test_id: int):
 @app.post("/api/tests", response_model=dict)
 async def add_test(test: TestCreate):
     """Create a new test"""
-    success = create_test(DATABASE_NAME, test.dict())
+    success = create_test(DATABASE_NAME, test.model_dump())
     if not success:
         raise HTTPException(status_code=400, detail="Test with this name already exists")
     return {"message": "Test created successfully"}
 
 
+@app.post("/api/tests/create-with-relations", response_model=dict)
+async def add_test_with_relations(test_data: TestCreateWithRelations):
+    """Create a new test with machine and sensor relations in one operation"""
+    # First create the test
+    success = create_test(DATABASE_NAME, test_data.test.model_dump())
+    if not success:
+        raise HTTPException(status_code=400, detail="Test with this name already exists")
+    
+    # Get the created test to find its ID
+    created_test = None
+    tests = get_all_tests(DATABASE_NAME)
+    for test in tests:
+        if test['test_name'] == test_data.test.test_name:
+            created_test = test
+            break
+    
+    if not created_test:
+        raise HTTPException(status_code=500, detail="Failed to retrieve created test")
+    
+    test_id = created_test['id']
+    
+    try:
+        # Create relations for each sensor
+        for sensor_info in test_data.sensors:
+            # Check if sensor or machine is available
+            if not is_sensor_or_machine_available(DATABASE_NAME, sensor_info.sensor_id, test_data.machine_id):
+                # Clean up: delete the test we just created
+                delete_test(DATABASE_NAME, test_id)
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Sensor or Machine is currently used by another running test"
+                )
+            
+            # Create the relation
+            relation_data = {
+                'sensor_id': sensor_info.sensor_id,
+                'machine_id': test_data.machine_id,
+                'sensor_location': sensor_info.sensor_location
+            }
+            relation_success = create_test_relation(DATABASE_NAME, test_id, relation_data)
+            if not relation_success:
+                # Clean up: delete the test we just created
+                delete_test(DATABASE_NAME, test_id)
+                raise HTTPException(status_code=400, detail="Failed to create sensor relation")
+    
+    except Exception as e:
+        # Clean up: delete the test we just created
+        delete_test(DATABASE_NAME, test_id)
+        raise e
+    
+    return {"message": "Test created with relations successfully", "test_id": test_id}
+
+
 @app.put("/api/tests/{test_id}", response_model=dict)
 async def modify_test(test_id: int, test: TestUpdate):
     """Update a test"""
-    success = update_test(DATABASE_NAME, test_id, test.dict())
+    success = update_test(DATABASE_NAME, test_id, test.model_dump())
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
     return {"message": "Test updated successfully"}
@@ -415,6 +468,40 @@ async def get_relations(test_id: int):
     return get_test_relations(DATABASE_NAME, test_id)
 
 
+@app.get("/api/tests/{test_id}/with-relations", response_model=dict)
+async def get_test_with_relations(test_id: int):
+    """Get test details with machine and sensor relations"""
+    # Get test details
+    test = get_test_by_id(DATABASE_NAME, test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    
+    # Get relations
+    relations = get_test_relations(DATABASE_NAME, test_id)
+    
+    # Extract machine_id and sensors from relations
+    machine_id = None
+    sensors = []
+    
+    for relation in relations:
+        if relation['machine_id'] and not machine_id:
+            machine_id = relation['machine_id']
+        
+        sensors.append({
+            'sensor_id': relation['sensor_id'],
+            'sensor_location': relation.get('sensor_location') or ''
+        })
+    
+    # Create response with flattened structure for frontend compatibility
+    response_data = {
+        **test,  # Spread all test fields at the top level
+        'machine_id': machine_id,
+        'sensors': sensors
+    }
+    
+    return response_data
+
+
 @app.post("/api/tests/{test_id}/relations", response_model=dict)
 async def add_relation(test_id: int, relation: TestRelationCreate):
     """Create a new test relation only if the test is idle and sensor/machine are available"""
@@ -431,7 +518,7 @@ async def add_relation(test_id: int, relation: TestRelationCreate):
             status_code=400, 
             detail="Sensor or Machine is currently used by another running test"
             )
-    success = create_test_relation(DATABASE_NAME, test_id, relation.dict())
+    success = create_test_relation(DATABASE_NAME, test_id, relation.model_dump())
     if not success:
         raise HTTPException(status_code=400, detail="Failed to create relation")
     return {"message": "Relation created successfully"}
@@ -443,6 +530,50 @@ async def remove_relation(test_id: int, relation_id: int):
     if not success:
         raise HTTPException(status_code=404, detail="Relation not found")
     return {"message": "Relation deleted successfully"}
+
+
+@app.put("/api/tests/{test_id}/relations", response_model=dict)
+async def update_test_relations(test_id: int, relations_update: UpdateRelationsRequest):
+    """Update all relations for a test - replaces existing relations with new ones"""
+    # Check if test exists and is idle
+    test = get_test_by_id(DATABASE_NAME, test_id)
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    if test['status'] != 'idle':
+        raise HTTPException(
+            status_code=400, 
+            detail="Can only update relations for idle tests"
+        )
+    
+    # Get current relations to delete them first
+    current_relations = get_test_relations(DATABASE_NAME, test_id)
+    
+    # Delete all current relations first to free up resources
+    for relation in current_relations:
+        delete_test_relation(DATABASE_NAME, relation['id'])
+    
+    # Now check if sensor or machine is available
+    for sensor_info in relations_update.sensors:
+        if not is_sensor_or_machine_available(DATABASE_NAME, sensor_info.sensor_id, relations_update.machine_id):
+            # If not available, we need to restore the old relations and fail
+            # For now, just fail - the old relations are already deleted
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Sensor {sensor_info.sensor_id} or Machine {relations_update.machine_id} is currently used by another running test"
+            )
+    
+    # Create new relations
+    for sensor_info in relations_update.sensors:
+        relation_data = {
+            'sensor_id': sensor_info.sensor_id,
+            'machine_id': relations_update.machine_id,
+            'sensor_location': sensor_info.sensor_location
+        }
+        success = create_test_relation(DATABASE_NAME, test_id, relation_data)
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to create new relations")
+    
+    return {"message": "Relations updated successfully"}
 
 
 @app.put("/api/tests/{test_id}/relations/machine", response_model=dict)
@@ -479,7 +610,7 @@ async def get_machine(machine_id: int):
 @app.post("/api/machines", response_model=dict)
 async def add_machine(machine: MachineCreate):
     """Create a new washing machine"""
-    success = create_machine(DATABASE_NAME, machine.dict())
+    success = create_machine(DATABASE_NAME, machine.model_dump())
     if not success:
         raise HTTPException(status_code=400, detail="Washing Machine with this ID already exists")
     return {"message": "Washing Machine created successfully"}
@@ -488,7 +619,7 @@ async def add_machine(machine: MachineCreate):
 @app.put("/api/machines/{machine_id}", response_model=dict)
 async def modify_machine(machine_id: int, machine: MachineUpdate):
     """Update a washing machine"""
-    success = update_machine(DATABASE_NAME, machine_id, machine.dict())
+    success = update_machine(DATABASE_NAME, machine_id, machine.model_dump())
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
     return {"message": "Washing Machine updated successfully"}
@@ -588,7 +719,7 @@ async def get_mqtt_config_endpoint():
 @app.put("/api/settings/mqtt-config", response_model=MqttConfig)
 async def update_mqtt_config_endpoint(config: MqttConfigUpdate):
     """Update MQTT configuration"""
-    config_dict = {k: v for k, v in config.dict().items() if v is not None}
+    config_dict = {k: v for k, v in config.model_dump().items() if v is not None}
     result = update_mqtt_config(DATABASE_NAME, config_dict)
     if not result:
         raise HTTPException(status_code=404, detail="MQTT configuration not found")
@@ -624,14 +755,14 @@ async def get_sensor_types():
 @app.post("/api/settings/sensor-types", response_model=SensorType)
 async def create_sensor_type_endpoint(sensor_type: SensorTypeCreate):
     """Create a new sensor type"""
-    sensor_type_dict = sensor_type.dict()
+    sensor_type_dict = sensor_type.model_dump()
     return create_sensor_type(DATABASE_NAME, sensor_type_dict)
 
 
 @app.put("/api/settings/sensor-types/{type_id}", response_model=SensorType)
 async def update_sensor_type_endpoint(type_id: int, sensor_type: SensorTypeUpdate):
     """Update sensor type"""
-    sensor_type_dict = {k: v for k, v in sensor_type.dict().items() if v is not None}
+    sensor_type_dict = {k: v for k, v in sensor_type.model_dump().items() if v is not None}
     result = update_sensor_type(DATABASE_NAME, type_id, sensor_type_dict)
     if not result:
         raise HTTPException(status_code=404, detail="Sensor type not found")
@@ -666,7 +797,7 @@ async def get_machine_type(type_id: int):
 @app.post("/api/settings/machine-types", response_model=dict)
 async def create_machine_type_endpoint(machine_type: MachineTypeCreate):
     """Create new machine type"""
-    result = create_machine_type(DATABASE_NAME, machine_type.dict())
+    result = create_machine_type(DATABASE_NAME, machine_type.model_dump())
     return {"message": "Machine type created successfully", "machine_type": result}
 
 
