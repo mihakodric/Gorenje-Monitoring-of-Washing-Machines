@@ -169,23 +169,6 @@ Expected MQTT message format:
 
 ## Development
 
-### File Structure
-```
-Code/UI/
-├── backend/
-│   ├── api_server.py      # FastAPI main server
-│   ├── database.py        # Database operations
-│   ├── models.py         # Pydantic models
-│   ├── main_mqtt_listener.py # MQTT client
-│   └── config.json       # Configuration
-└── frontend/
-    ├── src/
-    │   ├── components/    # React components
-    │   ├── api.js        # API client
-    │   └── App.js        # Main app component
-    └── package.json      # Node.js dependencies
-```
-
 ### Adding New Sensor Types
 1. Update `mqtt_topics` in config.json
 2. Add sensor type to backend models
@@ -205,7 +188,3 @@ where:
 - `admin` is the database user
 - `long_term_monitoring_db` is the database name
   
-
-
-# Create database form schema.sql file form terminal
-docker exec -it timescaledb psql -U admin -d long_term_monitoring_db -f /schema.sql
