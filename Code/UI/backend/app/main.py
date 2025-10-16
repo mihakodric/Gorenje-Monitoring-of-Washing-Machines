@@ -51,7 +51,7 @@ def create_app() -> FastAPI:
     
     app.include_router(
         sensor_types.router,
-        prefix="/api/sensor-types", 
+        prefix="/api/sensor-types",
         tags=["Sensor Types"]
     )
     

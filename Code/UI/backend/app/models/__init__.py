@@ -14,7 +14,7 @@ organized by domain:
 """
 
 from .sensor_types import SensorType, SensorTypeCreate, SensorTypeUpdate, SensorTypeBase
-from .sensors import Sensor, SensorCreate, SensorUpdate, SensorBase, SensorSettingsUpdate
+from .sensors import Sensor, SensorCreate, SensorUpdate, SensorBase
 from .machines import Machine, MachineCreate, MachineUpdate, MachineBase
 from .machine_types import MachineType, MachineTypeCreate, MachineTypeUpdate, MachineTypeBase
 from .tests import (
@@ -31,8 +31,8 @@ __all__ = [
     "SensorType", "SensorTypeCreate", "SensorTypeUpdate", "SensorTypeBase",
     
     # Sensors
-    "Sensor", "SensorCreate", "SensorUpdate", "SensorBase", "SensorSettingsUpdate",
-    
+    "Sensor", "SensorCreate", "SensorUpdate", "SensorBase",
+
     # Machines
     "Machine", "MachineCreate", "MachineUpdate", "MachineBase",
     

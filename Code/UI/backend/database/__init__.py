@@ -8,7 +8,7 @@ This package contains database connection management and all database operation 
 db_pool = None
 
 # Import all modules and their functions
-from . import sensors, machines, measurements, mqtt, tests
+from . import sensors, sensor_types, machines, machine_types, measurements, mqtt, tests
 
 # Import specific functions to maintain compatibility
 from .sensors import (
@@ -18,10 +18,11 @@ from .sensors import (
     mark_sensor_offline,
     create_sensor,
     update_sensor,
-    update_sensor_settings,
     delete_sensor,
     get_test_relations_for_sensor,
-    
+)
+
+from .sensor_types import (
     # Sensor types
     get_all_sensor_types,
     get_sensor_type_by_id,
@@ -36,7 +37,9 @@ from .machines import (
     create_machine,
     update_machine,
     delete_machine,
-    
+)
+
+from .machine_types import (
     # Machine types
     get_all_machine_types,
     get_machine_type_by_id,
@@ -81,7 +84,9 @@ def set_db_pool(pool):
     
     # Set pool for all database modules
     sensors.set_db_pool(pool)
+    sensor_types.set_db_pool(pool)
     machines.set_db_pool(pool)
+    machine_types.set_db_pool(pool)
     measurements.set_db_pool(pool)
     mqtt.set_db_pool(pool)
     tests.set_db_pool(pool)
@@ -93,7 +98,9 @@ __all__ = [
     
     # Module access
     'sensors',
-    'machines', 
+    'sensor_types',
+    'machines',
+    'machine_types', 
     'measurements',
     'mqtt',
     'tests',
@@ -104,7 +111,6 @@ __all__ = [
     'mark_sensor_offline', 
     'create_sensor',
     'update_sensor',
-    'update_sensor_settings',
     'delete_sensor',
     'get_test_relations_for_sensor',
     'get_all_sensor_types',

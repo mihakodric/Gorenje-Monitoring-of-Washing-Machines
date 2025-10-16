@@ -1,8 +1,7 @@
 """
-Sensor-related database functions for the Gorenje Washing Machine Monitoring System.
+Sensor database functions for the Gorenje Washing Machine Monitoring System.
 
-This module contains all sensor and sensor type management functions,
-including both PostgreSQL async functions and legacy SQLite functions.
+This module contains all sensor management functions for PostgreSQL.
 """
 
 from datetime import datetime, timedelta
@@ -131,6 +130,11 @@ async def update_sensor(sensor_id: int, sensor_data: dict) -> bool:
                 fields.append(f"{key} = ${len(values) + 1}")
                 values.append(sensor_data[key])
 
+        if "sensor_settings" in sensor_data.keys():
+            # sensors settings is JSON, serialize it
+            fields.append(f"sensor_settings = ${len(values) + 1}")
+            values.append(json.dumps(sensor_data["sensor_settings"]))
+
         if not fields:
             return False  # nothing to update
 
@@ -143,30 +147,6 @@ async def update_sensor(sensor_id: int, sensor_data: dict) -> bool:
         """
 
         result = await conn.execute(query, *values)
-        return result == 'UPDATE 1'
-
-
-async def update_sensor_settings(sensor_id: int, new_settings: dict) -> bool:
-    """Update sensor sensor_settings."""
-    async with get_db_pool().acquire() as conn:
-        # Get current sensor_settings
-        row = await conn.fetchrow("SELECT sensor_settings FROM metadata.sensors WHERE id = $1", sensor_id)
-        if not row:
-            return False
-
-        current_settings = row['sensor_settings'] if row['sensor_settings'] else {}
-        
-        # Merge new sensor_settings into current sensor_settings
-        if isinstance(current_settings, str):
-            current_settings = json.loads(current_settings)
-        current_settings.update(new_settings)
-
-        # Save merged sensor_settings back
-        result = await conn.execute(
-            "UPDATE metadata.sensors SET sensor_settings = $1 WHERE id = $2",
-            json.dumps(current_settings),
-            sensor_id
-        )
         return result == 'UPDATE 1'
 
 
@@ -189,92 +169,6 @@ async def get_test_relations_for_sensor(sensor_id: int):
         )
         return [dict(row) for row in rows]
 
-
-# ================================
-# ASYNC SENSOR TYPE FUNCTIONS (PostgreSQL)
-# ================================
-
-async def get_all_sensor_types() -> List[Dict]:
-    """Get all sensor types."""
-    async with get_db_pool().acquire() as conn:
-        rows = await conn.fetch("""
-            SELECT id, sensor_type_name, sensor_type_unit, sensor_type_description, sensor_type_created_at
-            FROM metadata.sensor_types
-            ORDER BY sensor_type_created_at DESC
-        """)
-    return [dict(row) for row in rows]
-
-
-async def get_sensor_type_by_id(type_id: int) -> Optional[Dict]:
-    """Get sensor type by ID."""
-    async with get_db_pool().acquire() as conn:
-        row = await conn.fetchrow("""
-            SELECT id, sensor_type_name, sensor_type_unit, sensor_type_description, sensor_type_created_at
-            FROM metadata.sensor_types
-            WHERE id = $1
-        """, type_id)
-    return dict(row) if row else None
-
-
-async def create_sensor_type(sensor_type: Dict) -> Optional[Dict]:
-    """Create a new sensor type."""
-    query = """
-        INSERT INTO metadata.sensor_types (
-            sensor_type_name, sensor_type_unit, sensor_type_description, sensor_type_created_at
-        )
-        VALUES ($1, $2, $3, $4)
-        RETURNING id;
-    """
-    async with get_db_pool().acquire() as conn:
-        new_id = await conn.fetchval(
-            query,
-            sensor_type["sensor_type_name"],
-            sensor_type.get("sensor_type_unit", ""),
-            sensor_type.get("sensor_type_description", ""),
-            datetime.now(),
-        )
-    return await get_sensor_type_by_id(new_id)
-
-
-async def update_sensor_type(type_id: int, type_data: Dict) -> Optional[Dict]:
-    """Update sensor type."""
-    fields = []
-    values = []
-
-    for key in ["sensor_type_name", "sensor_type_unit", "sensor_type_description"]:
-        if key in type_data:
-            fields.append(f"{key} = ${len(values) + 1}")
-            values.append(type_data[key])
-
-    if not fields:
-        return None  # nothing to update
-
-    # Add WHERE id = $n
-    values.append(type_id)
-    query = f"""
-        UPDATE metadata.sensor_types
-        SET {", ".join(fields)}
-        WHERE id = ${len(values)}
-    """
-
-    async with get_db_pool().acquire() as conn:
-        await conn.execute(query, *values)
-
-    return await get_sensor_type_by_id(type_id)
-
-
-async def delete_sensor_type(type_id: int) -> bool:
-    """
-    Delete sensor type and mark related sensors as invisible.
-    """
-    async with get_db_pool().acquire() as conn:
-        async with conn.transaction():
-            # Delete the sensor type
-            result = await conn.execute(
-                "DELETE FROM metadata.sensor_types WHERE id = $1", type_id
-            )
-
-    return result == "DELETE 1"
 
 async def insert_settings(sensor_id: int, sensor_settings: Dict[str, Any]) -> bool:    
     async with get_db_pool().acquire() as conn:

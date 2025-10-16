@@ -26,11 +26,7 @@ class SensorUpdate(BaseModel):
     sensor_mqtt_topic: Optional[str] = None
     sensor_name: Optional[str] = None
     sensor_description: Optional[str] = None
-
-
-class SensorSettingsUpdate(BaseModel):
-    """Model for updating sensor settings."""
-    sensor_settings: Dict[str, Any]
+    sensor_settings: Optional[Dict[str, Any]] = None
 
 
 class Sensor(SensorBase):

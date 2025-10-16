@@ -9,13 +9,12 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 
 from app.core.mqtt_mock import mqtt_publisher
-from app.models import Sensor, SensorCreate, SensorUpdate, SensorSettingsUpdate
+from app.models import Sensor, SensorCreate, SensorUpdate
 from database import (
     get_all_sensors,
     get_sensor_by_id,
     create_sensor,
     update_sensor,
-    update_sensor_settings,
     delete_sensor,
     get_test_relations_for_sensor
 )
@@ -53,24 +52,15 @@ async def create_sensor_endpoint(sensor: SensorCreate):
 @router.put("/{sensor_id}", response_model=dict)
 async def update_sensor_endpoint(sensor_id: int, sensor: SensorUpdate):
     """Update an existing sensor."""
-    success = await update_sensor(sensor_id, sensor.model_dump())
+    update_data = sensor.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data provided for update")
+
+    success = await update_sensor(sensor_id, update_data)
     if not success:
         raise HTTPException(status_code=404, detail="Sensor not found")
+
     return {"message": "Sensor updated successfully"}
-
-
-@router.put("/{sensor_id}/settings", response_model=dict)
-async def update_sensor_settings_endpoint(sensor_id: int, sensor: SensorSettingsUpdate):
-    """Update sensor settings and notify via MQTT."""
-    success = await update_sensor_settings(sensor_id, sensor.sensor_settings)
-    if not success:
-        raise HTTPException(status_code=404, detail="Sensor not found")
-    
-    # Send MQTT configuration update
-    mqtt_publisher.send_config_update(sensor_id, sensor.sensor_settings)
-    
-    return {"message": "Sensor settings updated successfully"}
-
 
 @router.delete("/{sensor_id}", response_model=dict)
 async def delete_sensor_endpoint(sensor_id: int):
