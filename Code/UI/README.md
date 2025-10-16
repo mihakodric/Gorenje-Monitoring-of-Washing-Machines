@@ -194,3 +194,18 @@ Code/UI/
 
 ## License
 This project is for internal use and monitoring of washing machine systems.
+
+
+
+# connect to docker container database in terminal
+docker exec -it timescaledb psql -U admin -d long_term_monitoring_db
+
+where:
+- `timescaledb` is the name of the Docker container
+- `admin` is the database user
+- `long_term_monitoring_db` is the database name
+  
+
+
+# Create database form schema.sql file form terminal
+docker exec -it timescaledb psql -U admin -d long_term_monitoring_db -f /schema.sql

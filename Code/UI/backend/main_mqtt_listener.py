@@ -4,7 +4,7 @@ import time
 import threading
 import sqlite3
 from datetime import datetime
-from database import ustvari_sql_bazo, insert_settings, vstavi_podatke, mark_sensor_offline, sync_mqtt_active_state, get_mqtt_config
+from database import insert_settings, vstavi_podatke, mark_sensor_offline, sync_mqtt_active_state, get_mqtt_config
 import paho.mqtt.client as mqtt  # pip install paho-mqtt
 
 
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     3. On Ctrl+C, prints a message and stops gracefully.
     """
     print("Ustvarjanje baze podatkov...")
-    ustvari_sql_bazo(ime_baze)
+    # ustvari_sql_bazo(ime_baze)
 
     print("Začenjam z zbiranjem podatkov prek MQTT...")
 

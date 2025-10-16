@@ -1,46 +1,105 @@
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 
+# ---------------------------------
+# Sensor Type Models
+# ---------------------------------
+class SensorTypeBase(BaseModel):
+    sensor_type_name: str
+    sensor_type_unit: Optional[str] = None
+    sensor_type_description: Optional[str] = None
 
+class SensorTypeCreate(SensorTypeBase):
+    pass
+
+class SensorTypeUpdate(BaseModel):
+    sensor_type_name: Optional[str] = None
+    sensor_type_unit: Optional[str] = None
+    sensor_type_description: Optional[str] = None
+
+class SensorType(SensorTypeBase):
+    id: int
+    sensor_type_created_at: datetime
+
+# ---------------------------------
 # Sensor Models
+# ---------------------------------
 class SensorBase(BaseModel):
-    sensor_id: str
-    sensor_type: str  # 'acceleration', 'temperature', 'distance', etc.
+    sensor_type_id: int
+    sensor_mqtt_topic: str
     sensor_name: str
-    description: Optional[str] = ""
-    mqtt_topic: str
-    visible: Optional[bool] = True
-
+    sensor_description: Optional[str] = None
 
 class SensorCreate(SensorBase):
     pass
 
-
 class SensorUpdate(BaseModel):
-    sensor_name: Optional[str] = ""
-    description: Optional[str] = ""
-    visible: Optional[bool] = True
-
+    sensor_type_id: Optional[int] = None
+    sensor_mqtt_topic: Optional[str] = None
+    sensor_name: Optional[str] = None
+    sensor_description: Optional[str] = None
 
 class SensorSettingsUpdate(BaseModel):
-    settings: Dict[str, Any]
-
+    sensor_settings: Dict[str, Any]
 
 class Sensor(SensorBase):
     id: int
-    is_online: bool
-    created_at: str
-    last_seen: Optional[str] = None
-    settings: Optional[Dict[str, Any]] = None
+    sensor_is_online: bool
+    sensor_created_at: datetime
+    sensor_last_seen: Optional[datetime] = None
+    sensor_settings: Optional[Dict[str, Any]] = None
 
+# ---------------------------------
+# Machine Models
+# ---------------------------------
+class MachineBase(BaseModel):
+    machine_name: str
+    machine_description: Optional[str] = None
+    machine_type_id: Optional[int] = None
+
+
+class MachineCreate(MachineBase):
+    pass
+
+
+class MachineUpdate(BaseModel):
+    machine_name: Optional[str] = None
+    machine_description: Optional[str] = None
+    machine_type_id: Optional[int] = None
+
+
+class Machine(MachineBase):
+    machine_id: int
+    machine_created_at: datetime
+
+
+# Machine Type Models
+class MachineTypeBase(BaseModel):
+    machine_type_name: str
+    machine_type_description: Optional[str] = None
+
+
+class MachineTypeCreate(MachineTypeBase):
+    pass
+
+
+class MachineTypeUpdate(BaseModel):
+    machine_type_name: Optional[str] = None
+    machine_type_description: Optional[str] = None
+
+
+class MachineType(MachineTypeBase):
+    machine_type_id: int
+    machine_type_created_at: datetime
 
 
 # Test Models
 class TestBase(BaseModel):
     test_name: str
-    description: Optional[str] = ""
-    notes: Optional[str] = ""
-    created_by: str
+    test_description: Optional[str] = ""
+    test_notes: Optional[str] = ""
+    test_created_by: str
 
 
 class TestCreate(TestBase):
@@ -49,24 +108,24 @@ class TestCreate(TestBase):
 
 class TestUpdate(BaseModel):
     test_name: Optional[str] = None
-    description: Optional[str] = None
-    notes: Optional[str] = None
-    created_by: Optional[str] = None
+    test_description: Optional[str] = None
+    test_notes: Optional[str] = None
+    test_created_by: Optional[str] = None
 
 
 class Test(TestBase):
-    id: int
-    status: Optional[str] = "idle"  # 'idle', 'running', 'completed', 'failed'
-    created_at: str
-    last_modified_at: str
-    sensor_count: Optional[int] = 0
-    first_data: Optional[str] = None
-    last_data: Optional[str] = None
+    test_id: int
+    test_status: Optional[str] = "idle"  # 'idle', 'running', 'completed', 'failed'
+    test_created_at: datetime
+    test_last_modified_at: datetime
+    test_sensor_count: Optional[int] = 0
+    test_first_data_time: Optional[datetime] = None
+    test_last_data_time: Optional[datetime] = None
 
 
 # Test relations models
 class TestRelation(BaseModel):
-    id: int
+    test_relation_id: int
     test_id: int
     machine_id: int
     sensor_id: int
@@ -105,102 +164,29 @@ class UpdateRelationsRequest(BaseModel):
     sensors: List[SensorWithLocation]
 
 
-# Machine Models
-class MachineBase(BaseModel):
-    machine_name: str
-    description: Optional[str] = ""
-    machine_type_id: Optional[int] = None
-    visible: Optional[bool] = True
 
-
-class MachineCreate(MachineBase):
-    pass
-
-
-class MachineUpdate(BaseModel):
-    machine_name: Optional[str] = None
-    description: Optional[str] = ""
-    machine_type_id: Optional[int] = None
-    visible: Optional[bool] = True
-
-
-class Machine(MachineBase):
-    id: int
-    created_at: str
-
-
-# Machine Type Models
-class MachineTypeBase(BaseModel):
-    display_name: str
-    description: Optional[str] = ""
-    created_by: str
-
-
-class MachineTypeCreate(MachineTypeBase):
-    pass
-
-
-class MachineTypeUpdate(BaseModel):
-    display_name: Optional[str] = None
-    description: Optional[str] = ""
-
-
-class MachineType(MachineTypeBase):
-    id: int
-    created_at: str
-
-
-class SensorData(BaseModel):
-    id: int
-    datetime: str
-    direction: str
-    value: float
+class Measurement(BaseModel):
+    measurement_timestamp: datetime
     test_relation_id: int
-
-
-class TestSummary(BaseModel):
-    test_info: dict
-    data_summary: List[dict]
+    measurement_channel: str
+    measurement_value: float
 
 
 # MQTT Configuration Models
 class MqttConfigBase(BaseModel):
-    broker_host: str
-    broker_port: Optional[int] = 1883
-    username: Optional[str] = ""
-    password: Optional[str] = ""
+    mqtt_broker_host: str
+    mqtt_broker_port: Optional[int] = 1883
+    mqtt_username: Optional[str] = None
+    mqtt_password: Optional[str] = None
 
 
 class MqttConfigUpdate(BaseModel):
-    broker_host: Optional[str] = None
-    broker_port: Optional[int] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
+    mqtt_broker_host: Optional[str] = None
+    mqtt_broker_port: Optional[int] = None
+    mqtt_username: Optional[str] = None
+    mqtt_password: Optional[str] = None
 
 
 class MqttConfig(MqttConfigBase):
-    is_active: bool
+    mqtt_is_active: bool
 
-
-
-# Sensor Type Models
-class SensorTypeBase(BaseModel):
-    mqtt_topic: str
-    display_name: str
-    unit: Optional[str] = ""
-    description: Optional[str] = ""
-
-
-class SensorTypeCreate(SensorTypeBase):
-    pass
-
-class SensorTypeUpdate(BaseModel):
-    mqtt_topic: Optional[str] = None
-    display_name: Optional[str] = None
-    unit: Optional[str] = None
-    description: Optional[str] = None
-
-
-class SensorType(SensorTypeBase):
-    id: int
-    created_at: str

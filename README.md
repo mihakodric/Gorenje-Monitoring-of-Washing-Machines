@@ -10,3 +10,4 @@ docker run --name Gorenje_postgresql_container -e POSTGRES_PASSWORD=dhm295sxt -p
 
 # Connecting to the database in terminal:
 docker exec -it Gorenje_postgresql_container psql -U postgres
+

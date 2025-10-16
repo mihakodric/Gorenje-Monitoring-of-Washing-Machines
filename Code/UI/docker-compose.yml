@@ -1,0 +1,53 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg17
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: long_term_monitoring_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./schemas/:/docker-entrypoint-initdb.d/:ro
+    restart: always
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: backend
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
+      MQTT_BROKER: mosquitto
+    depends_on:
+      - timescaledb
+      - mosquitto
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    restart: always
+
+  # frontend:
+  #   build: ./frontend
+  #   container_name: frontend
+  #   depends_on:
+  #     - backend
+  #   ports:
+  #     - "3000:3000"
+  #   restart: always
+
+volumes:
+  timescale_data:

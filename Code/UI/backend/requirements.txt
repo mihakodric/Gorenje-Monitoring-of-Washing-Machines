@@ -5,3 +5,5 @@ pandas
 python-multipart
 pydantic
 paho-mqtt
+
+asyncpg
