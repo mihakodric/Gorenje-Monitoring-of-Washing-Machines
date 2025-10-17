@@ -14,7 +14,9 @@ from database import (
     get_machine_by_id, 
     create_machine,
     update_machine,
-    delete_machine
+    delete_machine,
+
+    get_tests_for_machine_id
 )
 
 router = APIRouter()
@@ -50,17 +52,17 @@ async def create_machine_endpoint(machine: MachineCreate):
 @router.put("/{machine_id}", response_model=dict)
 async def update_machine_endpoint(machine_id: int, machine: MachineUpdate):
     """Update an existing washing machine."""
-    success = await update_machine(machine_id, machine.model_dump())
-    if not success:
+    update_data = machine.model_dump(exclude_unset=True)
+    result = await update_machine(machine_id, update_data)
+    if not result:
         raise HTTPException(status_code=404, detail="Washing Machine not found")
-    return {"message": "Washing Machine updated successfully"}
+    return result
 
 
 @router.delete("/{machine_id}", response_model=dict)
 async def delete_machine_endpoint(machine_id: int):
     """Delete a washing machine if it has no active test relations."""
-    # TODO: Implement check for test relations
-    # For now, just attempt to delete the machine
+    relations = await get_tests_for_machine_id(machine_id)
     success = await delete_machine(machine_id)
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")

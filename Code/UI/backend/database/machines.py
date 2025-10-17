@@ -49,36 +49,42 @@ async def get_machine_by_id(machine_id: int) -> Optional[Dict]:
 async def create_machine(machine_data: Dict) -> bool:
     """Create a new machine."""
 
-    query = """
-        INSERT INTO metadata.machines (
-            machine_name, machine_description, machine_type_id, machine_created_at
+    fields = []
+    values = []
+    for key, value in machine_data.items():
+        fields.append(key)
+        values.append(value)
+
+    if not fields:
+        return None
+ 
+    query = f"""
+        INSERT INTO metadata.sensors (
+            {', '.join(fields)}
         )
         VALUES (
-            $1, $2, $3, $4
-        );
-    """
-    async with get_db_pool().acquire() as conn:
-        new_machine = await conn.execute(query, 
-        machine_data['machine_name'], 
-        machine_data['machine_description'], 
-        machine_data['machine_type_id'], 
-        datetime.now()
+            {', '.join(['$' + str(i + 1) for i in range(len(fields))])}
         )
-    return new_machine == "INSERT 0 1"
+        RETURNING id;
+    """
+    
+    async with get_db_pool().acquire() as conn:
+        new_id = await conn.fetchval(
+            query,
+            *values
+        )
+        if not new_id:
+            return None
+        
+        return await get_machine_by_id(new_id)
 
 async def update_machine(machine_id: int, machine_data: Dict) -> Optional[Dict]:
     """Update machine."""
     fields = []
     values = []
-    if 'machine_name' in machine_data:
-        fields.append("machine_name = $1")
-        values.append(machine_data['machine_name'])
-    if 'machine_description' in machine_data:
-        fields.append("machine_description = $2")
-        values.append(machine_data['machine_description'])
-    if 'machine_type_id' in machine_data:
-        fields.append("machine_type_id = $3")
-        values.append(machine_data['machine_type_id'])
+    for key, value in machine_data.items():
+        fields.append(f"{key} = ${len(values) + 1}")
+        values.append(value)
         
     if not fields:
         return None
@@ -86,13 +92,13 @@ async def update_machine(machine_id: int, machine_data: Dict) -> Optional[Dict]:
     query = f"""
         UPDATE metadata.machines
         SET {', '.join(fields)}
-        WHERE id = $6
+        WHERE id = ${len(values) + 1}
+        RETURNING *;
     """
     values.append(machine_id)
 
     async with get_db_pool().acquire() as conn:
-        await conn.execute(query, *values)
-    return machine_data
+        return await conn.fetchrow(query, *values)
 
 async def delete_machine(machine_id: int) -> bool:
     """Delete machine by ID."""
@@ -105,3 +111,31 @@ async def delete_machine(machine_id: int) -> bool:
 
 
 
+#===============================
+# ADDITIONAL MACHINE UTILITIES
+#===============================
+
+async def get_machines_by_machine_type(machine_type_id: int) -> List[Dict]:
+    """Get all machines of a specific type."""
+    async with get_db_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM metadata.machines WHERE machine_type_id = $1",
+            machine_type_id
+        )
+        return [dict(row) for row in rows]
+
+async def get_tests_for_machine_id(machine_id: int) -> List[Dict]:
+    """Get all tests for a specific machine."""
+    async with get_db_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT test_id FROM metadata.test_relations WHERE machine_id = $1",
+            machine_id
+        )
+        if not rows:
+            return []
+
+        rows = await conn.fetch(
+            "SELECT id, test_name FROM metadata.tests WHERE id IN ($1)",
+            *[row["test_id"] for row in rows]
+        )
+        return [dict(row) for row in rows]

@@ -50,21 +50,34 @@ async def get_machine_type_by_id(type_id: int) -> Optional[Dict]:
 
 async def create_machine_type(type_data: Dict) -> Dict:
     """Create a new machine type."""
-    query = """
+    fields = []
+    values = []
+    for key, value in type_data.items():
+        fields.append(key)
+        values.append(value)
+
+    if not fields:
+        return None
+ 
+    query = f"""
         INSERT INTO metadata.machine_types (
-            machine_type_name, machine_type_description, machine_type_created_at
+            {', '.join(fields)}
         )
-        VALUES ($1, $2, $3)
-        RETURNING machine_type_id;
+        VALUES (
+            {', '.join(['$' + str(i + 1) for i in range(len(fields))])}
+        )
+        RETURNING id;
     """
+    
     async with get_db_pool().acquire() as conn:
         new_id = await conn.fetchval(
             query,
-            type_data['machine_type_name'],
-            type_data.get('machine_type_description', ''),
-            datetime.now()
+            *values
         )
-    return await get_machine_type_by_id(new_id)
+        if not new_id:
+            return None
+        
+        return await get_machine_type_by_id(new_id)
 
 
 async def update_machine_type(type_id: int, type_data: Dict) -> Optional[Dict]:
@@ -72,35 +85,30 @@ async def update_machine_type(type_id: int, type_data: Dict) -> Optional[Dict]:
     fields = []
     values = []
     
-    for key in ["machine_type_name", "machine_type_description"]:
-        if key in type_data:
-            fields.append(f"{key} = ${len(values) + 1}")
-            values.append(type_data[key])
-
+    for key, value in type_data.items():
+        fields.append(f"{key} = ${len(values) + 1}")
+        values.append(value)
+        
     if not fields:
-        return await get_machine_type_by_id(type_id)  # Nothing to update
-
-    # Add WHERE id = $n
-    values.append(type_id)
+        return None  # nothing to update
+    
     query = f"""
         UPDATE metadata.machine_types
-        SET {", ".join(fields)}
-        WHERE machine_type_id = ${len(values)}
+        SET {', '.join(fields)}
+        WHERE id = ${len(values) + 1}
+        RETURNING *;
     """
+    values.append(type_id)
     
     async with get_db_pool().acquire() as conn:
-        result = await conn.execute(query, *values)
-        if result == 'UPDATE 0':
-            return None  # No rows updated
-            
-    return await get_machine_type_by_id(type_id)
+        return await conn.fetchrow(query, *values)
 
 
 async def delete_machine_type(type_id: int) -> bool:
     """Delete machine type by ID."""
     async with get_db_pool().acquire() as conn:
         result = await conn.execute(
-            "DELETE FROM metadata.machine_types WHERE machine_type_id = $1;",
+            "DELETE FROM metadata.machine_types WHERE id = $1;",
             type_id
         )
     return result == "DELETE 1"

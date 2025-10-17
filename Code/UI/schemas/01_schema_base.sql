@@ -63,7 +63,8 @@ CREATE TABLE metadata.test_relations (
     test_id INT REFERENCES metadata.tests(id) ON DELETE CASCADE,
     machine_id INT REFERENCES metadata.machines(id) ON DELETE CASCADE,
     sensor_id INT REFERENCES metadata.sensors(id) ON DELETE CASCADE,
-    sensor_location TEXT
+    sensor_location TEXT,
+    UNIQUE (test_id, machine_id, sensor_id)
 );
 
 CREATE TABLE metadata.mqtt_configs (

@@ -14,7 +14,9 @@ from database import (
     get_machine_type_by_id,
     create_machine_type,
     update_machine_type,
-    delete_machine_type
+    delete_machine_type,
+
+    get_machines_by_machine_type
 )
 
 router = APIRouter()
@@ -53,19 +55,24 @@ async def create_machine_type_endpoint(machine_type: MachineTypeCreate):
 @router.put("/{type_id}", response_model=dict)
 async def update_machine_type_endpoint(type_id: int, machine_type: MachineTypeUpdate):
     """Update an existing machine type."""
-    machine_type_dict = {k: v for k, v in machine_type.model_dump().items() if v is not None}
-    result = await update_machine_type(type_id, machine_type_dict)
+    update_data = machine_type.model_dump(exclude_unset=True)
+    result = await update_machine_type(machine_type, update_data)
     if not result:
-        raise HTTPException(status_code=404, detail="Machine type not found")
-    return {
-        "message": "Machine type updated successfully",
-        "machine_type": result
-    }
+        raise HTTPException(status_code=404, detail="Washing Machine not found")
+    return result
 
 
 @router.delete("/{type_id}")
 async def delete_machine_type_endpoint(type_id: int):
     """Delete a machine type."""
+
+    # Check if machine type is in use by any machines
+    related_machines = await get_machines_by_machine_type(type_id)
+    if related_machines:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete machine type - it is in use by existing machines: {[machine['machine_name'] for machine in related_machines]}",
+        )
     success = await delete_machine_type(type_id)
     if not success:
         raise HTTPException(status_code=404, detail="Machine type not found")

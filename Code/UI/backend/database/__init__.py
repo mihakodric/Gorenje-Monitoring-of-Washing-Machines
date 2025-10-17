@@ -15,11 +15,13 @@ from .sensors import (
     # Async PostgreSQL functions
     get_all_sensors,
     get_sensor_by_id,
-    mark_sensor_offline,
     create_sensor,
     update_sensor,
     delete_sensor,
-    get_test_relations_for_sensor,
+
+    get_sensors_by_sensor_type,
+    mark_sensor_offline,
+    get_tests_for_sensor,
 )
 
 from .sensor_types import (
@@ -37,6 +39,9 @@ from .machines import (
     create_machine,
     update_machine,
     delete_machine,
+
+    get_machines_by_machine_type,
+    get_tests_for_machine_id
 )
 
 from .machine_types import (
@@ -52,22 +57,21 @@ from .tests import (
     get_all_tests,
     get_test_by_id,
     create_test,
-    update_test,
+    update_test_metadata,
     delete_test,
-    get_test_relations,
-    add_test_relation,
-    delete_test_relation,
-    get_test_relation_by_id,
-    update_test_relation,
+
     start_test,
     stop_test,
-    is_sensor_or_machine_available,
     update_test_machine,
 )
 
-from .measurements import (
-    get_sensor_measurements_avg,
-    insert_measurements,
+from .test_relations import (
+    get_test_relations,
+    add_test_relation,
+    delete_test_relation_for_single_relation_id,
+    delete_all_test_relations_for_single_test,
+    get_test_relation_by_id,
+    update_test_relation,
 )
 
 from .mqtt import (
@@ -90,6 +94,7 @@ def set_db_pool(pool):
     measurements.set_db_pool(pool)
     mqtt.set_db_pool(pool)
     tests.set_db_pool(pool)
+    test_relations.set_db_pool(pool)
 
 __all__ = [
     # Core database management
@@ -112,7 +117,8 @@ __all__ = [
     'create_sensor',
     'update_sensor',
     'delete_sensor',
-    'get_test_relations_for_sensor',
+    'get_sensors_by_sensor_type',
+    'get_tests_for_sensor',
     'get_all_sensor_types',
     'get_sensor_type_by_id',
     'create_sensor_type',
@@ -130,22 +136,26 @@ __all__ = [
     'create_machine_type',
     'update_machine_type',
     'delete_machine_type',
+    'get_machines_by_machine_type',
+    'get_tests_for_machine_id',
     
     # Test functions
     'get_all_tests',
     'get_test_by_id',
     'create_test',
-    'update_test',
+    'update_test_metadata',
     'delete_test',
-    'get_test_relations',
-    'add_test_relation',
-    'delete_test_relation',
-    'get_test_relation_by_id',
-    'update_test_relation',
     'start_test',
     'stop_test',
-    'is_sensor_or_machine_available',
     'update_test_machine',
+
+    # Test relations functions
+    'get_test_relations',
+    'add_test_relation',
+    'delete_test_relation_for_single_relation_id',
+    'delete_all_test_relations_for_single_test',
+    'get_test_relation_by_id',
+    'update_test_relation',
     
     # Measurement functions
     'get_sensor_measurements_avg',

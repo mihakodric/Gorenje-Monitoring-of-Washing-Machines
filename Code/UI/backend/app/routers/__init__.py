@@ -10,8 +10,8 @@ from . import (
     machines,
     machine_types,
     tests,
+    test_relations,
     mqtt,
-    settings,
     system
 )
 
@@ -21,7 +21,7 @@ __all__ = [
     "machines",
     "machine_types",
     "tests",
+    "test_relations",
     "mqtt",
-    "settings",
     "system"
 ]

@@ -15,8 +15,8 @@ from app.routers import (
     machines, 
     machine_types,
     tests,
+    test_relations,
     mqtt,
-    settings,
     system
 )
 
@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
         prefix="/api/sensors",
         tags=["Sensors"]
     )
-    
+
     app.include_router(
         sensor_types.router,
         prefix="/api/sensor-types",
@@ -60,23 +60,28 @@ def create_app() -> FastAPI:
         prefix="/api/machines",
         tags=["Machines"]
     )
+
+    app.include_router(
+        machine_types.router,
+        prefix="/api/machine-types",
+        tags=["Machine Types"]
+    )
     
     app.include_router(
         tests.router,
         prefix="/api/tests",
         tags=["Tests"]
     )
+    app.include_router(
+        test_relations.router,
+        prefix="/api/test-relations",
+        tags=["Test Relations"]
+    )
     
     app.include_router(
         mqtt.router,
         prefix="/api/mqtt",
         tags=["MQTT"]
-    )
-    
-    app.include_router(
-        settings.router,
-        prefix="/api/settings",
-        tags=["Settings"]
     )
     
     app.include_router(

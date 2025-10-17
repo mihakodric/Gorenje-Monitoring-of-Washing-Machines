@@ -28,5 +28,5 @@ class MachineUpdate(BaseModel):
 
 class Machine(MachineBase):
     """Complete machine model with database fields."""
-    machine_id: int
+    id: int
     machine_created_at: datetime

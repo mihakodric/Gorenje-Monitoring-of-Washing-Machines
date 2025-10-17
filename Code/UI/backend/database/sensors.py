@@ -74,6 +74,112 @@ async def get_sensor_by_id(sensor_id: int) -> Optional[Dict]:
         return sensor
 
 
+async def create_sensor(sensor_data):
+    """Create a new sensor."""
+    
+    fields = []
+    values = []
+    for key, value in sensor_data.items():
+        fields.append(key)
+        values.append(value)
+
+    if not fields:
+        return None
+ 
+    query = f"""
+        INSERT INTO metadata.sensors (
+            {', '.join(fields)}
+        )
+        VALUES (
+            {', '.join(['$' + str(i + 1) for i in range(len(fields))])}
+        )
+        RETURNING id;
+    """
+    
+    async with get_db_pool().acquire() as conn:
+        new_id = await conn.fetchval(
+            query,
+            *values
+        )
+        if not new_id:
+            return None
+        
+        return await get_sensor_by_id(new_id)
+
+
+async def update_sensor(sensor_id: int, sensor_data: dict) -> bool:
+    """Update an existing sensor."""
+    
+    fields = []
+    values = []
+
+    for key, value in sensor_data.items():
+        if key == "sensor_settings":
+            fields.append(f"sensor_settings = ${len(values) + 1}")
+            values.append(json.dumps(value))
+        else:
+            fields.append(f"{key} = ${len(values) + 1}")
+            values.append(value)
+
+    if not fields:
+        return None
+
+    values.append(sensor_id)
+    query = f"""
+        UPDATE metadata.sensors
+        SET {", ".join(fields)}
+        WHERE id = ${len(values)}
+        RETURNING *;
+    """
+    async with get_db_pool().acquire() as conn:
+        return await conn.fetchrow(query, *values)
+
+
+async def delete_sensor(sensor_id: int) -> bool:
+    """Delete a sensor."""
+    async with get_db_pool().acquire() as conn:
+        result = await conn.execute(
+            "DELETE FROM metadata.sensors WHERE id = $1",
+            sensor_id
+        )
+        return result == 'DELETE 1'
+
+
+#===============================
+# ADDITIONAL SENSOR UTILITIES
+#===============================
+
+
+# get all sensors with specific type id
+
+async def get_sensors_by_sensor_type(sensor_type_id: int) -> List[Dict]:
+    """Get all sensors of a specific type."""
+    async with get_db_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM metadata.sensors WHERE sensor_type_id = $1",
+            sensor_type_id
+        )
+        return [dict(row) for row in rows]
+    
+
+async def get_tests_for_sensor(sensor_id: int):
+    """Get test relations for a specific sensor."""
+    async with get_db_pool().acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT test_id FROM metadata.test_relations WHERE sensor_id = $1",
+            sensor_id
+        )
+        if not rows:
+            return []
+
+        # get test name and ids
+        rows = await conn.fetch(
+            "SELECT id, test_name FROM metadata.tests WHERE id IN ($1)",
+            *[row["test_id"] for row in rows]
+        )
+        return [dict(row) for row in rows]
+
+
 async def mark_sensor_offline(timeout_seconds: int = 60) -> int:
     """
     Mark sensors as offline if they haven't sent data within the timeout period.
@@ -93,81 +199,6 @@ async def mark_sensor_offline(timeout_seconds: int = 60) -> int:
     # asyncpg returns results like "UPDATE 3"
     updated_count = int(result.split()[-1])
     return updated_count
-
-
-async def create_sensor(sensor_data):
-    """Create a new sensor."""
-    query = """
-        INSERT INTO metadata.sensors (
-            sensor_type_id, sensor_mqtt_topic, sensor_name, sensor_description
-        )
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (sensor_mqtt_topic) DO NOTHING
-        RETURNING id;
-    """
-    
-    async with get_db_pool().acquire() as conn:
-        new_id = await conn.fetchval(
-            query,
-            sensor_data['sensor_type_id'],
-            sensor_data['sensor_mqtt_topic'],
-            sensor_data['sensor_name'],
-            sensor_data.get('sensor_description', '')
-        )
-        if new_id:
-            return await get_sensor_by_id(new_id)
-        return None
-
-
-async def update_sensor(sensor_id: int, sensor_data: dict) -> bool:
-    """Update an existing sensor."""
-    async with get_db_pool().acquire() as conn:
-        fields = []
-        values = []
-
-        for key in ["sensor_type_id", "sensor_mqtt_topic", "sensor_name", "sensor_description"]:
-            if key in sensor_data:
-                fields.append(f"{key} = ${len(values) + 1}")
-                values.append(sensor_data[key])
-
-        if "sensor_settings" in sensor_data.keys():
-            # sensors settings is JSON, serialize it
-            fields.append(f"sensor_settings = ${len(values) + 1}")
-            values.append(json.dumps(sensor_data["sensor_settings"]))
-
-        if not fields:
-            return False  # nothing to update
-
-        # Add WHERE id = $n
-        values.append(sensor_id)
-        query = f"""
-            UPDATE metadata.sensors
-            SET {", ".join(fields)}
-            WHERE id = ${len(values)}
-        """
-
-        result = await conn.execute(query, *values)
-        return result == 'UPDATE 1'
-
-
-async def delete_sensor(sensor_id: int) -> bool:
-    """Delete a sensor."""
-    async with get_db_pool().acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM metadata.sensors WHERE id = $1",
-            sensor_id
-        )
-        return result == 'DELETE 1'
-
-
-async def get_test_relations_for_sensor(sensor_id: int):
-    """Get test relations for a specific sensor."""
-    async with get_db_pool().acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT * FROM metadata.test_relations WHERE sensor_id = $1",
-            sensor_id
-        )
-        return [dict(row) for row in rows]
 
 
 async def insert_settings(sensor_id: int, sensor_settings: Dict[str, Any]) -> bool:    

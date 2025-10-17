@@ -14,8 +14,11 @@ from database import (
     get_sensor_type_by_id,
     create_sensor_type,
     update_sensor_type,
-    delete_sensor_type
+    delete_sensor_type,
+
+    get_sensors_by_sensor_type
 )
+
 
 router = APIRouter()
 
@@ -50,19 +53,28 @@ async def create_sensor_type_endpoint(sensor_type: SensorTypeCreate):
 @router.put("/{type_id}", response_model=SensorType)
 async def update_sensor_type_endpoint(type_id: int, sensor_type: SensorTypeUpdate):
     """Update an existing sensor type."""
-    sensor_type_dict = {k: v for k, v in sensor_type.model_dump().items() if v is not None}
-    result = await update_sensor_type(type_id, sensor_type_dict)
+    update_data = sensor_type.model_dump(exclude_unset=True)
+    result = await update_sensor_type(type_id, update_data)
     if not result:
         raise HTTPException(status_code=404, detail="Sensor type not found")
-    return result
+    return await get_sensor_type_by_id(type_id)
 
 
 @router.delete("/{type_id}")
 async def delete_sensor_type_endpoint(type_id: int):
     """Delete a sensor type. Related sensors will be marked as inactive."""
+
+    # check if sensor_type is used by any sensors
+    related_sensors = await get_sensors_by_sensor_type(type_id)
+    if related_sensors:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete sensor type - it is in use by existing sensors: {[sensor['sensor_name'] for sensor in related_sensors]}",
+        )
+
     success = await delete_sensor_type(type_id)
     if not success:
         raise HTTPException(status_code=404, detail="Sensor type not found")
     return {
-        "message": "Sensor type deleted successfully. Related sensors marked as inactive."
+        "message": "Sensor type deleted successfully."
     }

@@ -30,7 +30,7 @@ async def get_all_sensor_types() -> List[Dict]:
     """Get all sensor types."""
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch("""
-            SELECT id, sensor_type_name, sensor_type_unit, sensor_type_description, sensor_type_created_at
+            SELECT *
             FROM metadata.sensor_types
             ORDER BY sensor_type_created_at DESC
         """)
@@ -41,7 +41,7 @@ async def get_sensor_type_by_id(type_id: int) -> Optional[Dict]:
     """Get sensor type by ID."""
     async with get_db_pool().acquire() as conn:
         row = await conn.fetchrow("""
-            SELECT id, sensor_type_name, sensor_type_unit, sensor_type_description, sensor_type_created_at
+            SELECT *
             FROM metadata.sensor_types
             WHERE id = $1
         """, type_id)
@@ -50,22 +50,34 @@ async def get_sensor_type_by_id(type_id: int) -> Optional[Dict]:
 
 async def create_sensor_type(sensor_type: Dict) -> Optional[Dict]:
     """Create a new sensor type."""
-    query = """
+    fields = []
+    values = []
+    for key, value in sensor_type.items():
+        fields.append(key)
+        values.append(value)
+
+    if not fields:
+        return None
+ 
+    query = f"""
         INSERT INTO metadata.sensor_types (
-            sensor_type_name, sensor_type_unit, sensor_type_description, sensor_type_created_at
+            {', '.join(fields)}
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES (
+            {', '.join(['$' + str(i + 1) for i in range(len(fields))])}
+        )
         RETURNING id;
     """
+    
     async with get_db_pool().acquire() as conn:
         new_id = await conn.fetchval(
             query,
-            sensor_type["sensor_type_name"],
-            sensor_type.get("sensor_type_unit", ""),
-            sensor_type.get("sensor_type_description", ""),
-            datetime.now(),
+            *values
         )
-    return await get_sensor_type_by_id(new_id)
+        if not new_id:
+            return None
+        
+        return await get_sensor_type_by_id(new_id)
 
 
 async def update_sensor_type(type_id: int, type_data: Dict) -> Optional[Dict]:
@@ -73,26 +85,23 @@ async def update_sensor_type(type_id: int, type_data: Dict) -> Optional[Dict]:
     fields = []
     values = []
 
-    for key in ["sensor_type_name", "sensor_type_unit", "sensor_type_description"]:
-        if key in type_data:
-            fields.append(f"{key} = ${len(values) + 1}")
-            values.append(type_data[key])
+    for key, value in type_data.items():
+        fields.append(f"{key} = ${len(values) + 1}")
+        values.append(value)
 
     if not fields:
         return None  # nothing to update
 
-    # Add WHERE id = $n
-    values.append(type_id)
     query = f"""
         UPDATE metadata.sensor_types
         SET {", ".join(fields)}
-        WHERE id = ${len(values)}
+        WHERE id = ${len(values) + 1}
+        RETURNING *;
     """
+    values.append(type_id)
 
     async with get_db_pool().acquire() as conn:
-        await conn.execute(query, *values)
-
-    return await get_sensor_type_by_id(type_id)
+        return await conn.fetchrow(query, *values)
 
 
 async def delete_sensor_type(type_id: int) -> bool:
@@ -100,8 +109,6 @@ async def delete_sensor_type(type_id: int) -> bool:
     Delete sensor type and mark related sensors as invisible.
     """
     async with get_db_pool().acquire() as conn:
-        async with conn.transaction():
-            # Delete the sensor type
             result = await conn.execute(
                 "DELETE FROM metadata.sensor_types WHERE id = $1", type_id
             )
