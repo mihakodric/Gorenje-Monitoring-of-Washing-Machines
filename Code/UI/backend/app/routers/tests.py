@@ -41,16 +41,16 @@ async def get_test(test_id: int):
     return test
 
 
-@router.post("", response_model=dict)
+@router.post("", response_model=Test)
 async def create_test_endpoint(test: TestCreate):
     """Create a new test."""
-    success = await create_test(test.model_dump())
-    if not success:
+    created_test = await create_test(test.model_dump())
+    if not created_test:
         raise HTTPException(
             status_code=400,
             detail="Failed to create test - test name might already exist"
         )
-    return {"message": "Test created successfully"}
+    return created_test
 
 @router.put("/{test_id}", response_model=dict)
 async def update_test_endpoint(test_id: int, test: TestUpdate):

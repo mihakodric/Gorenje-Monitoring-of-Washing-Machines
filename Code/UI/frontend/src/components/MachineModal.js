@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { washingMachinesAPI as machinesAPI } from "../api";
+import { machinesAPI, machineTypesAPI } from "../api";
 import { X } from "lucide-react";
 
 const MachineModal = ({ machine, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     machine_name: "",
-    description: "",
-    machine_type_id: 1,
+    machine_description: "",
+    machine_type_id: "",
   });
   const [loading, setLoading] = useState(false);
   const [machineTypes, setMachineTypes] = useState([]);
@@ -21,7 +21,7 @@ useEffect(() => {
   if (machine) {
     setFormData({
       machine_name: machine.machine_name || "",
-      description: machine.description || "",
+      machine_description: machine.machine_description || "",
       machine_type_id: machine.machine_type_id || (machineTypes.length > 0 ? machineTypes[0].id : 1),
     });
   } else if (machineTypes.length > 0) {
@@ -34,15 +34,11 @@ useEffect(() => {
 
 const loadMachineTypes = async () => {
   try {
-    const response = await machinesAPI.getTypes();
+    const response = await machineTypesAPI.getAll();
     setMachineTypes(response.data);
   } catch (error) {
     console.error('Error loading machine types:', error);
     // Fallback to hardcoded types if API fails
-    setMachineTypes([
-      { id: 1, display_name: 'Washing Machine' },
-      { id: 2, display_name: 'Dishwasher' }
-    ]);
   } finally {
     setLoadingTypes(false);
   }
@@ -65,9 +61,10 @@ const loadMachineTypes = async () => {
     try {
       let machineName;
       if (machine) {
-        // Update existing machine
-        await machinesAPI.update(machine.machine_name, {
-          description: formData.description,
+        // Update existing machine - exclude machine_name since it cannot be changed
+        await machinesAPI.update(machine.id, {
+          machine_name: formData.machine_name,
+          machine_description: formData.machine_description,
           machine_type_id: formData.machine_type_id,
         });
         machineName = machine.machine_name;
@@ -79,7 +76,7 @@ const loadMachineTypes = async () => {
       onSave();
     } catch (error) {
       console.error("Error saving washing machine:", error);
-      alert("Error saving machine. Please check if Name already exists.");
+      alert("Error saving machine. Please check if Machine Name already exists.");
     } finally {
       setLoading(false);
     }
@@ -108,7 +105,6 @@ const loadMachineTypes = async () => {
               onChange={handleChange}
               className="form-control"
               required
-              disabled={!!machine} // cannot edit Name once created
               placeholder="e.g., Main Washing Machine, Kitchen Dishwasher"
             />
           </div>
@@ -129,7 +125,7 @@ const loadMachineTypes = async () => {
               ) : (
                 machineTypes.map(type => (
                   <option key={type.id} value={type.id}>
-                    {type.display_name}
+                    {type.machine_type_name}
                   </option>
                 ))
               )}
@@ -140,8 +136,8 @@ const loadMachineTypes = async () => {
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
-              name="description"
-              value={formData.description}
+              name="machine_description"
+              value={formData.machine_description}
               onChange={handleChange}
               className="form-control"
               rows={3}

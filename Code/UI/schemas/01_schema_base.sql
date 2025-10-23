@@ -51,6 +51,7 @@ CREATE TABLE metadata.sensors (
 CREATE TABLE metadata.tests (
     id SERIAL PRIMARY KEY,
     test_name TEXT UNIQUE NOT NULL,
+    machine_id INT REFERENCES metadata.machines(id) ON DELETE CASCADE,
     test_description TEXT,
     test_notes TEXT,
     test_status TEXT DEFAULT 'idle',
@@ -61,10 +62,9 @@ CREATE TABLE metadata.tests (
 CREATE TABLE metadata.test_relations (
     id SERIAL PRIMARY KEY,
     test_id INT REFERENCES metadata.tests(id) ON DELETE CASCADE,
-    machine_id INT REFERENCES metadata.machines(id) ON DELETE CASCADE,
     sensor_id INT REFERENCES metadata.sensors(id) ON DELETE CASCADE,
     sensor_location TEXT,
-    UNIQUE (test_id, machine_id, sensor_id)
+    UNIQUE (test_id, sensor_id)
 );
 
 CREATE TABLE metadata.mqtt_configs (
@@ -72,7 +72,8 @@ CREATE TABLE metadata.mqtt_configs (
     mqtt_broker_host TEXT NOT NULL,
     mqtt_broker_port INT DEFAULT 1883,
     mqtt_username TEXT,
-    mqtt_password TEXT
+    mqtt_password TEXT,
+    mqtt_is_active BOOLEAN DEFAULT FALSE
 );
 
 -- =====================================================

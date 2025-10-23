@@ -12,7 +12,7 @@ const Tests = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, running, completed
   const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
-  const [sortField, setSortField] = useState('created_at');
+  const [sortField, setSortField] = useState('test_created_at');
   const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
@@ -38,17 +38,17 @@ const Tests = () => {
     let filtered = tests.filter(test => {
       const matchesSearch = searchTerm === '' || 
         test.test_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        test.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.test_description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         test.id.toString().includes(searchTerm);
       
       let matchesStatus = true;
       if (statusFilter !== 'all') {
-        matchesStatus = test.status === statusFilter;
+        matchesStatus = test.test_status === statusFilter;
       }
 
       let matchesDate = true;
-      if (dateFilter !== 'all' && test.created_at) {
-        const testDate = new Date(test.created_at);
+      if (dateFilter !== 'all' && test.test_created_at) {
+        const testDate = new Date(test.test_created_at);
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
@@ -72,7 +72,7 @@ const Tests = () => {
       let bValue = b[sortField];
       
       // Handle dates
-      if (sortField === 'created_at' || sortField === 'last_modified_at') {
+      if (sortField === 'test_created_at' || sortField === 'test_last_modified_at') {
         aValue = aValue ? new Date(aValue) : new Date(0);
         bValue = bValue ? new Date(bValue) : new Date(0);
       }
@@ -84,7 +84,7 @@ const Tests = () => {
       }
       
       // Handle numbers
-      if (sortField === 'sensor_count' || sortField === 'data_points') {
+      if (sortField === 'test_sensor_count' || sortField === 'test_data_points') {
         aValue = Number(aValue) || 0;
         bValue = Number(bValue) || 0;
       }
@@ -117,7 +117,7 @@ const Tests = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDateFilter('all');
-    setSortField('created_at');
+    setSortField('test_created_at');
     setSortDirection('desc');
   };
 
@@ -127,10 +127,10 @@ const Tests = () => {
   //   setShowModal(true);
   // };
 
-  const handleStopTest = async (testName) => {
+  const handleStopTest = async (testId) => {
     if (window.confirm('Are you sure you want to stop this test?')) {
       try {
-        await testsAPI.stop(testName);
+        await testsAPI.stop(testId);
         loadTests();
       } catch (error) {
         console.error('Error stopping test:', error);
@@ -145,6 +145,8 @@ const Tests = () => {
     switch (status) {
       case 'running': return 'status-running';
       case 'completed': return 'status-completed';
+      case 'idle': return 'status-inactive';
+      case 'failed': return 'status-error';
       default: return 'status-inactive';
     }
   };
@@ -188,7 +190,7 @@ const Tests = () => {
                 color: '#6b7280',
                 fontWeight: '500'
               }}>
-                {filteredTests.filter(t => t.status === 'running').length} running tests
+                {filteredTests.filter(t => t.test_status === 'running').length} running tests
                 {tests.length !== filteredTests.length && ` (${tests.length} total)`}
               </p>
             </div>
@@ -256,9 +258,10 @@ const Tests = () => {
                 }}
               >
                 <option value="all">All Statuses</option>
+                <option value="idle">Idle</option>
                 <option value="running">Running</option>
                 <option value="completed">Completed</option>
-                <option value="inactive">Inactive</option>
+                <option value="failed">Failed</option>
               </select>
             </div>
 
@@ -343,33 +346,33 @@ const Tests = () => {
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('status')}
-                    className={`sortable ${sortField === 'status' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('test_status')}
+                    className={`sortable ${sortField === 'test_status' ? 'sorted' : ''}`}
                   >
                     Status
-                    {sortField === 'status' && (
+                    {sortField === 'test_status' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('created_at')}
-                    className={`sortable ${sortField === 'created_at' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('test_created_at')}
+                    className={`sortable ${sortField === 'test_created_at' ? 'sorted' : ''}`}
                   >
                     Created
-                    {sortField === 'created_at' && (
+                    {sortField === 'test_created_at' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('sensor_count')}
-                    className={`sortable ${sortField === 'sensor_count' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('test_sensor_count')}
+                    className={`sortable ${sortField === 'test_sensor_count' ? 'sorted' : ''}`}
                   >
                     Sensors
-                    {sortField === 'sensor_count' && (
+                    {sortField === 'test_sensor_count' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
@@ -383,23 +386,23 @@ const Tests = () => {
                   <tr key={test.id}>
                     <td>
                       <strong>{test.test_name}</strong>
-                      {test.description && (
+                      {test.test_description && (
                         <div style={{ fontSize: '12px', color: '#666' }}>
-                          {test.description}
+                          {test.test_description}
                         </div>
                       )}
                     </td>
                     <td>
-                      <span className={`status ${getStatusColor(test.status)}`}>
-                        {test.status === 'running' ? <Play size={12} /> : null}
-                        {test.status.toUpperCase()}
+                      <span className={`status ${getStatusColor(test.test_status)}`}>
+                        {test.test_status === 'running' ? <Play size={12} /> : null}
+                        {test.test_status.toUpperCase()}
                       </span>
                     </td>
                     <td>
-                      {new Date(test.created_at).toLocaleString()}
+                      {new Date(test.test_created_at).toLocaleString()}
                     </td>
                     <td>
-                      <strong>{test.sensor_count || 0}</strong>
+                      <strong>{test.test_sensor_count || 0}</strong>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '5px' }}>
@@ -409,10 +412,10 @@ const Tests = () => {
                         >
                           <Edit size={14} />
                         </Link>
-                        {test.status === 'running' && (
+                        {test.test_status === 'running' && (
                           <button
                             className="btn btn-danger btn-sm"
-                            onClick={() => handleStopTest(test.test_name)}
+                            onClick={() => handleStopTest(test.id)}
                           >
                             <Square size={14} />
                           </button>

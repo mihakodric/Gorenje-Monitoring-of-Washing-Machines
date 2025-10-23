@@ -5,7 +5,7 @@ This module contains all machine type management functions for PostgreSQL.
 """
 
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 
 # Global variable for database pool - will be set by main database module
 _db_pool = None
@@ -80,7 +80,7 @@ async def create_machine_type(type_data: Dict) -> Dict:
         return await get_machine_type_by_id(new_id)
 
 
-async def update_machine_type(type_id: int, type_data: Dict) -> Optional[Dict]:
+async def update_machine_type(type_id: int, type_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Update machine type."""
     fields = []
     values = []
@@ -101,7 +101,8 @@ async def update_machine_type(type_id: int, type_data: Dict) -> Optional[Dict]:
     values.append(type_id)
     
     async with get_db_pool().acquire() as conn:
-        return await conn.fetchrow(query, *values)
+        row = await conn.fetchrow(query, *values)
+        return dict(row) if row else None
 
 
 async def delete_machine_type(type_id: int) -> bool:

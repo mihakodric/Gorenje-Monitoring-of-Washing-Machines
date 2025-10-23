@@ -78,7 +78,8 @@ from .mqtt import (
     get_mqtt_config,
     create_mqtt_config,
     update_mqtt_config,
-    sync_mqtt_active_state,
+    set_active,
+    set_inactive,
 )
 
 def set_db_pool(pool):
@@ -165,5 +166,6 @@ __all__ = [
     'get_mqtt_config',
     'create_mqtt_config',
     'update_mqtt_config',
-    'sync_mqtt_active_state',
+    'set_active',
+    'set_inactive'
 ]

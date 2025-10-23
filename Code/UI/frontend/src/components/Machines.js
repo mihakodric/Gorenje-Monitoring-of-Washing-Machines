@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Activity, Search, X, Filter } from "lucide-react";
-import { washingMachinesAPI as machinesAPI } from "../api";
-import { sensorsAPI } from "../api";
+import { machinesAPI, machineTypesAPI } from "../api";
 import MachineModal from "./MachineModal";
 
 const Machines = () => {
@@ -10,7 +9,7 @@ const Machines = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMachine, setEditingMachine] = useState(null);
-  const [sensors, setSensors] = useState([]);
+
   const [machineTypes, setMachineTypes] = useState([]);
 
   // Filters
@@ -19,52 +18,47 @@ const Machines = () => {
   const [sortDirection, setSortDirection] = useState("asc");
 
   useEffect(() => {
-    loadMachines();
-    loadSensors();
-    loadMachineTypes();
+    loadMachinesAndMachineTypes();
   }, []);
 
   useEffect(() => {
     filterAndSortMachines();
   }, [machines, searchTerm, sortField, sortDirection]);
 
-  const loadMachines = async () => {
+  const loadMachinesAndMachineTypes = async () => {
+
+    let machineData = [];
+    let machineTypesData = [];
+  
     try {
-      const response = await machinesAPI.getAll();
-      setMachines(response.data);
-    } catch (error) {
+      setLoading(true);
+      const results = await Promise.allSettled([
+        machinesAPI.getAll(),
+        machineTypesAPI.getAll()
+      ]);
+
+      machineData = results[0].status === 'fulfilled' ? results[0].value.data || [] : [];
+      machineTypesData = results[1].status === 'fulfilled' ? results[1].value.data || [] : [];
+
+      setMachines(machineData);
+      setMachineTypes(machineTypesData);
+      } catch (error) {
       console.error("Error loading machines:", error);
     } finally {
       setLoading(false);
+
+      console.log("Loaded machines:", machineData);
+      console.log("Loaded machine types:", machineTypesData);
     }
   };
 
-  const loadSensors = async () => {
-    try {
-      const response = await sensorsAPI.getAll();
-      setSensors(response.data);
-    } catch (error) {
-      console.error("Error loading sensors:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMachineTypes = async () => {
-    try {
-      const response = await machinesAPI.getTypes();
-      setMachineTypes(response.data);
-    } catch (error) {
-      console.error("Error loading machine types:", error);
-    }
-  };
 
   const filterAndSortMachines = () => {
     let filtered = machines.filter(machine => {
       // Search filter
       const matchesSearch =
         String(machine.machine_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(machine.description || "").toLowerCase().includes(searchTerm.toLowerCase());
+        String(machine.machine_description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       return matchesSearch;
     });
@@ -110,15 +104,15 @@ const Machines = () => {
     setShowModal(true);
   };
 
-  const handleDeleteMachine = async (machineName) => {
+  const handleDeleteMachine = async (machineId) => {
     if (
       window.confirm(
         "Are you sure you want to delete this machine? This action cannot be undone."
       )
     ) {
       try {
-        await machinesAPI.delete(machineName);
-        loadMachines();
+        await machinesAPI.delete(machineId);
+        loadMachinesAndMachineTypes();
       } catch (error) {
         console.error("Error deleting machine:", error);
         alert("Error deleting machine. Please try again.");
@@ -134,14 +128,12 @@ const Machines = () => {
   const handleModalSave = () => {
     setShowModal(false);
     setEditingMachine(null);
-    loadMachines();
-    loadSensors();
-    loadMachineTypes();
+    loadMachinesAndMachineTypes();
   };
 
   const getMachineTypeName = (machineTypeId) => {
     const type = machineTypes.find(type => type.id === machineTypeId);
-    return type ? type.display_name : 'Unknown Type';
+    return type ? type.machine_type_name : 'Unknown Type';
   };
 
   if (loading) {
@@ -338,17 +330,18 @@ const Machines = () => {
                       )}
                     </div>
                   </th>
+                  <th>Machine Type</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMachines.map((machine) => (
-                  <tr key={machine.machine_name}>
+                  <tr key={machine.id}>
                     <td>
                       <div>
                         <div
                           style={{
-                            fontWeight: "600",
+                            fontWeight: "1000",
                             color: "#374151",
                             fontSize: "14px",
                           }}
@@ -358,24 +351,15 @@ const Machines = () => {
                         <div
                           style={{
                             marginTop: "4px",
-                            fontSize: "12px",
-                            color: "#667eea",
-                            fontWeight: "500",
-                          }}
-                        >
-                          {getMachineTypeName(machine.machine_type_id)}
-                        </div>
-                        <div
-                          style={{
-                            marginTop: "4px",
                             fontSize: "13px",
                             color: "#6b7280",
                           }}
                         >
-                          {machine.description || "No description"}
+                          {machine.machine_description || "No description"}
                         </div>
                       </div>
                     </td>
+                    <td>{getMachineTypeName(machine.machine_type_id)}</td>
                     <td>
                       <div className="action-buttons">
                         <button
@@ -391,7 +375,7 @@ const Machines = () => {
                         </button>
                         <button
                           className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteMachine(machine.machine_name)}
+                          onClick={() => handleDeleteMachine(machine.id)}
                           title="Delete machine"
                           style={{
                             padding: "8px 12px",

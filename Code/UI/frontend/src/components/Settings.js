@@ -1,28 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { settingsAPI } from '../api';
+import { mqttAPI, sensorTypesAPI, machineTypesAPI} from '../api';
 import { Settings as SettingsIcon, Plus, Edit, Trash2, Save, X, Wifi, Zap, AlertTriangle, Check } from 'lucide-react';
 
 const Settings = () => {
-  const [mqttConfig, setMqttConfig] = useState(null);
+  const [activeTab, setActiveTab] = useState('mqtt');
+  const [mqttConfig, setMqttConfig] = useState({});
+  const [mqttSaving, setMqttSaving] = useState(false);
   const [sensorTypes, setSensorTypes] = useState([]);
   const [machineTypes, setMachineTypes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('mqtt');
-  const [mqttSaving, setMqttSaving] = useState(false);
+
   
   // MQTT Config form state - directly editable
   const [mqttForm, setMqttForm] = useState({
-    broker_host: 'localhost',
-    broker_port: 1883,
-    username: '',
-    password: ''
+    mqtt_broker_host: '',
+    mqtt_broker_port: '',
+    mqtt_username: '',
+    mqtt_password: '',
+    mqtt_is_active: false
   });
 
   // Sensor Type states
   const [showSensorTypeModal, setShowSensorTypeModal] = useState(false);
   const [editingSensorType, setEditingSensorType] = useState(null);
   const [sensorTypeForm, setSensorTypeForm] = useState({
-    mqtt_topic: '',
     display_name: '',
     unit: '',
     description: ''
@@ -33,8 +34,7 @@ const Settings = () => {
   const [editingMachineType, setEditingMachineType] = useState(null);
   const [machineTypeForm, setMachineTypeForm] = useState({
     display_name: '',
-    description: '',
-    created_by: 'admin' // Default value, should be from user context in real app
+    description: ''
   });
 
   useEffect(() => {
@@ -42,44 +42,50 @@ const Settings = () => {
   }, []);
 
   const loadSettings = async () => {
-    try {
-      setLoading(true);
-      const [mqttResponse, typesResponse, machineTypesResponse] = await Promise.all([
-        settingsAPI.getMqttConfig(), // Get single MQTT config
-        settingsAPI.getSensorTypes(),
-        settingsAPI.getMachineTypes()
-      ]);
-      
-      // Set the MQTT config data to both state and form
-      const mqttData = mqttResponse.data;
-      setMqttConfig(mqttData);
-      if (mqttData) {
-        setMqttForm({
-          broker_host: mqttData.broker_host || 'localhost',
-          broker_port: mqttData.broker_port || 1883,
-          username: mqttData.username || '',
-          password: mqttData.password || ''
-        });
-      }
-      
-      setSensorTypes(typesResponse.data);
-      setMachineTypes(machineTypesResponse.data);
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setLoading(false);
+  let mqttData = null;
+  let sensorTypesData = [];
+  let machineTypesData = [];
+
+  try {
+    setLoading(true);
+    const results = await Promise.allSettled([
+      mqttAPI.config(),
+      sensorTypesAPI.getAll(),
+      machineTypesAPI.getAll()
+    ]);
+    
+
+    mqttData = results[0].status === 'fulfilled' ? results[0].value.data : null;
+    sensorTypesData = results[1].status === 'fulfilled' ? results[1].value.data || [] : [];
+    machineTypesData = results[2].status === 'fulfilled' ? results[2].value.data || [] : [];
+
+    setMqttConfig(mqttData || {});
+    setSensorTypes(sensorTypesData);
+    setMachineTypes(machineTypesData);
+
+    if (mqttData) {
+      setMqttForm({
+        mqtt_broker_host: mqttData.mqtt_broker_host || 'localhost',
+        mqtt_broker_port: mqttData.mqtt_broker_port || '',
+        mqtt_username: mqttData.mqtt_username || '',
+        mqtt_password: mqttData.mqtt_password || '',
+        mqtt_is_active: mqttData.mqtt_is_active || false
+      });
     }
-  };
+
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // MQTT Config handlers
   const handleSaveMqttConfig = async () => {
     try {
       setMqttSaving(true);
-      if (mqttConfig && mqttConfig.id) {
-        await settingsAPI.updateMqttConfig(mqttForm);
-      } else {
-        await settingsAPI.createMqttConfig(mqttForm);
-      }
+      await mqttAPI.setConfig(mqttForm);
       await loadSettings(); // Reload to get updated data
     } catch (error) {
       console.error('Error saving MQTT config:', error);
@@ -92,17 +98,17 @@ const Settings = () => {
   const handleResetMqttConfig = () => {
     if (mqttConfig) {
       setMqttForm({
-        broker_host: mqttConfig.broker_host || 'localhost',
-        broker_port: mqttConfig.broker_port || 1883,
-        username: mqttConfig.username || '',
-        password: mqttConfig.password || ''
+        mqtt_broker_host: mqttConfig.mqtt_broker_host || 'localhost',
+        mqtt_broker_port: mqttConfig.mqtt_broker_port || 1883,
+        mqtt_username: mqttConfig.mqtt_username || '',
+        mqtt_password: mqttConfig.mqtt_password || ''
       });
     } else {
       setMqttForm({
-        broker_host: 'localhost',
-        broker_port: 1883,
-        username: '',
-        password: ''
+        mqtt_broker_host: 'localhost',
+        mqtt_broker_port: 1883,
+        mqtt_username: '',
+        mqtt_password: ''
       });
     }
   };
@@ -111,10 +117,9 @@ const Settings = () => {
   const handleAddSensorType = () => {
     setEditingSensorType(null);
     setSensorTypeForm({
-      mqtt_topic: '',
-      display_name: '',
-      unit: '',
-      description: ''
+      sensor_type_name: '',
+      sensor_type_unit: '',
+      sensor_type_description: ''
     });
     setShowSensorTypeModal(true);
   };
@@ -128,9 +133,9 @@ const Settings = () => {
   const handleSaveSensorType = async () => {
     try {
       if (editingSensorType) {
-        await settingsAPI.updateSensorType(editingSensorType.id, sensorTypeForm);
+        await sensorTypesAPI.update(editingSensorType.id, sensorTypeForm);
       } else {
-        await settingsAPI.createSensorType(sensorTypeForm);
+        await sensorTypesAPI.create(sensorTypeForm);
       }
       loadSettings();
       setShowSensorTypeModal(false);
@@ -143,11 +148,17 @@ const Settings = () => {
   const handleDeleteSensorType = async (typeId) => {
     if (window.confirm('Are you sure you want to delete this sensor type? This will mark related sensors as inactive and require updates.')) {
       try {
-        await settingsAPI.deleteSensorType(typeId);
+        await sensorTypesAPI.delete(typeId);
         loadSettings();
       } catch (error) {
         console.error('Error deleting sensor type:', error);
-        alert('Error deleting sensor type');
+        
+        // Check if error contains specific message about sensors in use
+        if (error.response && error.response.data && error.response.data.detail) {
+          alert(error.response.data.detail);
+        } else {
+          alert('Error deleting sensor type. Please try again.');
+        }
       }
     }
   };
@@ -156,9 +167,8 @@ const Settings = () => {
   const handleAddMachineType = () => {
     setEditingMachineType(null);
     setMachineTypeForm({
-      display_name: '',
-      description: '',
-      created_by: 'admin' // Default value
+      machine_type_name: '',
+      machine_type_description: '',
     });
     setShowMachineTypeModal(true);
   };
@@ -166,9 +176,8 @@ const Settings = () => {
   const handleEditMachineType = (machineType) => {
     setEditingMachineType(machineType);
     setMachineTypeForm({
-      display_name: machineType.display_name,
-      description: machineType.description || '',
-      created_by: machineType.created_by
+      machine_type_name: machineType.machine_type_name,
+      machine_type_description: machineType.machine_type_description || '',
     });
     setShowMachineTypeModal(true);
   };
@@ -176,9 +185,9 @@ const Settings = () => {
   const handleSaveMachineType = async () => {
     try {
       if (editingMachineType) {
-        await settingsAPI.updateMachineType(editingMachineType.id, machineTypeForm);
+        await machineTypesAPI.update(editingMachineType.id, machineTypeForm);
       } else {
-        await settingsAPI.createMachineType(machineTypeForm);
+        await machineTypesAPI.create(machineTypeForm);
       }
       loadSettings();
       setShowMachineTypeModal(false);
@@ -191,7 +200,7 @@ const Settings = () => {
   const handleDeleteMachineType = async (typeId) => {
     if (window.confirm('Are you sure you want to delete this machine type?')) {
       try {
-        await settingsAPI.deleteMachineType(typeId);
+        await machineTypesAPI.delete(typeId);
         loadSettings();
       } catch (error) {
         console.error('Error deleting machine type:', error);
@@ -366,8 +375,8 @@ const Settings = () => {
                     <input
                       type="text"
                       className="form-control"
-                      value={mqttForm.broker_host}
-                      onChange={(e) => setMqttForm({...mqttForm, broker_host: e.target.value})}
+                      value={mqttForm.mqtt_broker_host}
+                      onChange={(e) => setMqttForm({...mqttForm, mqtt_broker_host: e.target.value})}
                       placeholder="localhost or IP address"
                       style={{ width: '100%' }}
                     />
@@ -380,8 +389,8 @@ const Settings = () => {
                     <input
                       type="number"
                       className="form-control"
-                      value={mqttForm.broker_port}
-                      onChange={(e) => setMqttForm({...mqttForm, broker_port: parseInt(e.target.value) || 1883})}
+                      value={mqttForm.mqtt_broker_port}
+                      onChange={(e) => setMqttForm({...mqttForm, mqtt_broker_port: parseInt(e.target.value) || 1883})}
                       style={{ width: '100%' }}
                     />
                   </div>
@@ -409,8 +418,8 @@ const Settings = () => {
                     <input
                       type="text"
                       className="form-control"
-                      value={mqttForm.username}
-                      onChange={(e) => setMqttForm({...mqttForm, username: e.target.value})}
+                      value={mqttForm.mqtt_username}
+                      onChange={(e) => setMqttForm({...mqttForm, mqtt_username: e.target.value})}
                       placeholder="Optional"
                       style={{ width: '100%' }}
                     />
@@ -423,8 +432,8 @@ const Settings = () => {
                     <input
                       type="password"
                       className="form-control"
-                      value={mqttForm.password}
-                      onChange={(e) => setMqttForm({...mqttForm, password: e.target.value})}
+                      value={mqttForm.mqtt_password}
+                      onChange={(e) => setMqttForm({...mqttForm, mqtt_password: e.target.value})}
                       placeholder="Optional"
                       style={{ width: '100%' }}
                     />
@@ -504,7 +513,6 @@ const Settings = () => {
               <thead>
                 <tr>
                   <th>Display Name</th>
-                  <th>MQTT Topic</th>
                   <th>Unit</th>
                   <th>Description</th>
                   <th>Actions</th>
@@ -514,17 +522,12 @@ const Settings = () => {
                 {sensorTypes.map((sensorType) => (
                   <tr key={sensorType.id}>
                     <td>
-                      <strong>{sensorType.display_name}</strong>
+                      <strong>{sensorType.sensor_type_name}</strong>
                     </td>
-                    <td>
-                      <code style={{ fontSize: '12px', backgroundColor: '#f5f5f5', padding: '2px 4px', borderRadius: '3px' }}>
-                        {sensorType.mqtt_topic}
-                      </code>
-                    </td>
-                    <td>{sensorType.unit || '-'}</td>
+                    <td>{sensorType.sensor_type_unit || '-'}</td>
                     <td>
                       <div style={{ maxWidth: '200px', fontSize: '14px' }}>
-                        {sensorType.description || '-'}
+                        {sensorType.sensor_type_description || '-'}
                       </div>
                     </td>
                     <td>
@@ -591,7 +594,6 @@ const Settings = () => {
                 <tr>
                   <th>Display Name</th>
                   <th>Description</th>
-                  <th>Created By</th>
                   <th>Created At</th>
                   <th>Actions</th>
                 </tr>
@@ -600,25 +602,16 @@ const Settings = () => {
                 {machineTypes.map((machineType) => (
                   <tr key={machineType.id}>
                     <td>
-                      <strong>{machineType.display_name}</strong>
+                      <strong>{machineType.machine_type_name}</strong>
                     </td>
                     <td>
                       <div style={{ maxWidth: '300px', fontSize: '14px' }}>
-                        {machineType.description || '-'}
+                        {machineType.machine_type_description || '-'}
                       </div>
                     </td>
                     <td>
-                      <span style={{ 
-                        fontSize: '14px', 
-                        color: '#6b7280',
-                        fontWeight: '500'
-                      }}>
-                        {machineType.created_by}
-                      </span>
-                    </td>
-                    <td>
                       <span style={{ fontSize: '14px', color: '#6b7280' }}>
-                        {new Date(machineType.created_at).toLocaleDateString()}
+                        {new Date(machineType.machine_type_created_at).toLocaleDateString()}
                       </span>
                     </td>
                     <td>
@@ -651,7 +644,7 @@ const Settings = () => {
                 <p>No machine types defined yet.</p>
                 <button 
                   className="btn btn-primary"
-                  onClick={handleAddMachineType}
+                  // onClick={handleAddMachineType}
                   style={{ marginTop: '10px' }}
                 >
                   <Plus size={16} />
@@ -704,8 +697,8 @@ const Settings = () => {
                 <input
                   type="text"
                   className="form-control"
-                  value={machineTypeForm.display_name}
-                  onChange={(e) => setMachineTypeForm({...machineTypeForm, display_name: e.target.value})}
+                  value={machineTypeForm.machine_type_name}
+                  onChange={(e) => setMachineTypeForm({...machineTypeForm, machine_type_name: e.target.value})}
                   placeholder="e.g., Front Load Washer, Top Load Washer"
                 />
               </div>
@@ -716,25 +709,13 @@ const Settings = () => {
                 </label>
                 <textarea
                   className="form-control"
-                  value={machineTypeForm.description}
-                  onChange={(e) => setMachineTypeForm({...machineTypeForm, description: e.target.value})}
+                  value={machineTypeForm.machine_type_description}
+                  onChange={(e) => setMachineTypeForm({...machineTypeForm, machine_type_description: e.target.value})}
                   rows="4"
                   placeholder="Describe the characteristics and features of this machine type"
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Created By
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={machineTypeForm.created_by}
-                  onChange={(e) => setMachineTypeForm({...machineTypeForm, created_by: e.target.value})}
-                  placeholder="Enter creator name"
-                />
-              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
@@ -747,7 +728,7 @@ const Settings = () => {
               <button
                 className="btn btn-primary"
                 onClick={handleSaveMachineType}
-                disabled={!machineTypeForm.display_name || !machineTypeForm.created_by}
+                disabled={!machineTypeForm.machine_type_name}
               >
                 <Save size={16} />
                 Save Machine Type
@@ -791,18 +772,6 @@ const Settings = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  MQTT Topic *
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={sensorTypeForm.mqtt_topic}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, mqtt_topic: e.target.value})}
-                  placeholder="e.g., sensors/pressure"
-                />
-              </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
@@ -811,8 +780,8 @@ const Settings = () => {
                 <input
                   type="text"
                   className="form-control"
-                  value={sensorTypeForm.display_name}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, display_name: e.target.value})}
+                  value={sensorTypeForm.sensor_type_name}
+                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, sensor_type_name: e.target.value})}
                   placeholder="e.g., Pressure Sensor"
                 />
               </div>
@@ -824,8 +793,8 @@ const Settings = () => {
                 <input
                   type="text"
                   className="form-control"
-                  value={sensorTypeForm.unit}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, unit: e.target.value})}
+                  value={sensorTypeForm.sensor_type_unit}
+                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, sensor_type_unit: e.target.value})}
                   placeholder="e.g., bar, °C, g, mm"
                 />
               </div>
@@ -836,8 +805,8 @@ const Settings = () => {
                 </label>
                 <textarea
                   className="form-control"
-                  value={sensorTypeForm.description}
-                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, description: e.target.value})}
+                  value={sensorTypeForm.sensor_type_description}
+                  onChange={(e) => setSensorTypeForm({...sensorTypeForm, sensor_type_description: e.target.value})}
                   rows="3"
                   placeholder="Describe this sensor type and its purpose"
                 />
@@ -854,7 +823,7 @@ const Settings = () => {
               <button
                 className="btn btn-primary"
                 onClick={handleSaveSensorType}
-                disabled={!sensorTypeForm.mqtt_topic || !sensorTypeForm.display_name}
+                disabled={!sensorTypeForm.sensor_type_name}
               >
                 <Save size={16} />
                 Save Type

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { sensorsAPI } from '../api';
+import { sensorsAPI, sensorTypesAPI } from '../api';
 import { X } from 'lucide-react';
 
 const SensorModal = ({ sensor, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    sensor_id: '', // This will be the MQTT ID that user defines
+    sensor_mqtt_topic: '', // This will be the MQTT topic that user defines
     sensor_name: '',
-    sensor_type: '',
-    description: ''
+    sensor_type_id: '',
+    sensor_description: ''
   });
   const [loading, setLoading] = useState(false);
   const [sensorTypes, setSensorTypes] = useState([]);
@@ -20,34 +20,27 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
   useEffect(() => {
     if (sensor) {
       setFormData({
-        sensor_id: sensor.sensor_id || '',
+        sensor_mqtt_topic: sensor.sensor_mqtt_topic || '',
         sensor_name: sensor.sensor_name || '',
-        sensor_type: sensor.sensor_type || (sensorTypes.length > 0 ? sensorTypes[0].mqtt_topic : ''),
-        description: sensor.description || ''
+        sensor_type_id: sensor.sensor_type_id || '',
+        sensor_description: sensor.sensor_description || ''
       });
-    } else if (sensorTypes.length > 0 && !formData.sensor_type) {
+    } else if (sensorTypes.length > 0) {
       setFormData(prev => ({
         ...prev,
-        sensor_type: sensorTypes[0].mqtt_topic
+        sensor_type_id: prev.sensor_type_id || sensorTypes[0].id
       }));
     }
   }, [sensor, sensorTypes]);
 
   const loadSensorTypes = async () => {
     try {
-      const response = await sensorsAPI.getTypes();
+      const response = await sensorTypesAPI.getAll();
       setSensorTypes(response.data);
     } catch (error) {
       console.error('Error loading sensor types:', error);
-      // Fallback to hardcoded types if API fails
-      setSensorTypes([
-        { mqtt_topic: 'acceleration', display_name: 'Acceleration' },
-        { mqtt_topic: 'temperature', display_name: 'Temperature' },
-        { mqtt_topic: 'distance', display_name: 'Distance' },
-        { mqtt_topic: 'current', display_name: 'Current' },
-        { mqtt_topic: 'water_flow', display_name: 'Water Flow' },
-        { mqtt_topic: 'infrared', display_name: 'Infrared' }
-      ]);
+      // Fallback to empty array if API fails
+      setSensorTypes([]);
     } finally {
       setLoadingTypes(false);
     }
@@ -57,7 +50,7 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'sensor_type_id' ? value : value
     }));
   };
 
@@ -67,27 +60,27 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
 
     try {
       if (sensor) {
-        // Update existing sensor (only allow updating name and description)
-        await sensorsAPI.update(sensor.sensor_id, {
+        // Update existing sensor - include sensor type in update
+        await sensorsAPI.update(sensor.id, {
           sensor_name: formData.sensor_name,
-          description: formData.description
+          sensor_type_id: parseInt(formData.sensor_type_id),
+          sensor_description: formData.sensor_description
         });
       } else {
         // Create new sensor - include all required fields
         const sensorData = {
-          sensor_id: formData.sensor_id,
+          sensor_mqtt_topic: formData.sensor_mqtt_topic,
           sensor_name: formData.sensor_name,
-          sensor_type: formData.sensor_type,
-          description: formData.description,
-          mqtt_topic: formData.sensor_type, // Use sensor_type as mqtt_topic
-          visible: true
+          sensor_type_id: parseInt(formData.sensor_type_id),
+          sensor_description: formData.sensor_description,
+          sensor_is_online: false
         };
         await sensorsAPI.create(sensorData);
       }
       onSave();
     } catch (error) {
       console.error('Error saving sensor:', error);
-      alert('Error saving sensor. Please check if MQTT ID already exists or all required fields are filled.');
+      alert('Error saving sensor. Please check if MQTT topic already exists or all required fields are filled.');
     } finally {
       setLoading(false);
     }
@@ -107,19 +100,18 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">MQTT ID *</label>
+            <label className="form-label">MQTT Topic *</label>
             <input
               type="text"
-              name="sensor_id"
-              value={formData.sensor_id}
+              name="sensor_mqtt_topic"
+              value={formData.sensor_mqtt_topic}
               onChange={handleChange}
               className="form-control"
               required
-              disabled={!!sensor} // Disable editing sensor_id for existing sensors
-              placeholder="e.g., acc1, temp2, dist1"
+              placeholder="e.g., sensors/acceleration/1, sensors/temperature/kitchen"
             />
             <small className="form-text text-muted">
-              Unique identifier used in MQTT communication
+              Unique MQTT topic for this sensor
             </small>
           </div>
 
@@ -140,20 +132,20 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
             <div className="form-group">
               <label className="form-label">Sensor Type *</label>
               <select
-                name="sensor_type"
-                value={formData.sensor_type}
+                name="sensor_type_id"
+                value={formData.sensor_type_id}
                 onChange={handleChange}
                 className="form-control"
                 required
-                disabled={!!sensor || loadingTypes} // Disable editing type for existing sensors or while loading
+                disabled={loadingTypes} // Disable editing type for existing sensors or while loading
               >
                 <option value="">Select sensor type...</option>
                 {loadingTypes ? (
                   <option value="">Loading sensor types...</option>
                 ) : (
                   sensorTypes.map(type => (
-                    <option key={type.mqtt_topic} value={type.mqtt_topic}>
-                      {type.display_name}
+                    <option key={type.id} value={type.id}>
+                      {type.sensor_type_name}
                     </option>
                   ))
                 )}
@@ -164,8 +156,8 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
-              name="description"
-              value={formData.description}
+              name="sensor_description"
+              value={formData.sensor_description}
               onChange={handleChange}
               className="form-control"
               rows={3}

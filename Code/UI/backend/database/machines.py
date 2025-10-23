@@ -46,7 +46,7 @@ async def get_machine_by_id(machine_id: int) -> Optional[Dict]:
         )
     return dict(row) if row else None
 
-async def create_machine(machine_data: Dict) -> bool:
+async def create_machine(machine_data: Dict) -> Optional[Dict]:
     """Create a new machine."""
 
     fields = []
@@ -59,7 +59,7 @@ async def create_machine(machine_data: Dict) -> bool:
         return None
  
     query = f"""
-        INSERT INTO metadata.sensors (
+        INSERT INTO metadata.machines (
             {', '.join(fields)}
         )
         VALUES (
@@ -98,7 +98,8 @@ async def update_machine(machine_id: int, machine_data: Dict) -> Optional[Dict]:
     values.append(machine_id)
 
     async with get_db_pool().acquire() as conn:
-        return await conn.fetchrow(query, *values)
+        row = await conn.fetchrow(query, *values)
+        return dict(row) if row else None
 
 async def delete_machine(machine_id: int) -> bool:
     """Delete machine by ID."""

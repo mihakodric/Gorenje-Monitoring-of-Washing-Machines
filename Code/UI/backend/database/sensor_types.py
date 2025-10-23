@@ -5,7 +5,7 @@ This module contains all sensor type management functions for PostgreSQL.
 """
 
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 
 # Global variable for database pool - will be set by main database module
 _db_pool = None
@@ -32,7 +32,7 @@ async def get_all_sensor_types() -> List[Dict]:
         rows = await conn.fetch("""
             SELECT *
             FROM metadata.sensor_types
-            ORDER BY sensor_type_created_at DESC
+            ORDER BY sensor_type_created_at ASC
         """)
     return [dict(row) for row in rows]
 
@@ -80,7 +80,7 @@ async def create_sensor_type(sensor_type: Dict) -> Optional[Dict]:
         return await get_sensor_type_by_id(new_id)
 
 
-async def update_sensor_type(type_id: int, type_data: Dict) -> Optional[Dict]:
+async def update_sensor_type(type_id: int, type_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Update sensor type."""
     fields = []
     values = []
@@ -94,14 +94,16 @@ async def update_sensor_type(type_id: int, type_data: Dict) -> Optional[Dict]:
 
     query = f"""
         UPDATE metadata.sensor_types
-        SET {", ".join(fields)}
+        SET {', '.join(fields)}
         WHERE id = ${len(values) + 1}
         RETURNING *;
     """
     values.append(type_id)
 
     async with get_db_pool().acquire() as conn:
-        return await conn.fetchrow(query, *values)
+        row = await conn.fetchrow(query, *values)
+        return dict(row) if row else None
+
 
 
 async def delete_sensor_type(type_id: int) -> bool:

@@ -16,24 +16,25 @@ body {
 }
 
 .App {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
+  overflow: hidden;
 }
 
 .main-content {
   flex: 1;
   margin-left: 260px;
   padding: 20px;
-  padding-top: 20px;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   transition: margin-left 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* When navigation is hidden/collapsed */
 .main-content.nav-collapsed {
   margin-left: 70px;
-  padding-top: 20px;
 }
 
 /* Enhanced Card styles */
@@ -520,19 +521,20 @@ h3 {
   .main-content {
     margin-left: 0 !important;
     padding: 15px;
-    padding-top: 20px;
+    height: 100vh;
+    overflow-y: auto;
   }
   
   .main-content.nav-collapsed {
     margin-left: 0;
-    padding-top: 20px;
   }
 }
 
 @media (max-width: 768px) {
   .main-content {
     padding: 10px;
-    padding-top: 20px;
+    height: 100vh;
+    overflow-y: auto;
   }
   
   .grid-2,
@@ -620,7 +622,8 @@ h3 {
 @media (max-width: 480px) {
   .main-content {
     padding: 8px;
-    padding-top: 20px;
+    height: 100vh;
+    overflow-y: auto;
   }
   
   .card {

@@ -5,10 +5,8 @@ import { X } from 'lucide-react';
 const TestModal = ({ test, machines, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     test_name: '',
-    description: '',
-    status: 'running',
-    created_by: 'user',
-    notes: ''
+    test_description: '',
+    test_notes: ''
   });
   const [loading, setLoading] = useState(false);
 
@@ -16,10 +14,8 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
     if (test) {
       setFormData({
         test_name: test.test_name || '',
-        description: test.description || '',
-        status: test.status || 'running',
-        created_by: test.created_by || 'user',
-        notes: test.notes || ''
+        test_description: test.test_description || '',
+        test_notes: test.test_notes || ''
       });
     }
   }, [test]);
@@ -39,21 +35,27 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
     try {
       if (test) {
         // Update existing test
-        await testsAPI.update(test.test_name, {
-          description: formData.description,
-          machine_name: formData.machine_name,
-          status: formData.status,
-          notes: formData.notes,
-          end_time: formData.status === 'completed' ? new Date().toISOString() : null
+        await testsAPI.update(test.id, {
+          test_name: formData.test_name,
+          test_description: formData.test_description,
+          test_notes: formData.test_notes
         });
       } else {
         // Create new test
-        await testsAPI.create(formData);
+        await testsAPI.create({
+          test_name: formData.test_name,
+          test_description: formData.test_description,
+          test_notes: formData.test_notes
+        });
       }
       onSave();
     } catch (error) {
       console.error('Error saving test:', error);
-      alert('Error saving test. Please check if test name already exists.');
+      if (error.response?.data?.detail) {
+        alert(`Error saving test: ${error.response.data.detail}`);
+      } else {
+        alert('Error saving test. Please check if test name already exists.');
+      }
     } finally {
       setLoading(false);
     }
@@ -86,46 +88,11 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
             />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Machine name</label>
-              <select
-                name="machine_name"
-                value={formData.machine_name}
-                onChange={handleChange}
-                className="form-control"
-                required
-              >
-                <option value="">Select machine...</option>
-                {machines.map(machine => (
-                  <option key={machine.machine_name} value={machine.machine_name}>
-                    {machine.machine_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="form-control"
-              >
-                <option value="running">Running</option>
-                <option value="completed">Completed</option>
-                <option value="paused">Paused</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-          </div>
-
           <div className="form-group">
             <label className="form-label">Description</label>
             <textarea
-              name="description"
-              value={formData.description}
+              name="test_description"
+              value={formData.test_description}
               onChange={handleChange}
               className="form-control"
               rows={3}
@@ -136,24 +103,12 @@ const TestModal = ({ test, machines, onClose, onSave }) => {
           <div className="form-group">
             <label className="form-label">Notes</label>
             <textarea
-              name="notes"
-              value={formData.notes}
+              name="test_notes"
+              value={formData.test_notes}
               onChange={handleChange}
               className="form-control"
               rows={3}
               placeholder="Additional notes or observations..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Created By</label>
-            <input
-              type="text"
-              name="created_by"
-              value={formData.created_by}
-              onChange={handleChange}
-              className="form-control"
-              placeholder="user"
             />
           </div>
 

@@ -76,7 +76,7 @@ const TestDetails = () => {
   const handleStopTest = async () => {
     if (window.confirm('Are you sure you want to stop this test?')) {
       try {
-        await testsAPI.stop(testName);
+        await testsAPI.stop(test.id);
         loadTestDetails();
       } catch (error) {
         console.error('Error stopping test:', error);
@@ -195,7 +195,7 @@ const TestDetails = () => {
             <span className="card-title">Test: {test.test_name}</span>
           </div>
           <div>
-            {test.status === 'running' && (
+            {test.test_status === 'running' && (
               <button className="btn btn-danger" onClick={handleStopTest}>
                 <Square size={16} />
                 Stop Test
@@ -206,22 +206,32 @@ const TestDetails = () => {
 
         <div className="grid grid-2">
           <div>
-            <p><strong>Status:</strong> <span className={`status status-${test.status}`}>{test.status}</span></p>
-            <p><strong>Machine Name:</strong> {test.machine_name || 'Not specified'}</p>
-            <p><strong>Created By:</strong> {test.created_by}</p>
+            <p><strong>Status:</strong> <span className={`status status-${test.test_status}`}>{test.test_status}</span></p>
+            <p><strong>Created:</strong> {new Date(test.test_created_at).toLocaleString()}</p>
+            {test.test_last_modified_at && (
+              <p><strong>Last Modified:</strong> {new Date(test.test_last_modified_at).toLocaleString()}</p>
+            )}
           </div>
           <div>
-            <p><strong>Start Time:</strong> {new Date(test.start_time).toLocaleString()}</p>
-            {test.end_time && (
-              <p><strong>End Time:</strong> {new Date(test.end_time).toLocaleString()}</p>
+            {test.test_first_data_time && (
+              <p><strong>First Data:</strong> {new Date(test.test_first_data_time).toLocaleString()}</p>
             )}
-            <p><strong>Data Points:</strong> {test.data_points || 0}</p>
+            {test.test_last_data_time && (
+              <p><strong>Last Data:</strong> {new Date(test.test_last_data_time).toLocaleString()}</p>
+            )}
+            <p><strong>Sensor Count:</strong> {test.test_sensor_count || 0}</p>
           </div>
         </div>
 
-        {test.description && (
+        {test.test_description && (
           <div style={{ marginTop: '15px' }}>
-            <p><strong>Description:</strong> {test.description}</p>
+            <p><strong>Description:</strong> {test.test_description}</p>
+          </div>
+        )}
+
+        {test.test_notes && (
+          <div style={{ marginTop: '15px' }}>
+            <p><strong>Notes:</strong> {test.test_notes}</p>
           </div>
         )}
       </div>

@@ -36,10 +36,17 @@ def create_app() -> FastAPI:
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],  # React dev server
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://frontend:3000",
+            "http://frontend-dev:3000",
+            "*"  # Allow all origins for development
+        ],
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
+        expose_headers=["*"]
     )
 
     # Include routers
@@ -98,6 +105,11 @@ def create_app() -> FastAPI:
             "version": "2.0.0",
             "docs": "/docs"
         }
+
+    @app.get("/api/cors-test", tags=["System"])
+    async def cors_test():
+        """Simple CORS test endpoint."""
+        return {"message": "CORS is working!", "timestamp": "2025-10-20T12:00:00Z"}
 
     return app
 

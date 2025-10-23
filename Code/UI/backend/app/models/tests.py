@@ -30,6 +30,7 @@ class TestCreate(TestBase):
 class TestUpdate(BaseModel):
     """Model for updating an existing test."""
     test_name: Optional[str] = None
+    machine_id: Optional[int] = None
     test_description: Optional[str] = None
     test_notes: Optional[str] = None
 

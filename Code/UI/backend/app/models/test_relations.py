@@ -10,7 +10,6 @@ from datetime import datetime
 class TestRelation(BaseModel):
     """Test relation model linking tests with machines and sensors."""
     test_id: int
-    machine_id: int
     machine_name: str
     machine_type: str
     sensor_id: int
@@ -22,6 +21,5 @@ class TestRelation(BaseModel):
 class TestRelationCreate(BaseModel):
     """Model for creating a test relation."""
     test_id: int
-    machine_id: int
     sensor_id: int
     sensor_location: Optional[str] = ""

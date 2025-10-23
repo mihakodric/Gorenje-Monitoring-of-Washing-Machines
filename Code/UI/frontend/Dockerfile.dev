@@ -1,0 +1,25 @@
+# Development Dockerfile for React frontend
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (including dev dependencies for development)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Expose port 3000 (React dev server default)
+EXPOSE 3000
+
+# Set environment variable for React dev server
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+ENV REACT_APP_API_URL=http://localhost:8000
+
+# Start development server
+CMD ["npm", "start", "--", "--host", "0.0.0.0"]

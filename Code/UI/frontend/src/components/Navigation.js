@@ -21,13 +21,12 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
   };
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home },
+    // { path: '/', label: 'Dashboard', icon: Home },
     { path: '/sensors', label: 'Sensors', icon: Zap },
     { path: '/machines', label: 'Machines', icon: Droplet },
     { path: '/tests', label: 'Tests', icon: TestTube },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings },
-    { path: '/settings1', label: 'Settings1', icon: Settings },
   ];
 
   return (

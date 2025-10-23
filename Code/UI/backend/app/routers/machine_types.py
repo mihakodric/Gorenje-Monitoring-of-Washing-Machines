@@ -56,9 +56,9 @@ async def create_machine_type_endpoint(machine_type: MachineTypeCreate):
 async def update_machine_type_endpoint(type_id: int, machine_type: MachineTypeUpdate):
     """Update an existing machine type."""
     update_data = machine_type.model_dump(exclude_unset=True)
-    result = await update_machine_type(machine_type, update_data)
+    result = await update_machine_type(type_id, update_data)
     if not result:
-        raise HTTPException(status_code=404, detail="Washing Machine not found")
+        raise HTTPException(status_code=404, detail="Machine type not found")
     return result
 
 

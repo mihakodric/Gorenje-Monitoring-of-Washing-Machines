@@ -29,24 +29,9 @@ async def get_test_relations_endpoint(test_id: int):
     """Get all test relations."""
     return await get_test_relations(test_id)
 
-@router.post("", response_model=TestRelationCreate)
-async def add_test_relation_endpoint(test_relation: TestRelationCreate):
-    """Add a new test relation."""
-    # Check if sensor and machine are available
-
-    created_relation = await add_test_relation(
-        test_relation.test_id, test_relation.model_dump()
-    )
-    if not created_relation:
-        raise HTTPException(
-            status_code=400,
-            detail="Failed to create test relation."
-        )
-    return created_relation
-
-@router.post("/multiple-test-relations", response_model=List[TestRelationCreate])
+@router.post("", response_model=List[TestRelationCreate])
 async def add_multiple_test_relations_endpoint(test_relations: List[TestRelationCreate]):
-    """Add multiple test relations."""
+    """Add single or multiple test relations."""
     created_relations = []
     for test_relation in test_relations:
         created_relation = await add_test_relation(
@@ -59,7 +44,6 @@ async def add_multiple_test_relations_endpoint(test_relations: List[TestRelation
             )
         created_relations.append(created_relation)
     return created_relations
-
 
 @router.delete("/{test_relation_id}", response_model=dict)
 async def delete_single_test_relation_endpoint(test_relation_id: int):

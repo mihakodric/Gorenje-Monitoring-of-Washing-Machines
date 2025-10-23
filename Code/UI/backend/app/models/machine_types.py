@@ -26,5 +26,5 @@ class MachineTypeUpdate(BaseModel):
 
 class MachineType(MachineTypeBase):
     """Complete machine type model with database fields."""
-    machine_type_id: int
+    id: int
     machine_type_created_at: datetime

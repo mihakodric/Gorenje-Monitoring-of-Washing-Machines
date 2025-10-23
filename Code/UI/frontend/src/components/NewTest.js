@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { testsAPI, sensorsAPI, washingMachinesAPI as machinesAPI } from '../api';
+import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 import { 
   Save, X, User, FileText, Settings, Check, AlertTriangle, 
   Search, Filter, ChevronDown, Wifi, WifiOff, ChevronRight,
@@ -19,13 +19,13 @@ const NewTest = () => {
   const [machines, setMachines] = useState([]);
   const [sensors, setSensors] = useState([]);
   const [machineTypes, setMachineTypes] = useState([]);
+  const [sensorTypes, setSensorTypes] = useState([]);
   
   // Form data
   const [testForm, setTestForm] = useState({
     test_name: '',
-    description: '',
-    notes: '',
-    created_by: ''
+    test_description: '',
+    test_notes: ''
   });
   
   const [selectedMachine, setSelectedMachine] = useState(null);
@@ -60,34 +60,39 @@ const NewTest = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [machinesResponse, sensorsResponse, machineTypesResponse] = await Promise.all([
+      const [machinesResponse, sensorsResponse, machineTypesResponse, sensorTypesResponse] = await Promise.all([
         machinesAPI.getAll(),
         sensorsAPI.getAll(),
-        machinesAPI.getTypes()
+        machineTypesAPI.getAll(),
+        sensorTypesAPI.getAll()
       ]);
       
       setMachines(machinesResponse.data || []);
       setSensors(sensorsResponse.data || []);
       setMachineTypes(machineTypesResponse.data || []);
+      setSensorTypes(sensorTypesResponse.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
       alert('Error loading machines and sensors');
     } finally {
       setLoading(false);
+      console.log('Data loading complete', sensorTypes);
     }
   };
 
   const loadTestData = async () => {
     try {
-      const response = await testsAPI.getWithRelations(testId);
-      const testData = response.data;
+      const testDetailsResponse = await testsAPI.getById(testId);
+      const testData = testDetailsResponse.data;
+
+      const testRelationsResponse = await testRelationsAPI.getByTestId(testId);
+      const testRelationsData = testRelationsResponse.data;
       
       // Populate form
       setTestForm({
         test_name: testData.test_name,
-        description: testData.description || '',
-        notes: testData.notes || '',
-        created_by: testData.created_by
+        test_description: testData.test_description || '',
+        test_notes: testData.test_notes || ''
       });
       
       // Set selected machine
@@ -97,12 +102,12 @@ const NewTest = () => {
       }
       
       // Set selected sensors with locations
-      if (testData.sensors && testData.sensors.length > 0) {
-        const selectedSensorsData = testData.sensors.map(sensorRel => {
-          const sensor = sensors.find(s => s.id === sensorRel.sensor_id);
+      if (testRelationsData && testRelationsData.length > 0) {
+        const selectedSensorsData = testRelationsData.map(relation => {
+          const sensor = sensors.find(s => s.id === relation.sensor_id);
           return {
-            sensor_id: sensorRel.sensor_id,
-            sensor_location: sensorRel.sensor_location || '',
+            sensor_id: relation.sensor_id,
+            sensor_location: relation.sensor_location || '',
             sensor: sensor
           };
         });
@@ -119,10 +124,6 @@ const NewTest = () => {
     
     if (!testForm.test_name.trim()) {
       newErrors.test_name = 'Test name is required';
-    }
-    
-    if (!testForm.created_by.trim()) {
-      newErrors.created_by = 'Created by field is required';
     }
     
     if (!selectedMachine) {
@@ -147,22 +148,23 @@ const NewTest = () => {
       
       const sensorData = selectedSensors.map(s => ({
         sensor_id: s.sensor_id,
-        sensor_location: s.sensor_location
+        sensor_location: s.sensor_location,
+        machine_id: selectedMachine.id,
+        test_id: testId
+
       }));
 
       if (isEditing) {
         // Update existing test
         await testsAPI.update(testId, testForm);
-        await testsAPI.updateRelations(testId, {
-          machine_id: selectedMachine.id,
-          sensors: sensorData
+        await testRelationsAPI.deleteAllByTestId(testId);
+        await testRelationsAPI.create({
+          sensorData
         });
       } else {
         // Create new test
-        await testsAPI.createWithRelations({
-          test: testForm,
-          machine_id: selectedMachine.id,
-          sensors: sensorData
+        await testRelationsAPI.create({
+          sensorData
         });
       }
 
@@ -183,7 +185,7 @@ const NewTest = () => {
   const getFilteredMachines = () => {
     return machines.filter(machine => {
       const matchesSearch = machine.machine_name.toLowerCase().includes(machineSearch.toLowerCase()) ||
-                           (machine.description && machine.description.toLowerCase().includes(machineSearch.toLowerCase()));
+                           (machine.machine_description && machine.machine_description.toLowerCase().includes(machineSearch.toLowerCase()));
       
       const matchesType = machineTypeFilter === 'all' || 
                          machine.machine_type_id === parseInt(machineTypeFilter);
@@ -196,15 +198,15 @@ const NewTest = () => {
     return sensors.filter(sensor => {
       const matchesSearch = sensor.sensor_name.toLowerCase().includes(availableSensorSearch.toLowerCase()) ||
                            sensor.sensor_id.toLowerCase().includes(availableSensorSearch.toLowerCase()) ||
-                           (sensor.description && sensor.description.toLowerCase().includes(availableSensorSearch.toLowerCase()));
+                           (sensor.sensor_description && sensor.sensor_description.toLowerCase().includes(availableSensorSearch.toLowerCase()));
       
-      const matchesType = availableSensorTypeFilter === 'all' || sensor.sensor_type === availableSensorTypeFilter;
+      const matchesType = availableSensorTypeFilter === 'all' || sensor.sensor_type_id === parseInt(availableSensorTypeFilter);
       
       const matchesStatus = availableSensorStatusFilter === 'all' || 
-                           (availableSensorStatusFilter === 'online' && sensor.is_online) ||
-                           (availableSensorStatusFilter === 'offline' && !sensor.is_online) ||
-                           (availableSensorStatusFilter === 'visible' && sensor.visible) ||
-                           (availableSensorStatusFilter === 'hidden' && !sensor.visible);
+                           (availableSensorStatusFilter === 'online' && sensor.sensor_is_online) ||
+                           (availableSensorStatusFilter === 'offline' && !sensor.sensor_is_online) ||
+                           (availableSensorStatusFilter === 'visible' && sensor.sensor_visible) ||
+                           (availableSensorStatusFilter === 'hidden' && !sensor.sensor_visible);
       
       // Don't show already selected sensors
       const isNotSelected = !selectedSensors.some(s => s.sensor_id === sensor.id);
@@ -218,10 +220,10 @@ const NewTest = () => {
       const sensor = selectedSensor.sensor;
       const matchesSearch = sensor.sensor_name.toLowerCase().includes(selectedSensorSearch.toLowerCase()) ||
                            sensor.sensor_id.toLowerCase().includes(selectedSensorSearch.toLowerCase()) ||
-                           (sensor.description && sensor.description.toLowerCase().includes(selectedSensorSearch.toLowerCase())) ||
+                           (sensor.sensor_description && sensor.sensor_description.toLowerCase().includes(selectedSensorSearch.toLowerCase())) ||
                            selectedSensor.sensor_location.toLowerCase().includes(selectedSensorSearch.toLowerCase());
       
-      const matchesType = selectedSensorTypeFilter === 'all' || sensor.sensor_type === selectedSensorTypeFilter;
+      const matchesType = selectedSensorTypeFilter === 'all' || sensor.sensor_type_id === parseInt(selectedSensorTypeFilter);
       
       return matchesSearch && matchesType;
     });
@@ -249,10 +251,16 @@ const NewTest = () => {
     );
   };
 
-  const getSensorTypes = () => {
-    const types = [...new Set(sensors.map(s => s.sensor_type))];
-    return types.sort();
+  const getSensorTypeName = (sensor_type_id) => {
+    const sensorType = sensorTypes.find(type => type.id === sensor_type_id);
+    return sensorType ? sensorType.sensor_type_name : 'Unknown';
   };
+
+  const getMachineTypeName = (machine_type_id) => {
+    const machineType = machineTypes.find(type => type.id === machine_type_id);
+    return machineType ? machineType.machine_type_name : 'Unknown';
+  };
+
 
   if (loading) {
     return (
@@ -339,30 +347,12 @@ const NewTest = () => {
 
             <div>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                Created By *
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={testForm.created_by}
-                onChange={(e) => setTestForm({...testForm, created_by: e.target.value})}
-                placeholder="Enter your name"
-              />
-              {errors.created_by && (
-                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '5px' }}>
-                  {errors.created_by}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
                 Description
               </label>
               <textarea
                 className="form-control"
-                value={testForm.description}
-                onChange={(e) => setTestForm({...testForm, description: e.target.value})}
+                value={testForm.test_description}
+                onChange={(e) => setTestForm({...testForm, test_description: e.target.value})}
                 rows="3"
                 placeholder="Optional description of the test"
               />
@@ -374,8 +364,8 @@ const NewTest = () => {
               </label>
               <textarea
                 className="form-control"
-                value={testForm.notes}
-                onChange={(e) => setTestForm({...testForm, notes: e.target.value})}
+                value={testForm.test_notes}
+                onChange={(e) => setTestForm({...testForm, test_notes: e.target.value})}
                 rows="3"
                 placeholder="Optional notes or comments"
               />
@@ -429,7 +419,7 @@ const NewTest = () => {
               <option value="all">All Types</option>
               {machineTypes.map(type => (
                 <option key={type.id} value={type.id}>
-                  {type.display_name}
+                  {type.machine_type_name}
                 </option>
               ))}
             </select>
@@ -447,9 +437,9 @@ const NewTest = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <strong>{selectedMachine.machine_name}</strong>
-                  {selectedMachine.description && (
+                  {selectedMachine.machine_description && (
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      {selectedMachine.description}
+                      {selectedMachine.machine_description}
                     </div>
                   )}
                 </div>
@@ -480,7 +470,7 @@ const NewTest = () => {
                     <td>
                       <strong>{machine.machine_name}</strong>
                     </td>
-                    <td>{machine.description || '-'}</td>
+                    <td>{machine.machine_description || '-'}</td>
                     <td>
                       <span style={{ 
                         padding: '2px 8px', 
@@ -489,7 +479,7 @@ const NewTest = () => {
                         backgroundColor: '#f3f4f6',
                         color: '#374151'
                       }}>
-                        {machineTypes.find(type => type.id === machine.machine_type_id)?.display_name || 'Unknown'}
+                        {getMachineTypeName(machine.machine_type_id)}
                       </span>
                     </td>
                     <td>
@@ -569,8 +559,8 @@ const NewTest = () => {
                 style={{ width: '120px' }}
               >
                 <option value="all">All Types</option>
-                {getSensorTypes().map(type => (
-                  <option key={type} value={type}>{type}</option>
+                {sensorTypes.map(type => (
+                  <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
                 ))}
               </select>
               <select
@@ -623,9 +613,9 @@ const NewTest = () => {
                             <div style={{ fontSize: '11px', color: '#666' }}>
                               {sensor.sensor_id}
                             </div>
-                            {sensor.description && (
+                            {sensor.sensor_description && (
                               <div style={{ fontSize: '10px', color: '#888' }}>
-                                {sensor.description}
+                                {sensor.sensor_description}
                               </div>
                             )}
                           </div>
@@ -638,12 +628,12 @@ const NewTest = () => {
                             backgroundColor: '#f3f4f6',
                             color: '#374151'
                           }}>
-                            {sensor.sensor_type}
+                            {getSensorTypeName(sensor.sensor_type_id)}
                           </span>
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            {sensor.is_online ? (
+                            {sensor.sensor_is_online ? (
                               <>
                                 <Wifi size={12} color="#22c55e" />
                                 <span style={{ fontSize: '11px', color: '#22c55e' }}>Online</span>
@@ -706,8 +696,8 @@ const NewTest = () => {
                 style={{ width: '120px' }}
               >
                 <option value="all">All Types</option>
-                {getSensorTypes().map(type => (
-                  <option key={type} value={type}>{type}</option>
+                {sensorTypes.map(type => (
+                  <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
                 ))}
               </select>
             </div>
@@ -761,7 +751,7 @@ const NewTest = () => {
                             backgroundColor: '#f3f4f6',
                             color: '#374151'
                           }}>
-                            {selectedSensor.sensor.sensor_type}
+                            {getSensorTypeName(selectedSensor.sensor.sensor_type_id)}
                           </span>
                         </td>
                         <td>
