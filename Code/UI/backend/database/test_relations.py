@@ -24,14 +24,10 @@ async def get_test_relations(test_id: int) -> List[Dict]:
         rows = await conn.fetch("""
             SELECT 
                 tr.*, 
-                m.machine_name, 
-                mt.machine_type_name AS machine_type,  -- get the type name
                 s.sensor_name, 
                 st.sensor_type_name AS sensor_type,   -- join sensor_types to get type name
                 tr.sensor_location
             FROM metadata.test_relations tr
-            JOIN metadata.machines m ON tr.machine_id = m.id
-            JOIN metadata.machine_types mt ON m.machine_type_id = mt.id
             JOIN metadata.sensors s ON tr.sensor_id = s.id
             JOIN metadata.sensor_types st ON s.sensor_type_id = st.id
             WHERE tr.test_id = $1
@@ -102,7 +98,7 @@ async def update_test_relation(relation_id: int, relation_data: Dict) -> Optiona
         return await get_test_relation_by_id(relation_id)
 
     # Validate allowed columns (avoid SQL injection)
-    allowed_fields = {"test_id", "machine_id", "sensor_id", "sensor_location"}
+    allowed_fields = {"test_id", "sensor_id", "sensor_location"}
     set_clauses = []
     values = []
 

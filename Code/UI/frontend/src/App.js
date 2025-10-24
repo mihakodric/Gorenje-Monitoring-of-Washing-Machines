@@ -8,6 +8,7 @@ import NewTest from './components/NewTest';
 import Machines from './components/Machines';
 import Settings from './components/Settings';
 import './App.css';
+import './styles/index.css';
 
 function App() {
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);

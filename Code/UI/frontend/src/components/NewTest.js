@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
-import { 
-  Save, X, User, FileText, Settings, Check, AlertTriangle, 
-  Search, Filter, ChevronDown, Wifi, WifiOff, ChevronRight,
-  Plus, Trash2, Edit
-} from 'lucide-react';
 
 const NewTest = () => {
   const navigate = useNavigate();
-  const { id: testId } = useParams(); // For editing existing tests
+  const { id: testId } = useParams();
   const isEditing = Boolean(testId);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   
   // Available data
   const [machines, setMachines] = useState([]);
@@ -29,18 +25,14 @@ const NewTest = () => {
   });
   
   const [selectedMachine, setSelectedMachine] = useState(null);
-  const [selectedSensors, setSelectedSensors] = useState([]); // Array of {sensor_id, sensor_location, sensor: sensorObject}
+  const [selectedSensors, setSelectedSensors] = useState([]);
   
-  // Filtering and search states for machines
+  // Filter states
   const [machineSearch, setMachineSearch] = useState('');
   const [machineTypeFilter, setMachineTypeFilter] = useState('all');
-  
-  // Filtering and search states for available sensors
   const [availableSensorSearch, setAvailableSensorSearch] = useState('');
   const [availableSensorTypeFilter, setAvailableSensorTypeFilter] = useState('all');
   const [availableSensorStatusFilter, setAvailableSensorStatusFilter] = useState('all');
-  
-  // Filtering and search states for selected sensors
   const [selectedSensorSearch, setSelectedSensorSearch] = useState('');
   const [selectedSensorTypeFilter, setSelectedSensorTypeFilter] = useState('all');
   
@@ -76,7 +68,6 @@ const NewTest = () => {
       alert('Error loading machines and sensors');
     } finally {
       setLoading(false);
-      console.log('Data loading complete', sensorTypes);
     }
   };
 
@@ -148,30 +139,27 @@ const NewTest = () => {
       
       const sensorData = selectedSensors.map(s => ({
         sensor_id: s.sensor_id,
-        sensor_location: s.sensor_location,
-        machine_id: selectedMachine.id,
-        test_id: testId
-
+        sensor_location: s.sensor_location
       }));
 
       if (isEditing) {
-        // Update existing test
-        await testsAPI.update(testId, testForm);
-        await testRelationsAPI.deleteAllByTestId(testId);
-        await testRelationsAPI.create({
-          sensorData
+        await testsAPI.update(testId, {
+          ...testForm,
+          machine_id: selectedMachine.id
         });
       } else {
-        // Create new test
-        await testRelationsAPI.create({
-          sensorData
-        });
+        const payload = {
+          test: testForm,
+          machine_id: selectedMachine.id,
+          sensors: sensorData
+        };
+        await testsAPI.createWithRelations(payload);
       }
 
       navigate('/tests');
     } catch (error) {
       console.error('Error saving test:', error);
-      alert(`Error ${isEditing ? 'updating' : 'creating'} test`);
+      alert(`Error ${isEditing ? 'updating' : 'creating'} test: ${error.response?.data?.detail || error.message}`);
     } finally {
       setSaving(false);
     }
@@ -208,7 +196,6 @@ const NewTest = () => {
                            (availableSensorStatusFilter === 'visible' && sensor.sensor_visible) ||
                            (availableSensorStatusFilter === 'hidden' && !sensor.sensor_visible);
       
-      // Don't show already selected sensors
       const isNotSelected = !selectedSensors.some(s => s.sensor_id === sensor.id);
       
       return matchesSearch && matchesType && matchesStatus && isNotSelected;
@@ -229,19 +216,89 @@ const NewTest = () => {
     });
   };
 
-  const handleSelectSensor = (sensor) => {
-    setSelectedSensors(prev => [...prev, {
+  const handleMachineSelect = async (machine) => {
+    setSelectedMachine(machine);
+    
+    if (isEditing && testId) {
+      try {
+        setAutoSaving(true);
+        const sensorData = selectedSensors.map(s => ({
+          sensor_id: s.sensor_id,
+          sensor_location: s.sensor_location
+        }));
+        
+        await testsAPI.updateRelations(testId, {
+          machine_id: machine?.id,
+          sensors: sensorData
+        });
+      } catch (error) {
+        console.error('Error auto-saving machine selection:', error);
+        alert('Error updating machine selection. Please try again.');
+      } finally {
+        setAutoSaving(false);
+      }
+    }
+  };
+
+  const handleSelectSensor = async (sensor) => {
+    const newSensorRelation = {
       sensor_id: sensor.id,
       sensor_location: '',
       sensor: sensor
-    }]);
+    };
+    
+    setSelectedSensors(prev => [...prev, newSensorRelation]);
+    
+    if (isEditing && testId) {
+      try {
+        setAutoSaving(true);
+        const currentSensorData = [...selectedSensors, newSensorRelation].map(s => ({
+          sensor_id: s.sensor_id,
+          sensor_location: s.sensor_location
+        }));
+        
+        await testsAPI.updateRelations(testId, {
+          machine_id: selectedMachine?.id,
+          sensors: currentSensorData
+        });
+      } catch (error) {
+        console.error('Error auto-saving sensor relation:', error);
+        setSelectedSensors(prev => prev.filter(s => s.sensor_id !== sensor.id));
+        alert('Error adding sensor. Please try again.');
+      } finally {
+        setAutoSaving(false);
+      }
+    }
   };
 
-  const handleRemoveSensor = (sensorId) => {
+  const handleRemoveSensor = async (sensorId) => {
+    const originalSensors = selectedSensors;
     setSelectedSensors(prev => prev.filter(s => s.sensor_id !== sensorId));
+    
+    if (isEditing && testId) {
+      try {
+        setAutoSaving(true);
+        const currentSensorData = selectedSensors.filter(s => s.sensor_id !== sensorId).map(s => ({
+          sensor_id: s.sensor_id,
+          sensor_location: s.sensor_location
+        }));
+        
+        await testsAPI.updateRelations(testId, {
+          machine_id: selectedMachine?.id,
+          sensors: currentSensorData
+        });
+      } catch (error) {
+        console.error('Error auto-removing sensor relation:', error);
+        setSelectedSensors(originalSensors);
+        alert('Error removing sensor. Please try again.');
+      } finally {
+        setAutoSaving(false);
+      }
+    }
   };
 
-  const handleUpdateSensorLocation = (sensorId, location) => {
+  const handleUpdateSensorLocation = async (sensorId, location) => {
+    const originalSensors = selectedSensors;
     setSelectedSensors(prev => 
       prev.map(s => 
         s.sensor_id === sensorId 
@@ -249,6 +306,27 @@ const NewTest = () => {
           : s
       )
     );
+    
+    if (isEditing && testId) {
+      try {
+        setAutoSaving(true);
+        const currentSensorData = selectedSensors.map(s => ({
+          sensor_id: s.sensor_id,
+          sensor_location: s.sensor_id === sensorId ? location : s.sensor_location
+        }));
+        
+        await testsAPI.updateRelations(testId, {
+          machine_id: selectedMachine?.id,
+          sensors: currentSensorData
+        });
+      } catch (error) {
+        console.error('Error auto-saving sensor location:', error);
+        setSelectedSensors(originalSensors);
+        alert('Error updating sensor location. Please try again.');
+      } finally {
+        setAutoSaving(false);
+      }
+    }
   };
 
   const getSensorTypeName = (sensor_type_id) => {
@@ -261,516 +339,175 @@ const NewTest = () => {
     return machineType ? machineType.machine_type_name : 'Unknown';
   };
 
-
   if (loading) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <div>Loading...</div>
+      <div className="container">
+        <div className="flex-center" style={{ height: '200px' }}>
+          <div>Loading...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="container">
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '20px',
-        paddingBottom: '15px',
-        borderBottom: '2px solid #e5e7eb'
-      }}>
-        <h1 style={{ margin: 0, color: '#1f2937', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Settings size={28} />
-          {isEditing ? 'Edit Test' : 'Create New Test'}
-        </h1>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            className="btn btn-secondary"
-            onClick={handleCancel}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-          >
-            <X size={16} />
+      <div className="page-header">
+        <h1>{isEditing ? 'Edit Test' : 'Create New Test'}</h1>
+        <div className="btn-group">
+          <button className="btn btn-secondary" onClick={handleCancel}>
             Cancel
           </button>
-          <button
-            className="btn btn-primary"
+          <button 
+            className="btn btn-primary" 
             onClick={handleSubmit}
-            disabled={saving}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+            disabled={saving || autoSaving}
           >
-            <Save size={16} />
             {saving ? 'Saving...' : (isEditing ? 'Update Test' : 'Create Test')}
           </button>
+          {autoSaving && isEditing && (
+            <span className="auto-save-indicator">Auto-saving...</span>
+          )}
         </div>
       </div>
 
-      {/* Top Row - Test Information and Machine Selection */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px' }}>
-        {/* Left Column - Test Information */}
-        <div style={{ 
-          backgroundColor: 'white', 
-          border: '1px solid #e5e7eb', 
-          borderRadius: '8px', 
-          padding: '20px'
-        }}>
-          <h2 style={{ 
-            margin: '0 0 20px 0', 
-            color: '#1f2937',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <FileText size={20} />
-            Test Information
-          </h2>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                Test Name *
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={testForm.test_name}
-                onChange={(e) => setTestForm({...testForm, test_name: e.target.value})}
-                placeholder="Enter test name"
-              />
-              {errors.test_name && (
-                <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '5px' }}>
-                  {errors.test_name}
-                </div>
-              )}
-            </div>
+      {/* Test Information Form */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Test Information</h2>
+        </div>
+        <div className="card-content">
+          <div className="form-group">
+            <label htmlFor="test_name">Test Name *</label>
+            <input
+              type="text"
+              id="test_name"
+              name="test_name"
+              value={testForm.test_name}
+              onChange={(e) => setTestForm({...testForm, test_name: e.target.value})}
+              className={`form-control ${errors.test_name ? 'error' : ''}`}
+              placeholder="Enter test name"
+            />
+            {errors.test_name && <div className="error-message">{errors.test_name}</div>}
+          </div>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                Description
-              </label>
-              <textarea
-                className="form-control"
-                value={testForm.test_description}
-                onChange={(e) => setTestForm({...testForm, test_description: e.target.value})}
-                rows="3"
-                placeholder="Optional description of the test"
-              />
-            </div>
+          <div className="form-group">
+            <label htmlFor="test_description">Description</label>
+            <textarea
+              id="test_description"
+              name="test_description"
+              value={testForm.test_description}
+              onChange={(e) => setTestForm({...testForm, test_description: e.target.value})}
+              className="form-control"
+              rows="3"
+              placeholder="Optional description of the test"
+            />
+          </div>
 
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                Notes
-              </label>
-              <textarea
-                className="form-control"
-                value={testForm.test_notes}
-                onChange={(e) => setTestForm({...testForm, test_notes: e.target.value})}
-                rows="3"
-                placeholder="Optional notes or comments"
-              />
-            </div>
+          <div className="form-group">
+            <label htmlFor="test_notes">Notes</label>
+            <textarea
+              id="test_notes"
+              name="test_notes"
+              value={testForm.test_notes}
+              onChange={(e) => setTestForm({...testForm, test_notes: e.target.value})}
+              className="form-control"
+              rows="3"
+              placeholder="Optional notes or comments"
+            />
           </div>
         </div>
+      </div>
 
-        {/* Right Column - Machine Selection */}
-        <div style={{ 
-          backgroundColor: 'white', 
-          border: '1px solid #e5e7eb', 
-          borderRadius: '8px', 
-          padding: '20px'
-        }}>
-          <h2 style={{ 
-            margin: '0 0 20px 0', 
-            color: '#1f2937',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
-            <Settings size={20} />
-            Select Machine *
-          </h2>
+      {/* Machine Selection */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Select Machine *</h2>
+        </div>
+        <div className="card-content">
+          {errors.machine && <div className="error-message">{errors.machine}</div>}
 
           {/* Machine Search and Filters */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-            <div style={{ flex: 1, position: 'relative' }}>
+          <div className="filter-section">
+            <div className="form-group">
               <input
                 type="text"
-                className="form-control"
                 placeholder="Search machines..."
                 value={machineSearch}
                 onChange={(e) => setMachineSearch(e.target.value)}
-                style={{ paddingLeft: '35px' }}
+                className="form-control"
               />
-              <Search size={16} style={{ 
-                position: 'absolute', 
-                left: '10px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: '#9ca3af' 
-              }} />
             </div>
-            <select
-              className="form-control"
-              value={machineTypeFilter}
-              onChange={(e) => setMachineTypeFilter(e.target.value)}
-              style={{ width: '140px' }}
-            >
-              <option value="all">All Types</option>
-              {machineTypes.map(type => (
-                <option key={type.id} value={type.id}>
-                  {type.machine_type_name}
-                </option>
-              ))}
-            </select>
+            <div className="form-group">
+              <select
+                value={machineTypeFilter}
+                onChange={(e) => setMachineTypeFilter(e.target.value)}
+                className="form-control"
+              >
+                <option value="all">All Types</option>
+                {machineTypes.map(type => (
+                  <option key={type.id} value={type.id}>
+                    {type.machine_type_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Selected Machine */}
           {selectedMachine && (
-            <div style={{ 
-              backgroundColor: '#f0fdf4', 
-              border: '1px solid #22c55e', 
-              borderRadius: '6px', 
-              padding: '12px',
-              marginBottom: '15px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong>{selectedMachine.machine_name}</strong>
+            <div className="selected-item">
+              <h3>Selected Machine:</h3>
+              <div className="machine-card selected">
+                <div className="machine-info">
+                  <h4>{selectedMachine.machine_name}</h4>
+                  <p>Type: {getMachineTypeName(selectedMachine.machine_type_id)}</p>
                   {selectedMachine.machine_description && (
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      {selectedMachine.machine_description}
-                    </div>
+                    <p>Description: {selectedMachine.machine_description}</p>
                   )}
                 </div>
                 <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => setSelectedMachine(null)}
+                  type="button"
+                  onClick={() => handleMachineSelect(null)}
+                  className="btn btn-secondary btn-sm"
                 >
-                  <X size={14} />
+                  Remove
                 </button>
               </div>
             </div>
           )}
 
-          {/* Machine Table */}
-          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            <table className="table table-striped">
-              <thead>
-                <tr>
-                  <th>Machine Name</th>
-                  <th>Description</th>
-                  <th>Type</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getFilteredMachines().map((machine) => (
-                  <tr key={machine.id}>
-                    <td>
-                      <strong>{machine.machine_name}</strong>
-                    </td>
-                    <td>{machine.machine_description || '-'}</td>
-                    <td>
-                      <span style={{ 
-                        padding: '2px 8px', 
-                        borderRadius: '12px', 
-                        fontSize: '11px',
-                        backgroundColor: '#f3f4f6',
-                        color: '#374151'
-                      }}>
-                        {getMachineTypeName(machine.machine_type_id)}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => setSelectedMachine(machine)}
-                        disabled={selectedMachine?.id === machine.id}
-                      >
-                        {selectedMachine?.id === machine.id ? 'Selected' : 'Select'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {errors.machine && (
-            <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '10px' }}>
-              {errors.machine}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Row - Sensor Selection (Full Width) */}
-      <div style={{ 
-        backgroundColor: 'white', 
-        border: '1px solid #e5e7eb', 
-        borderRadius: '8px', 
-        padding: '20px'
-      }}>
-        <h2 style={{ 
-          margin: '0 0 20px 0', 
-          color: '#1f2937',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}>
-          <Wifi size={20} />
-          Select Sensors *
-        </h2>
-
-        {/* Horizontal Layout for Available and Selected Sensors */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          
-          {/* Left Side - Available Sensors */}
-          <div>
-            <h3 style={{ fontSize: '16px', marginBottom: '15px', color: '#374151', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Plus size={16} color="#3b82f6" />
-              Available Sensors
-            </h3>
-            
-            {/* Search and Filters for Available Sensors */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search available sensors..."
-                  value={availableSensorSearch}
-                  onChange={(e) => setAvailableSensorSearch(e.target.value)}
-                  style={{ paddingLeft: '35px' }}
-                />
-                <Search size={16} style={{ 
-                  position: 'absolute', 
-                  left: '10px', 
-                  top: '50%', 
-                  transform: 'translateY(-50%)', 
-                  color: '#9ca3af' 
-                }} />
-              </div>
-              <select
-                className="form-control"
-                value={availableSensorTypeFilter}
-                onChange={(e) => setAvailableSensorTypeFilter(e.target.value)}
-                style={{ width: '120px' }}
-              >
-                <option value="all">All Types</option>
-                {sensorTypes.map(type => (
-                  <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
-                ))}
-              </select>
-              <select
-                className="form-control"
-                value={availableSensorStatusFilter}
-                onChange={(e) => setAvailableSensorStatusFilter(e.target.value)}
-                style={{ width: '120px' }}
-              >
-                <option value="all">All Status</option>
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
-              </select>
-            </div>
-            
-            <div style={{ 
-              border: '1px solid #d1d5db', 
-              borderRadius: '6px',
-              maxHeight: '500px',
-              overflowY: 'auto'
-            }}>
-              <table className="table table-striped table-hover mb-0">
-                <thead style={{ backgroundColor: '#f9fafb', position: 'sticky', top: 0 }}>
-                  <tr>
-                    <th>Sensor Name</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th style={{ width: '60px' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getFilteredAvailableSensors().length === 0 ? (
+          {/* Available Machines */}
+          {!selectedMachine && (
+            <div>
+              <h3>Available Machines ({getFilteredMachines().length}):</h3>
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <td colSpan="4" style={{ 
-                        padding: '40px', 
-                        textAlign: 'center', 
-                        color: '#6b7280',
-                        fontStyle: 'italic'
-                      }}>
-                        {sensors.length === 0 ? 'No sensors available' : 'No sensors match your search criteria'}
-                      </td>
-                    </tr>
-                  ) : (
-                    getFilteredAvailableSensors().map((sensor) => (
-                      <tr key={sensor.id}>
-                        <td>
-                          <div>
-                            <strong>{sensor.sensor_name}</strong>
-                            <div style={{ fontSize: '11px', color: '#666' }}>
-                              {sensor.sensor_id}
-                            </div>
-                            {sensor.sensor_description && (
-                              <div style={{ fontSize: '10px', color: '#888' }}>
-                                {sensor.sensor_description}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{ 
-                            padding: '2px 6px', 
-                            borderRadius: '10px', 
-                            fontSize: '10px',
-                            backgroundColor: '#f3f4f6',
-                            color: '#374151'
-                          }}>
-                            {getSensorTypeName(sensor.sensor_type_id)}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            {sensor.sensor_is_online ? (
-                              <>
-                                <Wifi size={12} color="#22c55e" />
-                                <span style={{ fontSize: '11px', color: '#22c55e' }}>Online</span>
-                              </>
-                            ) : (
-                              <>
-                                <WifiOff size={12} color="#ef4444" />
-                                <span style={{ fontSize: '11px', color: '#ef4444' }}>Offline</span>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <button
-                            className="btn btn-success btn-sm"
-                            onClick={() => handleSelectSensor(sensor)}
-                            title="Add sensor to test"
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Right Side - Selected Sensors */}
-          <div>
-            <h3 style={{ fontSize: '16px', marginBottom: '15px', color: '#374151', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Check size={16} color="#22c55e" />
-              Selected Sensors ({selectedSensors.length})
-            </h3>
-            
-            {/* Search and Filters for Selected Sensors */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search selected sensors..."
-                  value={selectedSensorSearch}
-                  onChange={(e) => setSelectedSensorSearch(e.target.value)}
-                  style={{ paddingLeft: '35px' }}
-                />
-                <Search size={16} style={{ 
-                  position: 'absolute', 
-                  left: '10px', 
-                  top: '50%', 
-                  transform: 'translateY(-50%)', 
-                  color: '#9ca3af' 
-                }} />
-              </div>
-              <select
-                className="form-control"
-                value={selectedSensorTypeFilter}
-                onChange={(e) => setSelectedSensorTypeFilter(e.target.value)}
-                style={{ width: '120px' }}
-              >
-                <option value="all">All Types</option>
-                {sensorTypes.map(type => (
-                  <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
-                ))}
-              </select>
-            </div>
-            
-            {getFilteredSelectedSensors().length === 0 ? (
-              <div style={{ 
-                backgroundColor: '#f9fafb', 
-                border: '1px solid #d1d5db', 
-                borderRadius: '6px',
-                padding: '40px',
-                textAlign: 'center',
-                color: '#6b7280'
-              }}>
-                {selectedSensors.length === 0 
-                  ? 'No sensors selected yet. Choose sensors from the available list.' 
-                  : 'No selected sensors match your search criteria.'
-                }
-              </div>
-            ) : (
-              <div style={{ 
-                border: '1px solid #d1d5db', 
-                borderRadius: '6px',
-                maxHeight: '500px',
-                overflowY: 'auto'
-              }}>
-                <table className="table table-hover mb-0">
-                  <thead style={{ backgroundColor: '#f9fafb', position: 'sticky', top: 0 }}>
-                    <tr>
-                      <th>Sensor Name</th>
+                      <th>Name</th>
                       <th>Type</th>
-                      <th>Location</th>
-                      <th style={{ width: '60px' }}>Action</th>
+                      <th>Description</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredSelectedSensors().map((selectedSensor) => (
-                      <tr key={selectedSensor.sensor_id}>
+                    {getFilteredMachines().map(machine => (
+                      <tr key={machine.id}>
+                        <td><strong>{machine.machine_name}</strong></td>
                         <td>
-                          <div>
-                            <strong>{selectedSensor.sensor.sensor_name}</strong>
-                            <div style={{ fontSize: '11px', color: '#666' }}>
-                              {selectedSensor.sensor.sensor_id}
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{ 
-                            padding: '2px 6px', 
-                            borderRadius: '10px', 
-                            fontSize: '10px',
-                            backgroundColor: '#f3f4f6',
-                            color: '#374151'
-                          }}>
-                            {getSensorTypeName(selectedSensor.sensor.sensor_type_id)}
+                          <span className="badge">
+                            {getMachineTypeName(machine.machine_type_id)}
                           </span>
                         </td>
-                        <td>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm"
-                            value={selectedSensor.sensor_location}
-                            onChange={(e) => handleUpdateSensorLocation(selectedSensor.sensor_id, e.target.value)}
-                            placeholder="Enter location"
-                            style={{ fontSize: '12px' }}
-                          />
-                        </td>
+                        <td>{machine.machine_description || '-'}</td>
                         <td>
                           <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleRemoveSensor(selectedSensor.sensor_id)}
-                            title="Remove sensor"
+                            type="button"
+                            onClick={() => handleMachineSelect(machine)}
+                            className="btn btn-primary btn-sm"
                           >
-                            <Trash2 size={12} />
+                            Select
                           </button>
                         </td>
                       </tr>
@@ -778,18 +515,206 @@ const NewTest = () => {
                   </tbody>
                 </table>
               </div>
-            )}
-            
-            {errors.sensors && (
-              <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <AlertTriangle size={12} />
-                {errors.sensors}
+
+              {getFilteredMachines().length === 0 && (
+                <div className="no-data">No machines match the current filters.</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Sensor Selection */}
+      <div className="card">
+        <div className="card-header">
+          <h2>Select Sensors *</h2>
+        </div>
+        <div className="card-content">
+          {errors.sensors && <div className="error-message">{errors.sensors}</div>}
+
+          {/* Selected Sensors */}
+          {selectedSensors.length > 0 && (
+            <div className="selected-section">
+              <h3>Selected Sensors ({selectedSensors.length}):</h3>
+
+              {/* Selected Sensors Filters */}
+              <div className="filter-section">
+                <div className="form-group">
+                  <input
+                    type="text"
+                    placeholder="Search selected sensors..."
+                    value={selectedSensorSearch}
+                    onChange={(e) => setSelectedSensorSearch(e.target.value)}
+                    className="form-control"
+                  />
+                </div>
+                <div className="form-group">
+                  <select
+                    value={selectedSensorTypeFilter}
+                    onChange={(e) => setSelectedSensorTypeFilter(e.target.value)}
+                    className="form-control"
+                  >
+                    <option value="all">All Types</option>
+                    {sensorTypes.map(type => (
+                      <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Test Location</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getFilteredSelectedSensors().map(item => (
+                      <tr key={item.sensor_id}>
+                        <td>
+                          <div>
+                            <strong>{item.sensor.sensor_name}</strong>
+                            <div className="sensor-id">{item.sensor.sensor_id}</div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge">
+                            {getSensorTypeName(item.sensor.sensor_type_id)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${item.sensor.sensor_is_online ? 'online' : 'offline'}`}>
+                            {item.sensor.sensor_is_online ? 'Online' : 'Offline'}
+                          </span>
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={item.sensor_location}
+                            onChange={(e) => handleUpdateSensorLocation(item.sensor_id, e.target.value)}
+                            className="form-control form-control-sm"
+                            placeholder="Specify location for this test"
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSensor(item.sensor_id)}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Available Sensors */}
+          <div>
+            <h3>Available Sensors ({getFilteredAvailableSensors().length}):</h3>
+
+            {/* Available Sensors Filters */}
+            <div className="filter-section">
+              <div className="form-group">
+                <input
+                  type="text"
+                  placeholder="Search available sensors..."
+                  value={availableSensorSearch}
+                  onChange={(e) => setAvailableSensorSearch(e.target.value)}
+                  className="form-control"
+                />
+              </div>
+              <div className="form-group">
+                <select
+                  value={availableSensorTypeFilter}
+                  onChange={(e) => setAvailableSensorTypeFilter(e.target.value)}
+                  className="form-control"
+                >
+                  <option value="all">All Types</option>
+                  {sensorTypes.map(type => (
+                    <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <select
+                  value={availableSensorStatusFilter}
+                  onChange={(e) => setAvailableSensorStatusFilter(e.target.value)}
+                  className="form-control"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="online">Online</option>
+                  <option value="offline">Offline</option>
+                  <option value="visible">Visible</option>
+                  <option value="hidden">Hidden</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getFilteredAvailableSensors().map(sensor => (
+                    <tr key={sensor.id}>
+                      <td>
+                        <div>
+                          <strong>{sensor.sensor_name}</strong>
+                          <div className="sensor-id">{sensor.sensor_id}</div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge">
+                          {getSensorTypeName(sensor.sensor_type_id)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${sensor.sensor_is_online ? 'online' : 'offline'}`}>
+                          {sensor.sensor_is_online ? 'Online' : 'Offline'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSensor(sensor)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          Add
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {getFilteredAvailableSensors().length === 0 && (
+              <div className="no-data">
+                {selectedSensors.length === sensors.length ? 
+                  'All sensors have been selected.' : 
+                  'No sensors match the current filters.'
+                }
               </div>
             )}
           </div>
         </div>
       </div>
-
     </div>
   );
 };

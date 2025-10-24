@@ -18,6 +18,7 @@ class TestStatus(str, Enum):
 class TestBase(BaseModel):
     """Base test model with common fields."""
     test_name: str
+    machine_id: int
     test_description: Optional[str] = ""
     test_notes: Optional[str] = ""
 

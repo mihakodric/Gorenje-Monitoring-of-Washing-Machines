@@ -129,14 +129,7 @@ async def get_tests_for_machine_id(machine_id: int) -> List[Dict]:
     """Get all tests for a specific machine."""
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch(
-            "SELECT test_id FROM metadata.test_relations WHERE machine_id = $1",
+            "SELECT id, test_name FROM metadata.tests WHERE machine_id = $1",
             machine_id
-        )
-        if not rows:
-            return []
-
-        rows = await conn.fetch(
-            "SELECT id, test_name FROM metadata.tests WHERE id IN ($1)",
-            *[row["test_id"] for row in rows]
         )
         return [dict(row) for row in rows]

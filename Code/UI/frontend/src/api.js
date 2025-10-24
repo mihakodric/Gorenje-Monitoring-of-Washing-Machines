@@ -69,13 +69,33 @@ export const testsAPI = {
     return {
       data: {
         ...testResponse.data,
-        sensors: relationsResponse.data
+        relations: relationsResponse.data
       }
     };
   },
 
   createWithRelations: async (payload) => {
-    const testResponse = await api.post(testsAPIprefix, payload.test);
+    // Create test with machine_id included, filtering out null/undefined values
+    const testData = {};
+    
+    // Add test fields, filtering out null/undefined/empty values
+    Object.keys(payload.test).forEach(key => {
+      const value = payload.test[key];
+      if (value !== null && value !== undefined && value !== '') {
+        testData[key] = value;
+      }
+    });
+    
+    // Add machine_id
+    testData.machine_id = payload.machine_id;
+    
+    // Validate required fields
+    if (!testData.test_name) {
+      throw new Error('Test name is required');
+    }
+    
+    console.log('Creating test with data:', testData); // Debug log
+    const testResponse = await api.post(testsAPIprefix, testData);
     const testId = testResponse.data.id;
     
     if (payload.sensors && payload.sensors.length > 0) {
@@ -91,6 +111,11 @@ export const testsAPI = {
   },
 
   updateRelations: async (testId, payload) => {
+    // Update test with machine_id if provided
+    if (payload.machine_id !== undefined) {
+      await api.put(`${testsAPIprefix}/${testId}`, { machine_id: payload.machine_id });
+    }
+    
     // Delete existing relations
     await testRelationsAPI.deleteAllByTestId(testId);
     

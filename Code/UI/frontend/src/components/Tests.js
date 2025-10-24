@@ -153,109 +153,72 @@ const Tests = () => {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="loading-spinner"></div>
-        <p>Loading tests...</p>
+      <div className="loading-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <span className="loading-text">Loading tests...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '10px'
-        }}>
-          Test Management
-        </h1>
-        <p style={{ color: '#6b7280', fontSize: '16px', fontWeight: '500' }}>
-          Monitor and manage your washing machine tests
-        </p>
+    <div className="container">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title" style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            Test Management
+          </h1>
+          <p className="page-subtitle">
+            Monitor and manage your washing machine tests
+          </p>
+        </div>
+        <Link to="/tests/new" className="btn btn-primary">
+          <Plus size={16} />
+          Create New Test
+        </Link>
       </div>
 
       <div className="card">
         <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div className="flex-center gap-15">
             <Play size={28} style={{ color: '#667eea' }} />
             <div>
-              <h2 className="card-title" style={{ margin: 0, fontSize: '20px' }}>
-                Test Sessions
-              </h2>
-              <p style={{ 
-                margin: 0, 
-                fontSize: '14px', 
-                color: '#6b7280',
-                fontWeight: '500'
-              }}>
+              <h2 className="card-title">Test Sessions</h2>
+              <p className="card-subtitle">
                 {filteredTests.filter(t => t.test_status === 'running').length} running tests
                 {tests.length !== filteredTests.length && ` (${tests.length} total)`}
               </p>
             </div>
           </div>
-          <Link 
-            to="/tests/new"
-            className="btn btn-primary" 
-            style={{ 
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              textDecoration: 'none'
-            }}
-          >
-            <Plus size={18} />
-            New Test
-          </Link>
         </div>
 
         {/* Filter Controls */}
-        <div style={{
-          padding: '20px',
-          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-          borderRadius: '12px 12px 0 0'
-        }}>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="filter-header">
+          <div className="flex-wrap gap-15">
             {/* Search */}
-            <div style={{ position: 'relative', minWidth: '250px' }}>
-              <Search size={18} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#9ca3af'
-              }} />
+            <div className="filter-group">
+              <Search size={16} />
               <input
                 type="text"
                 placeholder="Search tests..."
-                className="form-control"
+                className="search-input"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  paddingLeft: '40px',
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
               />
             </div>
 
             {/* Status Filter */}
-            <div style={{ minWidth: '140px' }}>
+            <div className="filter-group">
+              <Filter size={16} />
               <select
-                className="form-control"
+                className="form-select"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: 'white'
-                }}
               >
                 <option value="all">All Statuses</option>
                 <option value="idle">Idle</option>
@@ -266,17 +229,12 @@ const Tests = () => {
             </div>
 
             {/* Date Filter */}
-            <div style={{ minWidth: '140px' }}>
+            <div className="filter-group">
+              <Calendar size={16} />
               <select
-                className="form-control"
+                className="form-select"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: 'white'
-                }}
               >
                 <option value="all">All Time</option>
                 <option value="today">Today</option>
@@ -288,15 +246,8 @@ const Tests = () => {
             {/* Clear Filters */}
             {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all') && (
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-small"
                 onClick={clearFilters}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
               >
                 <X size={14} />
                 Clear Filters
@@ -319,11 +270,21 @@ const Tests = () => {
         </div>
 
         {tests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <Square size={48} />
+            </div>
             <p>No tests found. Create your first test to get started.</p>
+            <Link to="/tests/new" className="btn btn-primary">
+              <Plus size={16} />
+              Create First Test
+            </Link>
           </div>
         ) : filteredTests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <Filter size={48} />
+            </div>
             <p>No tests match your current filters.</p>
             <button onClick={clearFilters} className="btn btn-secondary">
               Clear Filters
@@ -387,13 +348,13 @@ const Tests = () => {
                     <td>
                       <strong>{test.test_name}</strong>
                       {test.test_description && (
-                        <div style={{ fontSize: '12px', color: '#666' }}>
+                        <div className="text-small text-secondary">
                           {test.test_description}
                         </div>
                       )}
                     </td>
                     <td>
-                      <span className={`status ${getStatusColor(test.test_status)}`}>
+                      <span className={`status-card ${getStatusColor(test.test_status)}`}>
                         {test.test_status === 'running' ? <Play size={12} /> : null}
                         {test.test_status.toUpperCase()}
                       </span>
@@ -405,16 +366,16 @@ const Tests = () => {
                       <strong>{test.test_sensor_count || 0}</strong>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
+                      <div className="btn-group">
                         <Link
                           to={`/tests/edit/${test.id}`}
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-secondary btn-small"
                         >
                           <Edit size={14} />
                         </Link>
                         {test.test_status === 'running' && (
                           <button
-                            className="btn btn-danger btn-sm"
+                            className="btn btn-danger btn-small"
                             onClick={() => handleStopTest(test.id)}
                           >
                             <Square size={14} />

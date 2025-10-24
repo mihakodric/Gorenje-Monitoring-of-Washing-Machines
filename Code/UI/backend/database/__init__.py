@@ -56,13 +56,13 @@ from .machine_types import (
 from .tests import (
     get_all_tests,
     get_test_by_id,
+    get_test_with_machine_by_id,
     create_test,
     update_test_metadata,
     delete_test,
 
     start_test,
     stop_test,
-    update_test_machine,
 )
 
 from .test_relations import (
@@ -140,15 +140,15 @@ __all__ = [
     'get_machines_by_machine_type',
     'get_tests_for_machine_id',
     
-    # Test functions
+    # Tests functions
     'get_all_tests',
     'get_test_by_id',
+    'get_test_with_machine_by_id',
     'create_test',
     'update_test_metadata',
     'delete_test',
     'start_test',
     'stop_test',
-    'update_test_machine',
 
     # Test relations functions
     'get_test_relations',

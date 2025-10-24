@@ -161,21 +161,25 @@ const TestDetails = () => {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="loading-spinner"></div>
-        <p>Loading test details...</p>
+      <div className="container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <p>Loading test details...</p>
+        </div>
       </div>
     );
   }
 
   if (!test) {
     return (
-      <div className="card">
-        <p>Test not found.</p>
-        <Link to="/tests" className="btn btn-primary">
-          <ArrowLeft size={16} />
-          Back to Tests
-        </Link>
+      <div className="container">
+        <div className="card">
+          <p>Test not found.</p>
+          <Link to="/tests" className="btn btn-primary">
+            <ArrowLeft size={16} />
+            Back to Tests
+          </Link>
+        </div>
       </div>
     );
   }
@@ -183,12 +187,12 @@ const TestDetails = () => {
   const chartData = prepareChartData();
 
   return (
-    <div>
+    <div className="container">
       {/* Header */}
       <div className="card">
         <div className="card-header">
-          <div>
-            <Link to="/tests" className="btn btn-secondary" style={{ marginRight: '10px' }}>
+          <div className="flex-center">
+            <Link to="/tests" className="btn btn-secondary">
               <ArrowLeft size={16} />
               Back
             </Link>
@@ -224,13 +228,13 @@ const TestDetails = () => {
         </div>
 
         {test.test_description && (
-          <div style={{ marginTop: '15px' }}>
+          <div className="mt-3">
             <p><strong>Description:</strong> {test.test_description}</p>
           </div>
         )}
 
         {test.test_notes && (
-          <div style={{ marginTop: '15px' }}>
+          <div className="mt-3">
             <p><strong>Notes:</strong> {test.test_notes}</p>
           </div>
         )}
@@ -240,12 +244,11 @@ const TestDetails = () => {
       <div className="card">
         <div className="card-header">
           <h3 className="card-title">Data Visualization</h3>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div className="btn-group">
             <select
               value={selectedSensor}
               onChange={(e) => setSelectedSensor(e.target.value)}
-              className="form-control"
-              style={{ width: '200px' }}
+              className="form-select"
             >
               <option value="all">All Sensors</option>
               {sensors.map(sensor => (
@@ -257,8 +260,7 @@ const TestDetails = () => {
             <select
               value={dataLimit}
               onChange={(e) => setDataLimit(parseInt(e.target.value))}
-              className="form-control"
-              style={{ width: '120px' }}
+              className="form-select"
             >
               <option value={100}>100 points</option>
               <option value={500}>500 points</option>
@@ -273,7 +275,7 @@ const TestDetails = () => {
             <Line data={chartData} options={chartOptions} />
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="empty-state">
             <p>No data available for the selected sensor(s).</p>
           </div>
         )}

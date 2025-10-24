@@ -138,7 +138,7 @@ const Machines = () => {
 
   if (loading) {
     return (
-      <div>
+      <div className="container">
         <div className="loading">
           <div className="loading-spinner"></div>
           <p>Loading machines...</p>
@@ -148,39 +148,25 @@ const Machines = () => {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: "30px" }}>
-        <h1
-          style={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            marginBottom: "10px",
-          }}
-        >
+    <div className="container">
+      <div className="page-header">
+        <h1 className="page-title">
           Machines
         </h1>
-        <p style={{ color: "#6b7280", fontSize: "16px", fontWeight: "500" }}>
+        <p className="page-subtitle">
           Manage all your machines (washing machines, dishwashers, etc.)
         </p>
       </div>
 
       <div className="card">
         <div className="card-header">
-          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <Activity size={28} style={{ color: "#667eea" }} />
+          <div className="flex-center">
+            <Activity size={28} className="text-primary" />
             <div>
-              <h2 className="card-title" style={{ margin: 0, fontSize: "20px" }}>
+              <h2 className="card-title">
                 Machine List
               </h2>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "14px",
-                  color: "#6b7280",
-                  fontWeight: "500",
-                }}
-              >
+              <p className="card-subtitle">
                 {filteredMachines.length} of {machines.length} machines showing
               </p>
             </div>
@@ -188,11 +174,6 @@ const Machines = () => {
           <button
             className="btn btn-primary"
             onClick={handleAddMachine}
-            style={{
-              padding: "12px 24px",
-              fontSize: "14px",
-              fontWeight: "600",
-            }}
           >
             <Plus size={18} />
             Add New Machine
@@ -200,61 +181,25 @@ const Machines = () => {
         </div>
 
         {/* Filters */}
-        <div
-          style={{
-            padding: "20px",
-            borderBottom: "2px solid #f0f2f5",
-            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-            borderRadius: "12px 12px 0 0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: "15px",
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+        <div className="filter-header">
+          <div className="filter-row">
             {/* Search */}
-            <div style={{ position: "relative", minWidth: "250px" }}>
-              <Search
-                size={18}
-                style={{
-                  position: "absolute",
-                  left: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  color: "#9ca3af",
-                }}
-              />
+            <div className="search-container">
+              <Search size={18} className="search-icon" />
               <input
                 type="text"
                 placeholder="Search machines..."
-                className="form-control"
+                className="search-input"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  paddingLeft: "40px",
-                  fontSize: "14px",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "8px",
-                }}
               />
             </div>
 
             {/* Clear Filters */}
             {searchTerm && (
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-small"
                 onClick={clearFilters}
-                style={{
-                  padding: "8px 12px",
-                  fontSize: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
               >
                 <X size={14} />
                 Clear Filters
@@ -276,15 +221,12 @@ const Machines = () => {
         </div>
 
         {machines.length === 0 ? (
-          <div className="text-center" style={{ padding: "60px 40px" }}>
-            <Activity
-              size={64}
-              style={{ color: "#d1d5db", marginBottom: "20px" }}
-            />
-            <h3 style={{ color: "#4b5563", marginBottom: "10px" }}>
+          <div className="empty-state">
+            <Activity size={64} className="empty-icon" />
+            <h3 className="empty-title">
               No Machines Found
             </h3>
-            <p style={{ color: "#9ca3af", marginBottom: "25px" }}>
+            <p className="empty-description">
               Get started by adding your first machine.
             </p>
             <button className="btn btn-primary" onClick={handleAddMachine}>
@@ -293,15 +235,12 @@ const Machines = () => {
             </button>
           </div>
         ) : filteredMachines.length === 0 ? (
-          <div className="text-center" style={{ padding: "60px 40px" }}>
-            <Filter
-              size={64}
-              style={{ color: "#d1d5db", marginBottom: "20px" }}
-            />
-            <h3 style={{ color: "#4b5563", marginBottom: "10px" }}>
+          <div className="empty-state">
+            <Filter size={64} className="empty-icon" />
+            <h3 className="empty-title">
               No Matching Machines
             </h3>
-            <p style={{ color: "#9ca3af", marginBottom: "25px" }}>
+            <p className="empty-description">
               No machines match your current filters. Try adjusting your
               search criteria.
             </p>
@@ -316,15 +255,13 @@ const Machines = () => {
               <thead>
                 <tr>
                   <th
-                    style={{ cursor: "pointer", userSelect: "none" }}
+                    className="sortable"
                     onClick={() => handleSort("name")}
                   >
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                    >
+                    <div className="sort-header">
                       Machine Details
                       {sortField === "name" && (
-                        <span style={{ fontSize: "12px" }}>
+                        <span className="sort-indicator">
                           {sortDirection === "asc" ? "↑" : "↓"}
                         </span>
                       )}
@@ -339,22 +276,10 @@ const Machines = () => {
                   <tr key={machine.id}>
                     <td>
                       <div>
-                        <div
-                          style={{
-                            fontWeight: "1000",
-                            color: "#374151",
-                            fontSize: "14px",
-                          }}
-                        >
+                        <div className="item-title">
                           {machine.machine_name}
                         </div>
-                        <div
-                          style={{
-                            marginTop: "4px",
-                            fontSize: "13px",
-                            color: "#6b7280",
-                          }}
-                        >
+                        <div className="item-subtitle">
                           {machine.machine_description || "No description"}
                         </div>
                       </div>
@@ -363,24 +288,16 @@ const Machines = () => {
                     <td>
                       <div className="action-buttons">
                         <button
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-secondary btn-small"
                           onClick={() => handleEditMachine(machine)}
                           title="Edit machine"
-                          style={{
-                            padding: "8px 12px",
-                            minWidth: "auto",
-                          }}
                         >
                           <Edit size={14} />
                         </button>
                         <button
-                          className="btn btn-danger btn-sm"
+                          className="btn btn-danger btn-small"
                           onClick={() => handleDeleteMachine(machine.id)}
                           title="Delete machine"
-                          style={{
-                            padding: "8px 12px",
-                            minWidth: "auto",
-                          }}
                         >
                           <Trash2 size={14} />
                         </button>

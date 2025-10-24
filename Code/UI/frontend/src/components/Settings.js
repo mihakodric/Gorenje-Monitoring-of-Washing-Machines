@@ -211,88 +211,45 @@ const Settings = () => {
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="loading-spinner"></div>
-        <p>Loading settings...</p>
+      <div className="container">
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <p>Loading settings...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '10px'
-        }}>
+    <div className="container">
+      <div className="page-header">
+        <h1 className="page-title">
           System Settings
         </h1>
-        <p style={{ color: '#6b7280', fontSize: '16px', fontWeight: '500' }}>
+        <p className="page-subtitle">
           Configure MQTT broker connection and sensor types
         </p>
       </div>
 
       {/* Tab Navigation */}
-      <div style={{ 
-        display: 'flex', 
-        borderBottom: '2px solid #e5e7eb', 
-        marginBottom: '30px' 
-      }}>
+      <div className="tab-nav">
         <button
           onClick={() => setActiveTab('mqtt')}
-          style={{
-            padding: '12px 24px',
-            border: 'none',
-            background: activeTab === 'mqtt' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-            color: activeTab === 'mqtt' ? 'white' : '#6b7280',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
+          className={`tab-button ${activeTab === 'mqtt' ? 'active' : 'inactive'}`}
         >
           <Wifi size={16} />
           MQTT Configuration
         </button>
         <button
           onClick={() => setActiveTab('sensors')}
-          style={{
-            padding: '12px 24px',
-            border: 'none',
-            background: activeTab === 'sensors' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-            color: activeTab === 'sensors' ? 'white' : '#6b7280',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
+          className={`tab-button ${activeTab === 'sensors' ? 'active' : 'inactive'}`}
         >
           <Zap size={16} />
           Sensor Types
         </button>
         <button
           onClick={() => setActiveTab('machines')}
-          style={{
-            padding: '12px 24px',
-            border: 'none',
-            background: activeTab === 'machines' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-            color: activeTab === 'machines' ? 'white' : '#6b7280',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
+          className={`tab-button ${activeTab === 'machines' ? 'active' : 'inactive'}`}
         >
           <SettingsIcon size={16} />
           Machine Types

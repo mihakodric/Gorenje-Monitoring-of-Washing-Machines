@@ -12,13 +12,11 @@ from app.models import (
     TestRelation, TestRelationCreate
 )
 from database import (
-
     get_test_relations,
     add_test_relation,
     delete_all_test_relations_for_single_test,
     delete_test_relation_for_single_relation_id,
-    update_test_relation,
-    update_test_machine
+    update_test_relation
 )
 
 router = APIRouter()

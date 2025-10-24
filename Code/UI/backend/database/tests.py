@@ -23,32 +23,76 @@ def get_db_pool():
 # ================================
 
 async def get_all_tests() -> List[Dict]:
-    """Get all tests."""
+    """Get all tests with sensor count."""
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch("""
-            SELECT *
-            FROM metadata.tests
-            ORDER BY test_created_at DESC
+            SELECT 
+                t.*,
+                COALESCE(tr.sensor_count, 0) as test_sensor_count
+            FROM metadata.tests t
+            LEFT JOIN (
+                SELECT 
+                    test_id,
+                    COUNT(*) as sensor_count
+                FROM metadata.test_relations
+                GROUP BY test_id
+            ) tr ON t.id = tr.test_id
+            ORDER BY t.test_created_at DESC
         """)
     return [dict(row) for row in rows]
 
 async def get_test_by_id(test_id: int) -> Optional[Dict]:
-    """Get test by ID."""
+    """Get test by ID with sensor count."""
     async with get_db_pool().acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM metadata.tests WHERE id = $1;",
-            test_id
-        )
+        row = await conn.fetchrow("""
+            SELECT 
+                t.*,
+                COALESCE(tr.sensor_count, 0) as test_sensor_count
+            FROM metadata.tests t
+            LEFT JOIN (
+                SELECT 
+                    test_id,
+                    COUNT(*) as sensor_count
+                FROM metadata.test_relations
+                GROUP BY test_id
+            ) tr ON t.id = tr.test_id
+            WHERE t.id = $1;
+        """, test_id)
     return dict(row) if row else None
 
-async def create_test(test_data: Dict) -> bool:
+async def get_test_with_machine_by_id(test_id: int) -> Optional[Dict]:
+    """Get test by ID with machine details."""
+    async with get_db_pool().acquire() as conn:
+        row = await conn.fetchrow("""
+            SELECT 
+                t.*,
+                m.machine_name,
+                m.machine_description,
+                mt.machine_type_name,
+                mt.machine_type_description
+            FROM metadata.tests t
+            LEFT JOIN metadata.machines m ON t.machine_id = m.id
+            LEFT JOIN metadata.machine_types mt ON m.machine_type_id = mt.id
+            WHERE t.id = $1;
+        """, test_id)
+    return dict(row) if row else None
+
+async def create_test(test_data: Dict) -> Optional[Dict]:
     """Create a new test."""
+    if not test_data:
+        return None
 
     fields = []
     values = []
     for key, value in test_data.items():
-        fields.append(key)
-        values.append(value)
+        if value is not None and value != '' and value != 'null':  # Filter out null, empty, and 'null' string values
+            # Trim whitespace for string values
+            if isinstance(value, str):
+                value = value.strip()
+            # Skip if value becomes empty after trimming
+            if value != '':
+                fields.append(key)
+                values.append(value)
 
     if not fields:
         return None
@@ -78,8 +122,15 @@ async def update_test_metadata(test_id: int, test_data: Dict) -> Optional[Dict]:
     fields = []
     values = []
     for key, value in test_data.items():
-        fields.append(f"{key} = ${len(values) + 1}")
-        values.append(value)
+        # Filter out null, None, and empty string values
+        if value is not None and value != '' and value != 'null':
+            # Trim whitespace for string values
+            if isinstance(value, str):
+                value = value.strip()
+            # Skip if value becomes empty after trimming
+            if value != '':
+                fields.append(f"{key} = ${len(values) + 1}")
+                values.append(value)
         
     if not fields:
         return None
@@ -130,13 +181,3 @@ async def stop_test(test_id: int) -> bool:
             WHERE id = $2 AND status = 'running'
         """, datetime.now(), test_id)
     return result.endswith("UPDATE 1")
-
-async def update_test_machine(test_id: int, machine_id: int) -> bool:
-    """Update machine for all relations in a test."""
-    async with get_db_pool().acquire() as conn:
-        result = await conn.execute("""
-            UPDATE metadata.test_relations 
-            SET machine_id = $1 
-            WHERE test_id = $2
-        """, machine_id, test_id)
-    return result != "UPDATE 0"
