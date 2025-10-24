@@ -199,64 +199,64 @@ const Sensors = () => {
         </div>
 
         {/* Filters */}
-        <div className="filter-header">
-          <div className="filter-row">
-            {/* Search */}
+        <div className="filter-section">
+          {/* Search */}
+          <div className="form-group">
             <div className="search-container">
               <Search size={18} className="search-icon" />
               <input
                 type="text"
                 placeholder="Search sensors..."
-                className="search-input"
+                className="form-control"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+          </div>
 
-            {/* Status Filter */}
-            <div className="filter-group">
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
-            </div>
+          {/* Status Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+          </div>
 
-            {/* Type Filter */}
-            <div className="filter-group">
-              <select
-                className="form-select"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-              >
-                <option value="all">All Types</option>
-                {getSensorTypes().map(type => (
-                  <option key={type} value={type}>
-                    {sensorTypes.find(st => st.id === type)?.sensor_type_name || `Type ${type}`}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Type Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="all">All Types</option>
+              {getSensorTypes().map(type => (
+                <option key={type} value={type}>
+                  {sensorTypes.find(st => st.id === type)?.sensor_type_name || `Type ${type}`}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Clear Filters */}
-            {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
-              <button
-                className="btn btn-secondary btn-small"
-                onClick={clearFilters}
-              >
-                <X size={14} />
-                Clear Filters
-              </button>
-            )}
+          {/* Clear Filters */}
+          {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={clearFilters}
+            >
+              <X size={14} />
+              Clear
+            </button>
+          )}
 
-            {/* Results count */}
-            <div className="filter-count">
-              Showing {filteredSensors.length} of {sensors.length} sensors
-            </div>
+          {/* Results count */}
+          <div className="filter-count">
+            Showing {filteredSensors.length} of {sensors.length} sensors
           </div>
         </div>
 

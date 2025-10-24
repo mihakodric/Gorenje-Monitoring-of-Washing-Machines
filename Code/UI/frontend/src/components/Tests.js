@@ -198,74 +198,64 @@ const Tests = () => {
         </div>
 
         {/* Filter Controls */}
-        <div className="filter-header">
-          <div className="flex-wrap gap-15">
-            {/* Search */}
-            <div className="filter-group">
-              <Search size={16} />
+        <div className="filter-section">
+          {/* Search */}
+          <div className="form-group">
+            <div className="search-container">
+              <Search size={18} className="search-icon" />
               <input
                 type="text"
                 placeholder="Search tests..."
-                className="search-input"
+                className="form-control"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-
-            {/* Status Filter */}
-            <div className="filter-group">
-              <Filter size={16} />
-              <select
-                className="form-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Statuses</option>
-                <option value="idle">Idle</option>
-                <option value="running">Running</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-
-            {/* Date Filter */}
-            <div className="filter-group">
-              <Calendar size={16} />
-              <select
-                className="form-select"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-              </select>
-            </div>
-
-            {/* Clear Filters */}
-            {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all') && (
-              <button
-                className="btn btn-secondary btn-small"
-                onClick={clearFilters}
-              >
-                <X size={14} />
-                Clear Filters
-              </button>
-            )}
           </div>
-          
-          <div style={{
-            marginTop: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '13px',
-            color: '#6b7280',
-            fontWeight: '500'
-          }}>
-            <Filter size={14} />
-            <span>Showing {filteredTests.length} of {tests.length} tests</span>
+
+          {/* Status Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="idle">Idle</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+
+          {/* Date Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all') && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={clearFilters}
+            >
+              <X size={14} />
+              Clear
+            </button>
+          )}
+
+          {/* Results count */}
+          <div className="filter-count">
+            Showing {filteredTests.length} of {tests.length} tests
           </div>
         </div>
 

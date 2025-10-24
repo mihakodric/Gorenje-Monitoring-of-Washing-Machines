@@ -181,42 +181,35 @@ const Machines = () => {
         </div>
 
         {/* Filters */}
-        <div className="filter-header">
-          <div className="filter-row">
-            {/* Search */}
+        <div className="filter-section">
+          {/* Search */}
+          <div className="form-group">
             <div className="search-container">
               <Search size={18} className="search-icon" />
               <input
                 type="text"
                 placeholder="Search machines..."
-                className="search-input"
+                className="form-control"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+          </div>
 
-            {/* Clear Filters */}
-            {searchTerm && (
-              <button
-                className="btn btn-secondary btn-small"
-                onClick={clearFilters}
-              >
-                <X size={14} />
-                Clear Filters
-              </button>
-            )}
-
-            {/* Results count */}
-            <div
-              style={{
-                marginLeft: "auto",
-                fontSize: "14px",
-                color: "#6b7280",
-                fontWeight: "500",
-              }}
+          {/* Clear Filters */}
+          {searchTerm && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={clearFilters}
             >
-              Showing {filteredMachines.length} of {machines.length} machines
-            </div>
+              <X size={14} />
+              Clear
+            </button>
+          )}
+
+          {/* Results count */}
+          <div className="filter-count">
+            Showing {filteredMachines.length} of {machines.length} machines
           </div>
         </div>
 
