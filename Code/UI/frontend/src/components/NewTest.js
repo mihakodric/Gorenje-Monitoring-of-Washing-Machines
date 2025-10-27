@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Activity } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 
 const NewTest = () => {
@@ -372,11 +373,11 @@ const NewTest = () => {
       </div>
 
       {/* Test Information Form */}
-      <div className="card">
+      <div className="card no-padding">
         <div className="card-header">
           <h2>Test Information</h2>
         </div>
-        <div className="card-content">
+        <div className="card-body">
           <div className="form-group">
             <label htmlFor="test_name">Test Name *</label>
             <input
@@ -420,11 +421,11 @@ const NewTest = () => {
       </div>
 
       {/* Machine Selection */}
-      <div className="card">
+      <div className="card no-padding">
         <div className="card-header">
           <h2>Select Machine *</h2>
         </div>
-        <div className="card-content">
+        <div className="card-body">
           {errors.machine && <div className="error-message">{errors.machine}</div>}
 
           {/* Machine Search and Filters */}
@@ -458,7 +459,7 @@ const NewTest = () => {
           {selectedMachine && (
             <div className="selected-item">
               <h3>Selected Machine:</h3>
-              <div className="machine-card selected">
+              <div className="selected-machine-card selected">
                 <div className="machine-info">
                   <h4>{selectedMachine.machine_name}</h4>
                   <p>Type: {getMachineTypeName(selectedMachine.machine_type_id)}</p>
@@ -479,36 +480,50 @@ const NewTest = () => {
 
           {/* Available Machines */}
           {!selectedMachine && (
-            <div>
+            <div className="table-full-height">
               <h3>Available Machines ({getFilteredMachines().length}):</h3>
               <div className="table-responsive">
-                <table className="table">
+                <table className="table table-striped">
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Description</th>
+                      <th>Machine Details</th>
+                      <th>Machine Type</th>
                       <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {getFilteredMachines().map(machine => (
                       <tr key={machine.id}>
-                        <td><strong>{machine.machine_name}</strong></td>
+                        <td>
+                          <div className="machine-card">
+                            <div className="machine-icon">
+                              <Activity size={20} />
+                            </div>
+                            <div className="machine-content">
+                              <div className="machine-name">
+                                {machine.machine_name}
+                              </div>
+                              <div className="machine-description">
+                                {machine.machine_description || "No description"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
                         <td>
                           <span className="badge">
                             {getMachineTypeName(machine.machine_type_id)}
                           </span>
                         </td>
-                        <td>{machine.machine_description || '-'}</td>
                         <td>
-                          <button
-                            type="button"
-                            onClick={() => handleMachineSelect(machine)}
-                            className="btn btn-primary btn-sm"
-                          >
-                            Select
-                          </button>
+                          <div className="action-buttons">
+                            <button
+                              type="button"
+                              onClick={() => handleMachineSelect(machine)}
+                              className="btn btn-primary btn-sm"
+                            >
+                              Select
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -517,7 +532,10 @@ const NewTest = () => {
               </div>
 
               {getFilteredMachines().length === 0 && (
-                <div className="no-data">No machines match the current filters.</div>
+                <div className="table-empty">
+                  <div className="table-empty-icon">🏭</div>
+                  No machines match the current filters.
+                </div>
               )}
             </div>
           )}
@@ -525,33 +543,35 @@ const NewTest = () => {
       </div>
 
       {/* Sensor Selection */}
-      <div className="card">
+      <div className="card no-padding">
         <div className="card-header">
           <h2>Select Sensors *</h2>
         </div>
-        <div className="card-content">
+        <div className="card-body">
           {errors.sensors && <div className="error-message">{errors.sensors}</div>}
 
-          {/* Selected Sensors */}
-          {selectedSensors.length > 0 && (
-            <div className="selected-section">
-              <h3>Selected Sensors ({selectedSensors.length}):</h3>
+          {/* Horizontal Layout for Selected and Available Sensors */}
+          <div className="grid-2-col">
+            
+            {/* Left Side - Available Sensors */}
+            <div className="table-full-height">
+              <h3>Available Sensors ({getFilteredAvailableSensors().length}):</h3>
 
-              {/* Selected Sensors Filters */}
+              {/* Available Sensors Filters */}
               <div className="filter-section">
                 <div className="form-group">
                   <input
                     type="text"
-                    placeholder="Search selected sensors..."
-                    value={selectedSensorSearch}
-                    onChange={(e) => setSelectedSensorSearch(e.target.value)}
+                    placeholder="Search available sensors..."
+                    value={availableSensorSearch}
+                    onChange={(e) => setAvailableSensorSearch(e.target.value)}
                     className="form-control"
                   />
                 </div>
                 <div className="form-group">
                   <select
-                    value={selectedSensorTypeFilter}
-                    onChange={(e) => setSelectedSensorTypeFilter(e.target.value)}
+                    value={availableSensorTypeFilter}
+                    onChange={(e) => setAvailableSensorTypeFilter(e.target.value)}
                     className="form-control"
                   >
                     <option value="all">All Types</option>
@@ -560,54 +580,57 @@ const NewTest = () => {
                     ))}
                   </select>
                 </div>
+                <div className="form-group">
+                  <select
+                    value={availableSensorStatusFilter}
+                    onChange={(e) => setAvailableSensorStatusFilter(e.target.value)}
+                    className="form-control"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                    <option value="visible">Visible</option>
+                    <option value="hidden">Hidden</option>
+                  </select>
+                </div>
               </div>
 
               <div className="table-responsive">
-                <table className="table">
+                <table className="table table-striped">
                   <thead>
                     <tr>
                       <th>Name</th>
                       <th>Type</th>
                       <th>Status</th>
-                      <th>Test Location</th>
                       <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredSelectedSensors().map(item => (
-                      <tr key={item.sensor_id}>
+                    {getFilteredAvailableSensors().map(sensor => (
+                      <tr key={sensor.id}>
                         <td>
                           <div>
-                            <strong>{item.sensor.sensor_name}</strong>
-                            <div className="sensor-id">{item.sensor.sensor_id}</div>
+                            <strong>{sensor.sensor_name}</strong>
+                            <div className="sensor-id">{sensor.sensor_id}</div>
                           </div>
                         </td>
                         <td>
                           <span className="badge">
-                            {getSensorTypeName(item.sensor.sensor_type_id)}
+                            {getSensorTypeName(sensor.sensor_type_id)}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge ${item.sensor.sensor_is_online ? 'online' : 'offline'}`}>
-                            {item.sensor.sensor_is_online ? 'Online' : 'Offline'}
+                          <span className={`status-badge ${sensor.sensor_is_online ? 'online' : 'offline'}`}>
+                            {sensor.sensor_is_online ? 'Online' : 'Offline'}
                           </span>
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            value={item.sensor_location}
-                            onChange={(e) => handleUpdateSensorLocation(item.sensor_id, e.target.value)}
-                            className="form-control form-control-sm"
-                            placeholder="Specify location for this test"
-                          />
                         </td>
                         <td>
                           <button
                             type="button"
-                            onClick={() => handleRemoveSensor(item.sensor_id)}
-                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleSelectSensor(sensor)}
+                            className="btn btn-primary btn-sm"
                           >
-                            Remove
+                            Add
                           </button>
                         </td>
                       </tr>
@@ -615,103 +638,113 @@ const NewTest = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
 
-          {/* Available Sensors */}
-          <div>
-            <h3>Available Sensors ({getFilteredAvailableSensors().length}):</h3>
-
-            {/* Available Sensors Filters */}
-            <div className="filter-section">
-              <div className="form-group">
-                <input
-                  type="text"
-                  placeholder="Search available sensors..."
-                  value={availableSensorSearch}
-                  onChange={(e) => setAvailableSensorSearch(e.target.value)}
-                  className="form-control"
-                />
-              </div>
-              <div className="form-group">
-                <select
-                  value={availableSensorTypeFilter}
-                  onChange={(e) => setAvailableSensorTypeFilter(e.target.value)}
-                  className="form-control"
-                >
-                  <option value="all">All Types</option>
-                  {sensorTypes.map(type => (
-                    <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <select
-                  value={availableSensorStatusFilter}
-                  onChange={(e) => setAvailableSensorStatusFilter(e.target.value)}
-                  className="form-control"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                  <option value="visible">Visible</option>
-                  <option value="hidden">Hidden</option>
-                </select>
-              </div>
+              {getFilteredAvailableSensors().length === 0 && (
+                <div className="table-empty">
+                  <div className="table-empty-icon">📡</div>
+                  {selectedSensors.length === sensors.length ? 
+                    'All sensors have been selected.' : 
+                    'No sensors match the current filters.'
+                  }
+                </div>
+              )}
             </div>
 
-            <div className="table-responsive">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getFilteredAvailableSensors().map(sensor => (
-                    <tr key={sensor.id}>
-                      <td>
-                        <div>
-                          <strong>{sensor.sensor_name}</strong>
-                          <div className="sensor-id">{sensor.sensor_id}</div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge">
-                          {getSensorTypeName(sensor.sensor_type_id)}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${sensor.sensor_is_online ? 'online' : 'offline'}`}>
-                          {sensor.sensor_is_online ? 'Online' : 'Offline'}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSensor(sensor)}
-                          className="btn btn-primary btn-sm"
-                        >
-                          Add
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Right Side - Selected Sensors */}
+            <div className="table-full-height">
+              <h3>Selected Sensors ({selectedSensors.length}):</h3>
+
+              {selectedSensors.length > 0 ? (
+                <>
+                  {/* Selected Sensors Filters */}
+                  <div className="filter-section">
+                    <div className="form-group">
+                      <input
+                        type="text"
+                        placeholder="Search selected sensors..."
+                        value={selectedSensorSearch}
+                        onChange={(e) => setSelectedSensorSearch(e.target.value)}
+                        className="form-control"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <select
+                        value={selectedSensorTypeFilter}
+                        onChange={(e) => setSelectedSensorTypeFilter(e.target.value)}
+                        className="form-control"
+                      >
+                        <option value="all">All Types</option>
+                        {sensorTypes.map(type => (
+                          <option key={type.id} value={type.id}>{type.sensor_type_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="table-responsive">
+                    <table className="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th>Status</th>
+                          <th>Test Location</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getFilteredSelectedSensors().map(item => (
+                          <tr key={item.sensor_id}>
+                            <td>
+                              <div>
+                                <strong>{item.sensor.sensor_name}</strong>
+                                <div className="sensor-id">{item.sensor.sensor_id}</div>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="badge">
+                                {getSensorTypeName(item.sensor.sensor_type_id)}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`status-badge ${item.sensor.sensor_is_online ? 'online' : 'offline'}`}>
+                                {item.sensor.sensor_is_online ? 'Online' : 'Offline'}
+                              </span>
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={item.sensor_location}
+                                onChange={(e) => handleUpdateSensorLocation(item.sensor_id, e.target.value)}
+                                className="form-control form-control-sm"
+                                placeholder="Specify location for this test"
+                              />
+                            </td>
+                            <td>
+                              <div className="action-buttons">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSensor(item.sensor_id)}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="table-empty">
+                  <div className="table-empty-icon">📋</div>
+                  No sensors selected yet. Choose sensors from the available list.
+                </div>
+              )}
             </div>
 
-            {getFilteredAvailableSensors().length === 0 && (
-              <div className="no-data">
-                {selectedSensors.length === sensors.length ? 
-                  'All sensors have been selected.' : 
-                  'No sensors match the current filters.'
-                }
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -158,14 +158,12 @@ const Machines = () => {
         </p>
       </div>
 
-      <div className="card">
+      <div className="card no-padding">
         <div className="card-header">
-          <div className="flex-center">
+          <div className="card-title">
             <Activity size={28} className="text-primary" />
             <div>
-              <h2 className="card-title">
-                Machine List
-              </h2>
+              <h2>Machine List</h2>
               <p className="card-subtitle">
                 {filteredMachines.length} of {machines.length} machines showing
               </p>
@@ -180,8 +178,9 @@ const Machines = () => {
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="filter-section">
+        <div className="card-body">
+          {/* Filters */}
+          <div className="filter-section">
           {/* Search */}
           <div className="form-group">
             <div className="search-container">
@@ -211,40 +210,31 @@ const Machines = () => {
           <div className="filter-count">
             Showing {filteredMachines.length} of {machines.length} machines
           </div>
-        </div>
+          </div>
 
-        {machines.length === 0 ? (
-          <div className="empty-state">
-            <Activity size={64} className="empty-icon" />
-            <h3 className="empty-title">
-              No Machines Found
-            </h3>
-            <p className="empty-description">
-              Get started by adding your first machine.
-            </p>
+          {machines.length === 0 ? (
+          <div className="table-empty">
+            <div className="table-empty-icon">🏭</div>
+            <h3>No Machines Found</h3>
+            <p>Get started by adding your first machine.</p>
             <button className="btn btn-primary" onClick={handleAddMachine}>
               <Plus size={18} />
               Add Your First Machine
             </button>
           </div>
         ) : filteredMachines.length === 0 ? (
-          <div className="empty-state">
-            <Filter size={64} className="empty-icon" />
-            <h3 className="empty-title">
-              No Matching Machines
-            </h3>
-            <p className="empty-description">
-              No machines match your current filters. Try adjusting your
-              search criteria.
-            </p>
+          <div className="table-empty">
+            <div className="table-empty-icon">🔍</div>
+            <h3>No Matching Machines</h3>
+            <p>No machines match your current filters. Try adjusting your search criteria.</p>
             <button className="btn btn-secondary" onClick={clearFilters}>
               <X size={18} />
               Clear All Filters
             </button>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table">
+          <div className="table-responsive">
+            <table className="table table-striped">
               <thead>
                 <tr>
                   <th
@@ -268,27 +258,36 @@ const Machines = () => {
                 {filteredMachines.map((machine) => (
                   <tr key={machine.id}>
                     <td>
-                      <div>
-                        <div className="item-title">
-                          {machine.machine_name}
+                      <div className="machine-card">
+                        <div className="machine-icon">
+                          <Activity size={20} />
                         </div>
-                        <div className="item-subtitle">
-                          {machine.machine_description || "No description"}
+                        <div className="machine-content">
+                          <div className="machine-name">
+                            {machine.machine_name}
+                          </div>
+                          <div className="machine-description">
+                            {machine.machine_description || "No description"}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td>{getMachineTypeName(machine.machine_type_id)}</td>
+                    <td>
+                      <span className="badge">
+                        {getMachineTypeName(machine.machine_type_id)}
+                      </span>
+                    </td>
                     <td>
                       <div className="action-buttons">
                         <button
-                          className="btn btn-secondary btn-small"
+                          className="btn btn-secondary btn-sm"
                           onClick={() => handleEditMachine(machine)}
                           title="Edit machine"
                         >
                           <Edit size={14} />
                         </button>
                         <button
-                          className="btn btn-danger btn-small"
+                          className="btn btn-danger btn-sm"
                           onClick={() => handleDeleteMachine(machine.id)}
                           title="Delete machine"
                         >
@@ -302,6 +301,7 @@ const Machines = () => {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       {showModal && (

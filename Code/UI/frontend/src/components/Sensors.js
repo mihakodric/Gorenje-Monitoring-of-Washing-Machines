@@ -175,14 +175,12 @@ const Sensors = () => {
         </p>
       </div>
 
-      <div className="card">
+      <div className="card no-padding">
         <div className="card-header">
-          <div className="flex-center">
+          <div className="card-title">
             <Activity size={28} className="text-primary" />
             <div>
-              <h2 className="card-title">
-                Active Sensors
-              </h2>
+              <h2>Active Sensors</h2>
               <p className="card-subtitle">
                 {filteredSensors.filter(s => s.sensor_is_online).length} of {filteredSensors.length} sensors online
                 {sensors.length !== filteredSensors.length && ` (${sensors.length} total)`}
@@ -198,8 +196,9 @@ const Sensors = () => {
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="filter-section">
+        <div className="card-body">
+          {/* Filters */}
+          <div className="filter-section">
           {/* Search */}
           <div className="form-group">
             <div className="search-container">
@@ -258,9 +257,9 @@ const Sensors = () => {
           <div className="filter-count">
             Showing {filteredSensors.length} of {sensors.length} sensors
           </div>
-        </div>
+          </div>
 
-        {sensors.length === 0 ? (
+          {sensors.length === 0 ? (
           <div className="empty-state">
             <Activity size={64} className="empty-icon" />
             <h3 className="empty-title">No Sensors Found</h3>
@@ -285,8 +284,8 @@ const Sensors = () => {
             </button>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table">
+          <div className="table-responsive">
+            <table className="table table-striped">
               <thead>
                 <tr>
                   <th 
@@ -347,21 +346,19 @@ const Sensors = () => {
               </thead>
               <tbody>
                 {filteredSensors.map((sensor) => {
-                  const sensorColor = '#10b981'; // Default to green
-                  
                   return (
                     <tr key={sensor.id}>
                       <td>
-                        <div className="flex-center">
+                        <div className={`sensor-card`}>
                           <div className="sensor-icon">
-                            <Activity size={20} className="text-success" />
+                            <Activity size={20} />
                           </div>
-                          <div>
-                            <div className="item-title">
+                          <div className="sensor-content">
+                            <div className="sensor-name">
                               {sensor.sensor_name}
                             </div>
                             {sensor.sensor_description && (
-                              <div className="item-subtitle">
+                              <div className="sensor-description">
                                 {sensor.sensor_description}
                               </div>
                             )}
@@ -423,6 +420,7 @@ const Sensors = () => {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       {showModal && (
