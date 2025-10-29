@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { testsAPI } from '../api';
+import { testsAPI, machinesAPI, machineTypesAPI } from '../api';
 import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock } from 'lucide-react';
 
 const Tests = () => {
   const [tests, setTests] = useState([]);
   const [filteredTests, setFilteredTests] = useState([]);
+  const [machines, setMachines] = useState([]);
+  const [machineTypes, setMachineTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, running, completed
   const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
+  const [machineFilter, setMachineFilter] = useState('all'); // all, specific machine name
+  const [machineTypeFilter, setMachineTypeFilter] = useState('all'); // all, specific machine type
   const [sortField, setSortField] = useState('test_created_at');
   const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
-    loadTests();
+    loadData();
   }, []);
 
-  const loadTests = async () => {
+  const loadData = async () => {
     try {
-      const response = await testsAPI.getAll();
-      setTests(response.data);
-      setFilteredTests(response.data);
+      const [testsResponse, machinesResponse, machineTypesResponse] = await Promise.all([
+        testsAPI.getAll(),
+        machinesAPI.getAll(),
+        machineTypesAPI.getAll()
+      ]);
+      
+      setTests(testsResponse.data);
+      setFilteredTests(testsResponse.data);
+      setMachines(machinesResponse.data);
+      setMachineTypes(machineTypesResponse.data);
     } catch (error) {
-      console.error('Error loading tests:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -39,6 +50,8 @@ const Tests = () => {
       const matchesSearch = searchTerm === '' || 
         test.test_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         test.test_description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.machine_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.machine_type_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         test.id.toString().includes(searchTerm);
       
       let matchesStatus = true;
@@ -63,7 +76,17 @@ const Tests = () => {
         }
       }
 
-      return matchesSearch && matchesStatus && matchesDate;
+      let matchesMachine = true;
+      if (machineFilter !== 'all') {
+        matchesMachine = test.machine_name === machineFilter;
+      }
+
+      let matchesMachineType = true;
+      if (machineTypeFilter !== 'all') {
+        matchesMachineType = test.machine_type_name === machineTypeFilter;
+      }
+
+      return matchesSearch && matchesStatus && matchesDate && matchesMachine && matchesMachineType;
     });
 
     // Sort
@@ -102,7 +125,7 @@ const Tests = () => {
   // Apply filters when dependencies change
   useEffect(() => {
     filterAndSortTests();
-  }, [tests, searchTerm, statusFilter, dateFilter, sortField, sortDirection]);
+  }, [tests, searchTerm, statusFilter, dateFilter, machineFilter, machineTypeFilter, sortField, sortDirection]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -117,6 +140,8 @@ const Tests = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDateFilter('all');
+    setMachineFilter('all');
+    setMachineTypeFilter('all');
     setSortField('test_created_at');
     setSortDirection('desc');
   };
@@ -130,11 +155,11 @@ const Tests = () => {
   const handleStopTest = async (testId) => {
     if (window.confirm('Are you sure you want to stop this test?')) {
       try {
-        await testsAPI.stop(testId);
-        loadTests();
+        await testsAPI.update(testId, { test_status: 'idle' });
+        loadData();
       } catch (error) {
         console.error('Error stopping test:', error);
-        alert('Error stopping test');
+        alert('Failed to stop test');
       }
     }
   };
@@ -205,7 +230,7 @@ const Tests = () => {
               <Search size={18} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search tests..."
+                placeholder="Search tests, machines..."
                 className="form-control"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -228,6 +253,38 @@ const Tests = () => {
             </select>
           </div>
 
+          {/* Machine Type Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={machineTypeFilter}
+              onChange={(e) => setMachineTypeFilter(e.target.value)}
+            >
+              <option value="all">All Machine Types</option>
+              {machineTypes.map((type) => (
+                <option key={type.id} value={type.machine_type_name}>
+                  {type.machine_type_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Machine Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={machineFilter}
+              onChange={(e) => setMachineFilter(e.target.value)}
+            >
+              <option value="all">All Machines</option>
+              {machines.map((machine) => (
+                <option key={machine.id} value={machine.machine_name}>
+                  {machine.machine_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Date Filter */}
           <div className="form-group">
             <select
@@ -243,7 +300,7 @@ const Tests = () => {
           </div>
 
           {/* Clear Filters */}
-          {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all') && (
+          {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || machineFilter !== 'all' || machineTypeFilter !== 'all') && (
             <button
               className="btn btn-secondary btn-sm"
               onClick={clearFilters}
@@ -281,7 +338,7 @@ const Tests = () => {
             </button>
           </div>
         ) : (
-          <div className="table-container">
+          <div className="table-responsive">
             <table className="table">
               <thead>
                 <tr>
@@ -291,6 +348,28 @@ const Tests = () => {
                   >
                     Test Name
                     {sortField === 'test_name' && (
+                      <span className={`sort-indicator ${sortDirection}`}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('machine_name')}
+                    className={`sortable ${sortField === 'machine_name' ? 'sorted' : ''}`}
+                  >
+                    Machine
+                    {sortField === 'machine_name' && (
+                      <span className={`sort-indicator ${sortDirection}`}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('machine_type_name')}
+                    className={`sortable ${sortField === 'machine_type_name' ? 'sorted' : ''}`}
+                  >
+                    Machine Type
+                    {sortField === 'machine_type_name' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
@@ -344,6 +423,19 @@ const Tests = () => {
                       )}
                     </td>
                     <td>
+                      <strong>{test.machine_name || 'N/A'}</strong>
+                      {test.machine_description && (
+                        <div className="text-small text-secondary">
+                          {test.machine_description}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span className="text-secondary">
+                        {test.machine_type_name || 'N/A'}
+                      </span>
+                    </td>
+                    <td>
                       <span className={`status-card ${getStatusColor(test.test_status)}`}>
                         {test.test_status === 'running' ? <Play size={12} /> : null}
                         {test.test_status.toUpperCase()}
@@ -356,17 +448,26 @@ const Tests = () => {
                       <strong>{test.test_sensor_count || 0}</strong>
                     </td>
                     <td>
-                      <div className="btn-group">
+                      <div className="action-buttons">
+                        <Link
+                          to={`/tests/overview/${test.id}`}
+                          className="btn btn-primary btn-sm"
+                          title="View Test Overview"
+                        >
+                          <Eye size={14} />
+                        </Link>
                         <Link
                           to={`/tests/edit/${test.id}`}
-                          className="btn btn-secondary btn-small"
+                          className="btn btn-secondary btn-sm"
+                          title="Edit Test"
                         >
                           <Edit size={14} />
                         </Link>
                         {test.test_status === 'running' && (
                           <button
-                            className="btn btn-danger btn-small"
+                            className="btn btn-danger btn-sm"
                             onClick={() => handleStopTest(test.id)}
+                            title="Stop Test"
                           >
                             <Square size={14} />
                           </button>

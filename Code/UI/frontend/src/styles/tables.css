@@ -5,10 +5,13 @@
 /* Table Container */
 .table-responsive {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   background: white;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+  width: 100%;
 }
 
 /* Base Table */
@@ -20,6 +23,7 @@
   border-collapse: collapse;
   font-size: 14px;
   line-height: 1.5;
+  min-width: 800px; /* Ensures table has minimum width for readability */
 }
 
 /* Table Header */
@@ -298,11 +302,13 @@
 @media (max-width: 768px) {
   .table-responsive {
     border-radius: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   
   .table {
     font-size: 13px;
-    min-width: 600px;
+    min-width: 700px; /* Adjust minimum width for tablets */
   }
   
   .table th,
@@ -327,7 +333,7 @@
   }
   
   .table .action-buttons {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 4px;
   }
 }
@@ -335,7 +341,7 @@
 @media (max-width: 480px) {
   .table {
     font-size: 12px;
-    min-width: 500px;
+    min-width: 600px; /* Adjust minimum width for mobile */
   }
   
   .table th,
@@ -355,5 +361,10 @@
   
   .table .sensor-id {
     font-size: 10px;
+  }
+  
+  .table .action-buttons {
+    flex-direction: column;
+    gap: 4px;
   }
 }

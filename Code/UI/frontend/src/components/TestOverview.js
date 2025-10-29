@@ -1,0 +1,684 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Plot from 'react-plotly.js';
+import { 
+  ArrowLeft, 
+  Play, 
+  Square, 
+  Edit2, 
+  Save, 
+  X, 
+  Activity, 
+  Zap, 
+  Clock,
+  MapPin,
+  Info,
+  Wifi,
+  WifiOff
+} from 'lucide-react';
+import { testsAPI, testRelationsAPI, sensorsAPI, machinesAPI, measurementsAPI } from '../api';
+
+const TestOverview = () => {
+  const { testId } = useParams();
+  const navigate = useNavigate();
+
+  // Test data state
+  const [test, setTest] = useState(null);
+  const [testSensors, setTestSensors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Editable fields state
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedNote, setEditedNote] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+
+  // Chart state
+  const [selectedSensorIds, setSelectedSensorIds] = useState(new Set());
+  const [plotData, setPlotData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [sensorMeasurements, setSensorMeasurements] = useState({});
+  
+  // Chart ref for zoom controls
+  const chartRef = useRef(null);
+
+  // Plotly layout configuration
+  const plotLayout = {
+    title: 'Sensor Data Over Time',
+    xaxis: {
+      title: 'Time',
+      type: 'date',
+      showgrid: true,
+      gridcolor: 'rgba(0, 0, 0, 0.1)'
+    },
+    yaxis: {
+      title: 'Value',
+      showgrid: true,
+      gridcolor: 'rgba(0, 0, 0, 0.1)'
+    },
+    hovermode: 'closest',
+    showlegend: true,
+    legend: {
+      orientation: 'h',
+      x: 0,
+      y: 1.1
+    },
+    margin: {
+      l: 60,
+      r: 20,
+      t: 60,
+      b: 60
+    },
+    autosize: true,
+    height: 400
+  };
+
+  // Plotly config for interactions
+  const plotConfig = {
+    displayModeBar: true,
+    modeBarButtonsToAdd: ['pan2d', 'zoom2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d'],
+    modeBarButtonsToRemove: ['toImage'],
+    responsive: true,
+    displaylogo: false
+  };
+
+  // Zoom control functions (for Plotly)
+  const resetZoom = () => {
+    if (chartRef.current) {
+      const update = {
+        'xaxis.autorange': true,
+        'yaxis.autorange': true
+      };
+      window.Plotly.relayout(chartRef.current.el, update);
+    }
+  };
+
+  // Simplified zoom functions for Plotly (since Plotly has built-in zoom controls)
+  const zoomIn = () => {
+    // Plotly handles zoom via built-in controls
+    console.log('Use Plotly zoom controls or mouse wheel');
+  };
+
+  const zoomOut = () => {
+    // Plotly handles zoom via built-in controls  
+    console.log('Use Plotly zoom controls or mouse wheel');
+  };
+
+  useEffect(() => {
+    loadTestData();
+    
+    // Simplified keyboard shortcuts - only reset zoom since Plotly handles zoom natively
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch(event.key) {
+          case '0':
+            event.preventDefault();
+            resetZoom();
+            break;
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [testId]);
+
+  useEffect(() => {
+    if (selectedSensorIds.size > 0) {
+      loadChartData();
+    } else {
+      setPlotData([]);
+    }
+  }, [selectedSensorIds, testSensors]);
+
+  const loadTestData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load test with machine details
+      const testResponse = await testsAPI.getById(testId);
+      const testData = testResponse.data;
+      setTest(testData);
+      setEditedNote(testData.test_notes || '');
+      setEditedDescription(testData.test_description || '');
+
+      // Load test relations (sensors)
+      const relationsResponse = await testRelationsAPI.getByTestId(testId);
+      const relations = relationsResponse.data;
+      console.log('Loaded test relations:', relations);
+
+      setTestSensors(relations);
+
+    } catch (error) {
+      console.error('Error loading test data:', error);
+      setError('Failed to load test data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mock function to generate last received time (replace with real API call)
+  const generateMockLastReceived = () => {
+    const secondsAgo = Math.floor(Math.random() * 300); // 0-300 seconds ago
+    return secondsAgo;
+  };
+
+  const loadChartData = async () => {
+    try {
+      setChartLoading(true);
+      
+      const traces = [];
+      const sensorColors = [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+        '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
+      ];
+
+      let colorIndex = 0;
+      
+      for (const sensorId of selectedSensorIds) {
+        const sensor = testSensors.find(s => s.id === sensorId);
+        if (!sensor) continue;
+
+        try {
+          // Fetch real measurement data
+          const measurementsResponse = await measurementsAPI.getSensorDataAvg(
+            sensor.test_relation_id,
+            {
+              limit: 1000, // Get last 1000 data points
+            }
+          );
+          
+          const measurements = measurementsResponse.data;
+          
+          // Convert measurements to Plotly format
+          const times = [];
+          const values = [];
+          
+          if (measurements.length > 0) {
+            measurements
+              .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
+              .forEach(measurement => {
+                times.push(new Date(measurement.datetime));
+                values.push(parseFloat(measurement.value));
+              });
+          } else {
+            // Use mock data if no real data available
+            const mockData = generateMockChartData();
+            mockData.forEach(point => {
+              times.push(point.x);
+              values.push(point.y);
+            });
+          }
+          
+          traces.push({
+            x: times,
+            y: values,
+            type: 'scattergl',
+            mode: 'lines+markers',
+            name: `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'})`,
+            line: {
+              color: sensorColors[colorIndex % sensorColors.length],
+              width: 2
+            },
+            marker: {
+              color: sensorColors[colorIndex % sensorColors.length],
+              size: 4
+            },
+            hovertemplate: `<b>%{fullData.name}</b><br>` +
+                          `Time: %{x}<br>` +
+                          `Value: %{y}${sensor.unit || ''}<br>` +
+                          `<extra></extra>`,
+            connectgaps: false
+          });
+          
+        } catch (sensorError) {
+          console.warn(`Error loading data for sensor ${sensor.sensor_name}:`, sensorError);
+          
+          // Fall back to mock data if API fails
+          const mockData = generateMockChartData();
+          const times = mockData.map(point => point.x);
+          const values = mockData.map(point => point.y);
+          
+          traces.push({
+            x: times,
+            y: values,
+            type: 'scattergl',
+            mode: 'lines+markers',
+            name: `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'}) [Mock]`,
+            line: {
+              color: sensorColors[colorIndex % sensorColors.length],
+              width: 2,
+              dash: 'dash'
+            },
+            marker: {
+              color: sensorColors[colorIndex % sensorColors.length],
+              size: 4
+            },
+            hovertemplate: `<b>%{fullData.name}</b><br>` +
+                          `Time: %{x}<br>` +
+                          `Value: %{y}${sensor.unit || ''}<br>` +
+                          `<extra></extra>`,
+            connectgaps: false
+          });
+        }
+        
+        colorIndex++;
+      }
+
+      setPlotData(traces);
+      
+    } catch (error) {
+      console.error('Error loading chart data:', error);
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  // Mock function to generate chart data (replace with real API call to measurements)
+  const generateMockChartData = () => {
+    const data = [];
+    const now = new Date();
+    
+    for (let i = 100; i >= 0; i--) {
+      const time = new Date(now.getTime() - i * 10000); // 10 second intervals
+      const value = Math.sin(i * 0.1) * 10 + Math.random() * 5 + 50;
+      data.push({
+        x: time,
+        y: parseFloat(value.toFixed(2))
+      });
+    }
+    return data;
+  };
+
+  const handleSensorToggle = (sensorId) => {
+    const newSelectedIds = new Set(selectedSensorIds);
+    if (newSelectedIds.has(sensorId)) {
+      newSelectedIds.delete(sensorId);
+    } else {
+      newSelectedIds.add(sensorId);
+    }
+    setSelectedSensorIds(newSelectedIds);
+  };
+
+  const handleSaveNote = async () => {
+    try {
+      console.log('Saving note:', editedNote);
+      // Always send the note, even if empty (to allow clearing notes)
+      const updateData = { test_notes: editedNote || '' };
+      await testsAPI.update(testId, updateData);
+      setTest({ ...test, test_notes: editedNote });
+      setIsEditingNote(false);
+    } catch (error) {
+      console.error('Error saving note!!!:', error);
+      alert('Failed to save note');
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    try {
+      await testsAPI.update(testId, { test_description: editedDescription });
+      setTest({ ...test, test_description: editedDescription });
+      setIsEditingDescription(false);
+    } catch (error) {
+      console.error('Error saving description:', error);
+      alert('Failed to save description');
+    }
+  };
+
+  const handleStartTest = async () => {
+    try {
+      await testsAPI.update(testId, { test_status: 'running' });
+      setTest({ ...test, test_status: 'running' });
+      console.log('Test started:', testId);
+    } catch (error) {
+      console.error('Error starting test:', error);
+      alert('Failed to start test');
+    }
+  };
+
+  const handleStopTest = async () => {
+    try {
+      await testsAPI.update(testId, { test_status: 'idle' });
+      setTest({ ...test, test_status: 'idle' });
+      console.log('Test stopped:', testId);
+    } catch (error) {
+      console.error('Error stopping test:', error);
+      alert('Failed to stop test');
+    }
+  };
+
+  const formatLastReceived = (secondsAgo) => {
+    if (secondsAgo < 60) {
+      return `${secondsAgo}s ago`;
+    } else if (secondsAgo < 3600) {
+      return `${Math.floor(secondsAgo / 60)}m ago`;
+    } else {
+      return `${Math.floor(secondsAgo / 3600)}h ago`;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'running': return 'status-running';
+      case 'completed': return 'status-completed'; 
+      case 'idle': return 'status-inactive';
+      case 'failed': return 'status-error';
+      default: return 'status-inactive';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <span className="loading-text">Loading test overview...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !test) {
+    return (
+      <div className="container">
+        <div className="error-state">
+          <h2>Error Loading Test</h2>
+          <p>{error || 'Test not found'}</p>
+          <button onClick={() => navigate('/tests')} className="btn btn-primary">
+            <ArrowLeft size={16} />
+            Back to Tests
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container">
+      {/* Enhanced Header with Test and Machine Details */}
+      <div className="page-header enhanced-header">
+        <div className="header-top-row">
+          <div className="header-left">
+            <button onClick={() => navigate('/tests')} className="btn btn-secondary btn-icon">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="header-main-info">
+              <div className="title-section">
+                <h1 className="page-title enhanced-title">{test.test_name}</h1>
+                <p className="page-subtitle">Test ID: {test.id} • Created: {new Date(test.test_created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="machine-section">
+                <div className="machine-info">
+                  <Zap size={14} style={{ color: '#10b981' }} />
+                  <span className="machine-name">{test.machine_name}</span>
+                  <span className="machine-type">({test.machine_type_name || 'Unknown Type'})</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="header-right">
+            <div className="test-control-status-group">
+              <div className="test-control-buttons">
+                {test.test_status === 'running' ? (
+                  <button 
+                    className="btn btn-danger btn-icon"
+                    onClick={handleStopTest}
+                    title="Stop Test"
+                  >
+                    <Square size={16} />
+                    Stop Test
+                  </button>
+                ) : (
+                  <button 
+                    className="btn btn-success btn-icon"
+                    onClick={handleStartTest}
+                    title="Start Test"
+                  >
+                    <Play size={16} />
+                    Start Test
+                  </button>
+                )}
+              </div>
+              <span className={`status-card ${getStatusColor(test.test_status)}`}>
+                {test.test_status === 'running' ? <Play size={14} /> : null}
+                {test.test_status.toUpperCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="header-actions enhanced-actions">
+          <div className="editable-controls-grid">
+            <div className="editable-field">
+              <div className="field-header">
+                <span className="edit-label">Description:</span>
+                {isEditingDescription && (
+                  <div className="edit-buttons">
+                    <button onClick={handleSaveDescription} className="header-btn save">
+                      <Save size={12} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsEditingDescription(false);
+                        setEditedDescription(test.test_description || '');
+                      }} 
+                      className="header-btn cancel"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {isEditingDescription ? (
+                <div className="header-edit">
+                  <textarea
+                    value={editedDescription}
+                    onChange={(e) => setEditedDescription(e.target.value)}
+                    className="header-textarea"
+                    placeholder="Add description..."
+                    rows="3"
+                  />
+                </div>
+              ) : (
+                <span 
+                  className="header-editable-text multiline" 
+                  onClick={() => setIsEditingDescription(true)}
+                  title="Click to edit description"
+                >
+                  {test.test_description || 'Add description...'}
+                </span>
+              )}
+            </div>
+            <div className="editable-field">
+              <div className="field-header">
+                <span className="edit-label">Note:</span>
+                {isEditingNote && (
+                  <div className="edit-buttons">
+                    <button onClick={handleSaveNote} className="header-btn save">
+                      <Save size={12} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsEditingNote(false);
+                        setEditedNote(test.test_notes || '');
+                      }} 
+                      className="header-btn cancel"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {isEditingNote ? (
+                <div className="header-edit">
+                  <textarea
+                    value={editedNote}
+                    onChange={(e) => setEditedNote(e.target.value)}
+                    className="header-textarea"
+                    placeholder="Add note..."
+                    rows="3"
+                  />
+                </div>
+              ) : (
+                <span 
+                  className="header-editable-text multiline" 
+                  onClick={() => setIsEditingNote(true)}
+                  title="Click to edit note"
+                >
+                  {test.test_notes || 'Add note...'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="test-overview-layout">
+        {/* Data Section - Sensors Table and Chart */}
+        <div className="data-section">
+          {/* Left Side - Sensors Table */}
+          <div className="sensors-panel">
+            <div className="card sensors-table-card">
+              <div className="card-header">
+                <div className="flex-center gap-10">
+                  <Info size={20} style={{ color: '#f59e0b' }} />
+                  <div>
+                    <h3 className="card-title">Test Sensors</h3>
+                    <p className="card-subtitle">{testSensors.length} sensors configured</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body sensors-body">
+                <div className="sensors-scroll-container">
+                  <table className="table table-compact">
+                    <thead>
+                      <tr>
+                        <th>Sensor</th>
+                        <th>Location</th>
+                        <th>Type</th>
+                        <th>Unit</th>
+                        <th>Status</th>
+                        <th>Last Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {testSensors.map((sensor) => (
+                        <tr 
+                          key={sensor.id}
+                          className={`sensor-row ${selectedSensorIds.has(sensor.id) ? 'selected' : ''}`}
+                          onClick={() => handleSensorToggle(sensor.id)}
+                        >
+                          <td>
+                            <div className="sensor-info">
+                              <strong>{sensor.sensor_name}</strong>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="sensor-location">
+                              <MapPin size={12} />
+                              {sensor.sensor_location || 'N/A'}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="sensor-type">
+                              <span>{sensor.sensor_type_name}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="unit-badge">{sensor.sensor_type_unit || 'N/A'}</span>
+                          </td>
+                          <td>
+                            <div className="sensor-status">
+                              {sensor.sensor_is_online === 'online' ? (
+                                <Wifi size={14} className="status-online" />
+                              ) : (
+                                <WifiOff size={14} className="status-offline" />
+                              )}
+                              <span className={`status-text ${sensor.sensor_is_online}`}>
+                                {sensor.sensor_is_online === 'online' ? 'Online' : 'Offline'}
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="last-data">
+                              {formatLastReceived(sensor.last_data_received)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {testSensors.length === 0 && (
+                  <div className="empty-state">
+                    <p>No sensors configured for this test</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Chart */}
+          <div className="chart-panel">
+            <div className="card chart-card">
+              <div className="card-header">
+                <div className="flex-center gap-10">
+                  <Activity size={20} style={{ color: '#8b5cf6' }} />
+                  <div>
+                    <h3 className="card-title">Sensor Data Visualization</h3>
+                    <p className="card-subtitle">
+                      {selectedSensorIds.size > 0 
+                        ? `${selectedSensorIds.size} sensor${selectedSensorIds.size > 1 ? 's' : ''} selected`
+                        : 'Click on sensors to view data'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body chart-container-wrapper">
+                {selectedSensorIds.size === 0 ? (
+                  <div className="chart-empty-state">
+                    <Activity size={64} style={{ color: '#d1d5db' }} />
+                    <h4>No sensors selected</h4>
+                    <p>Click on sensors in the table to display their data on this chart</p>
+                  </div>
+                ) : chartLoading ? (
+                  <div className="chart-loading">
+                    <div className="spinner"></div>
+                    <p>Loading chart data...</p>
+                  </div>
+                ) : (
+                  <div className="chart-container">
+                    <div className="chart-controls">
+                      <div className="chart-control-buttons">
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={resetZoom}
+                          title="Reset Zoom"
+                        >
+                          ↺ Reset Zoom
+                        </button>
+                      </div>
+                      <div className="chart-instructions">
+                        <small>💡 Use toolbar to zoom/pan • Drag to select area • Double-click to reset zoom • Ctrl+0 to reset</small>
+                      </div>
+                    </div>
+                    <Plot 
+                      ref={chartRef}
+                      data={plotData}
+                      layout={plotLayout}
+                      config={plotConfig}
+                      style={{width: '100%', height: '100%'}}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TestOverview;

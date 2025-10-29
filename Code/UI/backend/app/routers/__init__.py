@@ -12,7 +12,8 @@ from . import (
     tests,
     test_relations,
     mqtt,
-    system
+    system,
+    measurements
 )
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "tests",
     "test_relations",
     "mqtt",
-    "system"
+    "system",
+    "measurements"
 ]

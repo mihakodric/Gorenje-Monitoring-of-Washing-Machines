@@ -34,10 +34,7 @@ async def get_sensor_by_id_endpoint(sensor_id: int):
     sensor = await get_sensor_by_id(sensor_id)
     if not sensor:
         raise HTTPException(status_code=404, detail="Sensor not found")
-    return {
-        "message": "Sensor retrieved successfully", 
-        "sensor": sensor
-    }
+    return sensor
 
 
 @router.post("", response_model=dict)

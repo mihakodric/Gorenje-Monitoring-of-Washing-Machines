@@ -23,21 +23,27 @@ def get_db_pool():
 # ================================
 
 async def get_all_tests() -> List[Dict]:
-    """Get all tests with sensor count."""
+    """Get all tests with sensor count and machine information."""
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch("""
             SELECT 
                 t.*,
-                COALESCE(tr.sensor_count, 0) as test_sensor_count
-            FROM metadata.tests t
+                COALESCE(tr.sensor_count, 0) AS test_sensor_count,
+                m.machine_name,
+                m.machine_description,
+                mt.machine_type_name,
+                mt.machine_type_description
+            FROM metadata.tests AS t
             LEFT JOIN (
                 SELECT 
                     test_id,
-                    COUNT(*) as sensor_count
+                    COUNT(*) AS sensor_count
                 FROM metadata.test_relations
                 GROUP BY test_id
-            ) tr ON t.id = tr.test_id
-            ORDER BY t.test_created_at DESC
+            ) AS tr ON t.id = tr.test_id
+            LEFT JOIN metadata.machines AS m ON t.machine_id = m.id
+            LEFT JOIN metadata.machine_types AS mt ON m.machine_type_id = mt.id
+            ORDER BY t.test_created_at DESC;
         """)
     return [dict(row) for row in rows]
 
@@ -47,32 +53,21 @@ async def get_test_by_id(test_id: int) -> Optional[Dict]:
         row = await conn.fetchrow("""
             SELECT 
                 t.*,
-                COALESCE(tr.sensor_count, 0) as test_sensor_count
-            FROM metadata.tests t
-            LEFT JOIN (
-                SELECT 
-                    test_id,
-                    COUNT(*) as sensor_count
-                FROM metadata.test_relations
-                GROUP BY test_id
-            ) tr ON t.id = tr.test_id
-            WHERE t.id = $1;
-        """, test_id)
-    return dict(row) if row else None
-
-async def get_test_with_machine_by_id(test_id: int) -> Optional[Dict]:
-    """Get test by ID with machine details."""
-    async with get_db_pool().acquire() as conn:
-        row = await conn.fetchrow("""
-            SELECT 
-                t.*,
+                COALESCE(tr.sensor_count, 0) AS test_sensor_count,
                 m.machine_name,
                 m.machine_description,
                 mt.machine_type_name,
                 mt.machine_type_description
-            FROM metadata.tests t
-            LEFT JOIN metadata.machines m ON t.machine_id = m.id
-            LEFT JOIN metadata.machine_types mt ON m.machine_type_id = mt.id
+            FROM metadata.tests AS t
+            LEFT JOIN (
+                SELECT 
+                    test_id,
+                    COUNT(*) AS sensor_count
+                FROM metadata.test_relations
+                GROUP BY test_id
+            ) AS tr ON t.id = tr.test_id
+            LEFT JOIN metadata.machines AS m ON t.machine_id = m.id
+            LEFT JOIN metadata.machine_types AS mt ON m.machine_type_id = mt.id
             WHERE t.id = $1;
         """, test_id)
     return dict(row) if row else None
@@ -121,16 +116,28 @@ async def update_test_metadata(test_id: int, test_data: Dict) -> Optional[Dict]:
     """Update test."""
     fields = []
     values = []
+    # Fields that can be empty (allow clearing)
+    clearable_fields = {'test_notes', 'test_description'}
+    
     for key, value in test_data.items():
-        # Filter out null, None, and empty string values
-        if value is not None and value != '' and value != 'null':
-            # Trim whitespace for string values
-            if isinstance(value, str):
-                value = value.strip()
-            # Skip if value becomes empty after trimming
-            if value != '':
+        # Allow clearable fields to be empty strings
+        if key in clearable_fields:
+            if value is not None and value != 'null':
+                # Trim whitespace for string values
+                if isinstance(value, str):
+                    value = value.strip()
                 fields.append(f"{key} = ${len(values) + 1}")
                 values.append(value)
+        else:
+            # Filter out null, None, and empty string values for other fields
+            if value is not None and value != '' and value != 'null':
+                # Trim whitespace for string values
+                if isinstance(value, str):
+                    value = value.strip()
+                # Skip if value becomes empty after trimming
+                if value != '':
+                    fields.append(f"{key} = ${len(values) + 1}")
+                    values.append(value)
         
     if not fields:
         return None

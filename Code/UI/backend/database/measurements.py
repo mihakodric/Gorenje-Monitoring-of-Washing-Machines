@@ -26,9 +26,10 @@ async def get_sensor_measurements_avg(test_relation_id: int) -> List[Dict]:
     """Get sensor measurements for a given test relation ID."""
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch("""
-            SELECT * FROM timeseries.measurements_avg_10s
+            SELECT *, bucket AS measurement_timedate
+            FROM timeseries.measurements_avg_10s
             WHERE test_relation_id = $1
-            ORDER BY datetime DESC
+            ORDER BY measurement_timedate DESC
         """, test_relation_id)
     return [dict(row) for row in rows]
 

@@ -56,7 +56,6 @@ from .machine_types import (
 from .tests import (
     get_all_tests,
     get_test_by_id,
-    get_test_with_machine_by_id,
     create_test,
     update_test_metadata,
     delete_test,
@@ -143,7 +142,6 @@ __all__ = [
     # Tests functions
     'get_all_tests',
     'get_test_by_id',
-    'get_test_with_machine_by_id',
     'create_test',
     'update_test_metadata',
     'delete_test',

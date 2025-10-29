@@ -36,3 +36,6 @@ class Sensor(SensorBase):
     sensor_created_at: datetime
     sensor_last_seen: Optional[datetime] = None
     sensor_settings: Optional[Dict[str, Any]] = None
+    sensor_type_name: Optional[str] = None
+    sensor_type_description: Optional[str] = None
+    sensor_type_unit: Optional[str] = None

@@ -16,6 +16,7 @@ from app.routers import (
     machine_types,
     tests,
     test_relations,
+    measurements,
     mqtt,
     system
 )
@@ -83,6 +84,12 @@ def create_app() -> FastAPI:
         test_relations.router,
         prefix="/api/test-relations",
         tags=["Test Relations"]
+    )
+    
+    app.include_router(
+        measurements.router,
+        prefix="/api/measurements",
+        tags=["Measurements"]
     )
     
     app.include_router(

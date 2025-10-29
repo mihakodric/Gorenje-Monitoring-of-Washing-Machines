@@ -9,7 +9,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException
 
 from app.models import (
-    TestRelation, TestRelationCreate
+    TestRelation, TestRelationCreate, TestRelationAllDetails
 )
 from database import (
     get_test_relations,
@@ -22,7 +22,7 @@ from database import (
 router = APIRouter()
 
 
-@router.get("/{test_id}", response_model=List[TestRelation])
+@router.get("/{test_id}", response_model=List[TestRelationAllDetails])
 async def get_test_relations_endpoint(test_id: int):
     """Get all test relations."""
     return await get_test_relations(test_id)

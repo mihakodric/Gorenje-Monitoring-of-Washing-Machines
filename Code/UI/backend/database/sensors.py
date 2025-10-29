@@ -34,8 +34,9 @@ async def get_all_sensors() -> List[Dict]:
     """
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch("""
-            SELECT *
+            SELECT sensors.*, st.sensor_type_name, st.sensor_type_description, st.sensor_type_unit
             FROM metadata.sensors
+            LEFT JOIN metadata.sensor_types st ON sensors.sensor_type_id = st.id
             ORDER BY sensor_created_at DESC
         """)
 

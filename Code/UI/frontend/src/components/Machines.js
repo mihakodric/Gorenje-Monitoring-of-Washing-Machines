@@ -14,6 +14,7 @@ const Machines = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
+  const [machineTypeFilter, setMachineTypeFilter] = useState("all");
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState("asc");
 
@@ -23,7 +24,7 @@ const Machines = () => {
 
   useEffect(() => {
     filterAndSortMachines();
-  }, [machines, searchTerm, sortField, sortDirection]);
+  }, [machines, searchTerm, machineTypeFilter, sortField, sortDirection]);
 
   const loadMachinesAndMachineTypes = async () => {
 
@@ -60,7 +61,11 @@ const Machines = () => {
         String(machine.machine_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(machine.machine_description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-      return matchesSearch;
+      // Machine type filter
+      const matchesMachineType = machineTypeFilter === "all" || 
+        machine.machine_type_id?.toString() === machineTypeFilter;
+
+      return matchesSearch && matchesMachineType;
     });
 
     // Sort
@@ -90,6 +95,7 @@ const Machines = () => {
 
   const clearFilters = () => {
     setSearchTerm("");
+    setMachineTypeFilter("all");
     setSortField("name");
     setSortDirection("asc");
   };
@@ -195,8 +201,24 @@ const Machines = () => {
             </div>
           </div>
 
+          {/* Machine Type Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={machineTypeFilter}
+              onChange={(e) => setMachineTypeFilter(e.target.value)}
+            >
+              <option value="all">All Machine Types</option>
+              {machineTypes.map((type) => (
+                <option key={type.id} value={type.id.toString()}>
+                  {type.machine_type_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Clear Filters */}
-          {searchTerm && (
+          {(searchTerm || machineTypeFilter !== "all") && (
             <button
               className="btn btn-secondary btn-sm"
               onClick={clearFilters}

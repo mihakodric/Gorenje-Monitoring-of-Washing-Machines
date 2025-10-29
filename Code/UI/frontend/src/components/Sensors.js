@@ -398,14 +398,14 @@ const Sensors = () => {
                       <td>
                         <div className="action-buttons">
                           <button
-                            className="btn btn-secondary btn-small"
+                            className="btn btn-secondary btn-sm"
                             onClick={() => handleEditSensor(sensor)}
                             title="Edit sensor"
                           >
                             <Edit size={14} />
                           </button>
                           <button
-                            className="btn btn-danger btn-small"
+                            className="btn btn-danger btn-sm"
                             onClick={() => handleDeleteSensor(sensor.id)}
                             title="Delete sensor"
                           >

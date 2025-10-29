@@ -306,11 +306,7 @@ const Settings = () => {
           </div>
 
           <div style={{ padding: '30px' }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-              gap: '20px' 
-            }}>
+            <div className="mqtt-config-grid">
               {/* Broker Configuration */}
               <div>
                 <h4 style={{ 
@@ -465,7 +461,7 @@ const Settings = () => {
             </button>
           </div>
 
-          <div className="table-container">
+          <div className="table-responsive">
             <table className="table">
               <thead>
                 <tr>
@@ -545,7 +541,7 @@ const Settings = () => {
             </button>
           </div>
 
-          <div className="table-container">
+          <div className="table-responsive">
             <table className="table">
               <thead>
                 <tr>

@@ -144,6 +144,13 @@ export const testRelationsAPI = {
 };
 
 
+// Measurements API
+const measurementsAPIprefix = '/api/measurements';
+export const measurementsAPI = {
+  getSensorDataAvg: (testRelationId, params = {}) => 
+    api.get(`${measurementsAPIprefix}/avg/${testRelationId}`, { params }),
+};
+
 // MQTT API
 const mqttAPIprefix = '/api/mqtt';
 export const mqttAPI = {

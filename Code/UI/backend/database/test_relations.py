@@ -25,7 +25,12 @@ async def get_test_relations(test_id: int) -> List[Dict]:
             SELECT 
                 tr.*, 
                 s.sensor_name, 
-                st.sensor_type_name AS sensor_type,   -- join sensor_types to get type name
+                s.sensor_is_online, 
+                s.sensor_created_at, 
+                s.sensor_last_seen, 
+                st.sensor_type_name, 
+                st.sensor_type_description, 
+                st.sensor_type_unit,
                 tr.sensor_location
             FROM metadata.test_relations tr
             JOIN metadata.sensors s ON tr.sensor_id = s.id

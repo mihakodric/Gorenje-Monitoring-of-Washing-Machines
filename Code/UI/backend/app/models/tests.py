@@ -34,6 +34,7 @@ class TestUpdate(BaseModel):
     machine_id: Optional[int] = None
     test_description: Optional[str] = None
     test_notes: Optional[str] = None
+    test_status: Optional[TestStatus] = None
 
 
 class Test(TestBase):
@@ -45,3 +46,7 @@ class Test(TestBase):
     test_sensor_count: Optional[int] = 0
     test_first_data_time: Optional[datetime] = None
     test_last_data_time: Optional[datetime] = None
+    machine_name: Optional[str] = None
+    machine_description: Optional[str] = None
+    machine_type_name: Optional[str] = None
+    machine_type_description: Optional[str] = None

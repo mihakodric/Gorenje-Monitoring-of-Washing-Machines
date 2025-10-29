@@ -492,8 +492,8 @@ const NewTest = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredMachines().map(machine => (
-                      <tr key={machine.id}>
+                    {getFilteredMachines().map((machine, index) => (
+                      <tr key={`machine-${machine.id}-${index}`}>
                         <td>
                           <div className="machine-card">
                             <div className="machine-icon">
@@ -606,8 +606,8 @@ const NewTest = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {getFilteredAvailableSensors().map(sensor => (
-                      <tr key={sensor.id}>
+                    {getFilteredAvailableSensors().map((sensor, index) => (
+                      <tr key={`available-sensor-${sensor.id}-${index}`}>
                         <td>
                           <div>
                             <strong>{sensor.sensor_name}</strong>
@@ -693,8 +693,8 @@ const NewTest = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {getFilteredSelectedSensors().map(item => (
-                          <tr key={item.sensor_id}>
+                        {getFilteredSelectedSensors().map((item, index) => (
+                          <tr key={`selected-sensor-${item.sensor_id}-${index}`}>
                             <td>
                               <div>
                                 <strong>{item.sensor.sensor_name}</strong>

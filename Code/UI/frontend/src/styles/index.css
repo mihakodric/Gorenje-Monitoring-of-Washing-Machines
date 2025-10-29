@@ -9,6 +9,8 @@
 @import './cards.css';
 @import './tables.css';
 @import './headers.css';
+@import './modals.css';
+@import './test-overview.css';
 
 /* =================================
    COMPONENT-SPECIFIC STYLES
