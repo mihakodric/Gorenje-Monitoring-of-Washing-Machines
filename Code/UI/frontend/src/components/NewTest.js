@@ -551,10 +551,10 @@ const NewTest = () => {
           {errors.sensors && <div className="error-message">{errors.sensors}</div>}
 
           {/* Horizontal Layout for Selected and Available Sensors */}
-          <div className="grid-2-col">
+          <div className="sensor-tables-wrapper">
             
             {/* Left Side - Available Sensors */}
-            <div className="table-full-height">
+            <div className="sensor-table-section">
               <h3>Available Sensors ({getFilteredAvailableSensors().length}):</h3>
 
               {/* Available Sensors Filters */}
@@ -651,7 +651,7 @@ const NewTest = () => {
             </div>
 
             {/* Right Side - Selected Sensors */}
-            <div className="table-full-height">
+            <div className="sensor-table-section">
               <h3>Selected Sensors ({selectedSensors.length}):</h3>
 
               {selectedSensors.length > 0 ? (

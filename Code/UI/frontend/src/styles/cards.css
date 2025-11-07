@@ -499,6 +499,29 @@
   .machine-description {
     font-size: 11px;
   }
+  
+  /* Selected machine card responsiveness */
+  .selected-machine-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .selected-machine-card .btn {
+    width: 100%;
+  }
+  
+  .machine-info h4 {
+    font-size: 16px;
+  }
+  
+  .machine-info p {
+    font-size: 13px;
+  }
+  
+  .selected-item h3 {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -517,6 +540,19 @@
   
   .machine-description {
     display: none; /* Hide description on very small screens */
+  }
+  
+  /* Further adjust selected machine card */
+  .selected-machine-card {
+    padding: 12px;
+  }
+  
+  .machine-info h4 {
+    font-size: 14px;
+  }
+  
+  .machine-info p {
+    font-size: 12px;
   }
 }
 

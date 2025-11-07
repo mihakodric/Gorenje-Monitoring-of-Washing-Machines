@@ -45,6 +45,7 @@
   top: 0;
   z-index: 10;
   white-space: nowrap;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .table thead th:first-child {
@@ -336,6 +337,17 @@
     flex-wrap: wrap;
     gap: 4px;
   }
+  
+  /* Improve table-full-height on mobile */
+  .table-full-height {
+    min-height: auto;
+    max-height: 600px;
+  }
+  
+  .table-full-height h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -366,5 +378,133 @@
   .table .action-buttons {
     flex-direction: column;
     gap: 4px;
+  }
+  
+  /* Further adjust for smaller screens */
+  .table-full-height {
+    max-height: 500px;
+  }
+  
+  .table-full-height h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  /* Make form controls in tables more compact */
+  .table .form-control-sm {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}
+
+/* ========================================
+   SENSOR TABLE SECTION (NewTest Page)
+   ======================================== */
+
+/* Sensor Tables Wrapper - Side by side container */
+.sensor-tables-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+  align-items: start;
+}
+
+/* Base Sensor Table Section Styles */
+.sensor-table-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0; /* Allow flex items to shrink below content size */
+}
+
+.sensor-table-section h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  flex-shrink: 0;
+}
+
+.sensor-table-section .filter-section {
+  flex-shrink: 0;
+  margin-bottom: 15px;
+}
+
+.sensor-table-section .table-responsive {
+  flex: 0 1 auto;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.sensor-table-section .table-empty {
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sticky Action Column for Sensor Tables */
+.sensor-table-section .table thead th:last-child,
+.sensor-table-section .table tbody td:last-child {
+  position: sticky;
+  right: 0;
+  background-color: white;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+.sensor-table-section .table thead th:last-child {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  z-index: 15; /* Higher than tbody cells */
+}
+
+.sensor-table-section .table tbody tr:hover td:last-child {
+  background-color: #f8fafc;
+}
+
+.sensor-table-section .table.table-striped tbody tr:nth-of-type(odd) td:last-child {
+  background-color: #f9fafb;
+}
+
+.sensor-table-section .table.table-striped tbody tr:nth-of-type(odd):hover td:last-child {
+  background-color: #f3f4f6;
+}
+
+/* Responsive adjustments for sensor tables */
+@media (max-width: 768px) {
+  .sensor-tables-wrapper {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  
+  .sensor-table-section h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .sensor-table-section .table-responsive {
+    max-height: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sensor-tables-wrapper {
+    gap: 25px;
+  }
+  
+  .sensor-table-section h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .sensor-table-section .table-responsive {
+    max-height: 300px;
+  }
+  
+  .sensor-table-section .filter-section {
+    margin-bottom: 12px;
   }
 }
