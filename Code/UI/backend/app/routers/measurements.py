@@ -11,9 +11,9 @@ async def get_sensor_measurements_avg(
     test_relation_id: int,
     start_time: Optional[datetime] = Query(None, description="Start time for data range"),
     end_time: Optional[datetime] = Query(None, description="End time for data range"),
-    limit: Optional[int] = Query(1000, description="Maximum number of data points")
+    limit: Optional[int] = Query(1000, description="Maximum number of data points per channel")
 ):
-    """Get measurements for a specific test relation (sensor in a test)."""
+    """Get measurements for a specific test relation (sensor in a test), grouped by channel."""
     try:
         measurements = await measurements_db.get_sensor_measurements_avg(test_relation_id)
         
@@ -21,7 +21,7 @@ async def get_sensor_measurements_avg(
         if start_time or end_time:
             filtered_measurements = []
             for measurement in measurements:
-                measurement_time = measurement.get('bucket')
+                measurement_time = measurement.get('measurement_timestamp')
                 if measurement_time:
                     if isinstance(measurement_time, str):
                         measurement_time = datetime.fromisoformat(measurement_time.replace('Z', '+00:00'))
@@ -34,10 +34,23 @@ async def get_sensor_measurements_avg(
                     filtered_measurements.append(measurement)
             measurements = filtered_measurements
         
-        # Apply limit
-        if limit and len(measurements) > limit:
-            # Take the most recent measurements
-            measurements = measurements[:limit]
+        # Apply limit per channel
+        if limit:
+            # Group by channel
+            channel_groups = {}
+            for measurement in measurements:
+                channel = measurement.get('measurement_channel', 'none')
+                if channel not in channel_groups:
+                    channel_groups[channel] = []
+                channel_groups[channel].append(measurement)
+            
+            # Apply limit to each channel and combine
+            limited_measurements = []
+            for channel, channel_data in channel_groups.items():
+                # Take the most recent measurements per channel
+                limited_measurements.extend(channel_data[-limit:])
+            
+            measurements = limited_measurements
         
         return measurements
         

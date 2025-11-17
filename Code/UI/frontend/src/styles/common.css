@@ -80,6 +80,71 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 30px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+
+.grid-2-col > .card {
+  display: flex;
+  flex-direction: column;
+  height: 500px;
+}
+
+.grid-2-col > .card > .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Test form specific styles */
+.test-form-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 380px;
+}
+
+.test-form-container .form-group:last-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.test-form-container .form-group:last-child textarea {
+  flex: 1;
+  min-height: 60px;
+  max-height: 120px;
+  resize: vertical;
+}
+
+/* Machine selection scrollable table */
+.machine-selection-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 380px;
+  overflow: hidden;
+}
+
+.machine-selection-container .filter-section {
+  flex-shrink: 0;
+}
+
+.machine-selection-container .selected-item {
+  flex-shrink: 0;
+}
+
+.machine-selection-container .table-full-height {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.machine-selection-container .table-responsive {
+  max-height: 250px;
+  overflow-y: auto;
 }
 
 .grid-3-col {

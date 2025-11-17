@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
 import { 
@@ -124,13 +124,7 @@ const TestOverview = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [testId]);
 
-  useEffect(() => {
-    if (selectedSensorIds.size > 0) {
-      loadChartData();
-    } else {
-      setPlotData([]);
-    }
-  }, [selectedSensorIds, testSensors]);
+  // We no longer reload all traces on any selection change; incremental logic handles updates.
 
   const loadTestData = async () => {
     try {
@@ -158,145 +152,107 @@ const TestOverview = () => {
     }
   };
 
-  // Mock function to generate last received time (replace with real API call)
-  const generateMockLastReceived = () => {
-    const secondsAgo = Math.floor(Math.random() * 300); // 0-300 seconds ago
-    return secondsAgo;
-  };
+  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0) => {
+    const sensorColors = [
+      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+      '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
+    ];
+    const channelGroups = {};
+    measurements.forEach(m => {
+      const channel = m.measurement_channel || 'main';
+      if (!channelGroups[channel]) channelGroups[channel] = [];
+      channelGroups[channel].push(m);
+    });
+    let colorIndex = colorStartIndex;
+    const traces = [];
+    Object.keys(channelGroups).sort().forEach(channel => {
+      const channelData = channelGroups[channel].sort((a, b) => new Date(a.measurement_timestamp) - new Date(b.measurement_timestamp));
+      const times = channelData.map(m => new Date(m.measurement_timestamp));
+      const values = channelData.map(m => parseFloat(m.avg_value));
+      const traceName = channel === 'main' || channel === 'null'
+        ? `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'})`
+        : `${sensor.sensor_name} - ${channel.toUpperCase()} (${sensor.sensor_location || 'N/A'})`;
+      traces.push({
+        x: times,
+        y: values,
+        type: 'scattergl',
+        mode: 'lines+markers',
+        name: traceName,
+        sensorId: sensor.id,
+        line: { color: sensorColors[colorIndex % sensorColors.length], width: 2 },
+        marker: { color: sensorColors[colorIndex % sensorColors.length], size: 4 },
+        hovertemplate: `<b>%{fullData.name}</b><br>` +
+          `Time: %{x}<br>` +
+          `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+          `<extra></extra>`,
+        connectgaps: false
+      });
+      colorIndex++;
+    });
+    return traces;
+  }, []);
 
-  const loadChartData = async () => {
+  const fetchAndCacheSensor = useCallback(async (sensor) => {
     try {
       setChartLoading(true);
-      
-      const traces = [];
-      const sensorColors = [
-        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-        '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-      ];
-
-      let colorIndex = 0;
-      
-      for (const sensorId of selectedSensorIds) {
-        const sensor = testSensors.find(s => s.id === sensorId);
-        if (!sensor) continue;
-
-        try {
-          // Fetch real measurement data
-          const measurementsResponse = await measurementsAPI.getSensorDataAvg(
-            sensor.test_relation_id,
-            {
-              limit: 1000, // Get last 1000 data points
-            }
-          );
-          
-          const measurements = measurementsResponse.data;
-          
-          // Convert measurements to Plotly format
-          const times = [];
-          const values = [];
-          
-          if (measurements.length > 0) {
-            measurements
-              .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))
-              .forEach(measurement => {
-                times.push(new Date(measurement.datetime));
-                values.push(parseFloat(measurement.value));
-              });
-          } else {
-            // Use mock data if no real data available
-            const mockData = generateMockChartData();
-            mockData.forEach(point => {
-              times.push(point.x);
-              values.push(point.y);
-            });
-          }
-          
-          traces.push({
-            x: times,
-            y: values,
-            type: 'scattergl',
-            mode: 'lines+markers',
-            name: `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'})`,
-            line: {
-              color: sensorColors[colorIndex % sensorColors.length],
-              width: 2
-            },
-            marker: {
-              color: sensorColors[colorIndex % sensorColors.length],
-              size: 4
-            },
-            hovertemplate: `<b>%{fullData.name}</b><br>` +
-                          `Time: %{x}<br>` +
-                          `Value: %{y}${sensor.unit || ''}<br>` +
-                          `<extra></extra>`,
-            connectgaps: false
-          });
-          
-        } catch (sensorError) {
-          console.warn(`Error loading data for sensor ${sensor.sensor_name}:`, sensorError);
-          
-          // Fall back to mock data if API fails
-          const mockData = generateMockChartData();
-          const times = mockData.map(point => point.x);
-          const values = mockData.map(point => point.y);
-          
-          traces.push({
-            x: times,
-            y: values,
-            type: 'scattergl',
-            mode: 'lines+markers',
-            name: `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'}) [Mock]`,
-            line: {
-              color: sensorColors[colorIndex % sensorColors.length],
-              width: 2,
-              dash: 'dash'
-            },
-            marker: {
-              color: sensorColors[colorIndex % sensorColors.length],
-              size: 4
-            },
-            hovertemplate: `<b>%{fullData.name}</b><br>` +
-                          `Time: %{x}<br>` +
-                          `Value: %{y}${sensor.unit || ''}<br>` +
-                          `<extra></extra>`,
-            connectgaps: false
-          });
-        }
-        
-        colorIndex++;
-      }
-
-      setPlotData(traces);
-      
-    } catch (error) {
-      console.error('Error loading chart data:', error);
+      const response = await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 1000 });
+      const measurements = response.data || [];
+      const traces = buildTracesFromMeasurements(sensor, measurements, plotData.length);
+      setSensorMeasurements(prev => ({ ...prev, [sensor.id]: measurements }));
+      setPlotData(prev => [...prev, ...traces]);
+    } catch (e) {
+      console.warn(`Failed to fetch measurements for sensor ${sensor.sensor_name}`, e);
     } finally {
       setChartLoading(false);
     }
-  };
+  }, [buildTracesFromMeasurements, plotData.length]);
 
   // Mock function to generate chart data (replace with real API call to measurements)
-  const generateMockChartData = () => {
-    const data = [];
-    const now = new Date();
-    
-    for (let i = 100; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 10000); // 10 second intervals
-      const value = Math.sin(i * 0.1) * 10 + Math.random() * 5 + 50;
-      data.push({
-        x: time,
-        y: parseFloat(value.toFixed(2))
-      });
-    }
-    return data;
-  };
+  const handleSensorToggle = async (sensorId, event) => {
+    const multi = event && (event.ctrlKey || event.metaKey);
+    let newSelectedIds = new Set(selectedSensorIds);
 
-  const handleSensorToggle = (sensorId) => {
-    const newSelectedIds = new Set(selectedSensorIds);
-    if (newSelectedIds.has(sensorId)) {
-      newSelectedIds.delete(sensorId);
+    if (multi) {
+      // Multi-select toggle behavior
+      if (newSelectedIds.has(sensorId)) {
+        newSelectedIds.delete(sensorId);
+        // Remove traces for this sensor
+        setPlotData(prev => prev.filter(t => t.sensorId !== sensorId));
+      } else {
+        newSelectedIds.add(sensorId);
+        const sensor = testSensors.find(s => s.id === sensorId);
+        if (sensor) {
+          // Only fetch if not cached
+          if (!sensorMeasurements[sensorId]) {
+            await fetchAndCacheSensor(sensor);
+          } else {
+            // Build traces from cached measurements
+            const traces = buildTracesFromMeasurements(sensor, sensorMeasurements[sensorId], plotData.length);
+            setPlotData(prev => [...prev, ...traces]);
+          }
+        }
+      }
     } else {
-      newSelectedIds.add(sensorId);
+      // Single-select mode
+      if (newSelectedIds.has(sensorId) && newSelectedIds.size === 1) {
+        // Deselect if already sole selected
+        newSelectedIds = new Set();
+        setPlotData([]);
+      } else {
+        // Replace selection with only this sensor
+        newSelectedIds = new Set([sensorId]);
+        // Remove all existing traces
+        setPlotData([]);
+        const sensor = testSensors.find(s => s.id === sensorId);
+        if (sensor) {
+          if (!sensorMeasurements[sensorId]) {
+            await fetchAndCacheSensor(sensor);
+          } else {
+            const traces = buildTracesFromMeasurements(sensor, sensorMeasurements[sensorId], 0);
+            setPlotData(traces);
+          }
+        }
+      }
     }
     setSelectedSensorIds(newSelectedIds);
   };
@@ -566,7 +522,7 @@ const TestOverview = () => {
                         <tr 
                           key={sensor.id}
                           className={`sensor-row ${selectedSensorIds.has(sensor.id) ? 'selected' : ''}`}
-                          onClick={() => handleSensorToggle(sensor.id)}
+                          onClick={(e) => handleSensorToggle(sensor.id, e)}
                         >
                           <td>
                             <div className="sensor-info">

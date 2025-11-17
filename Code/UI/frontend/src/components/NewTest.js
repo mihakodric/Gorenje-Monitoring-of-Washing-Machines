@@ -372,60 +372,65 @@ const NewTest = () => {
         </div>
       </div>
 
-      {/* Test Information Form */}
-      <div className="card no-padding">
-        <div className="card-header">
-          <h2>Test Information</h2>
+      {/* Test Information and Machine Selection */}
+      <div className="grid-2-col">
+        {/* Test Information Form */}
+        <div className="card no-padding">
+          <div className="card-header">
+            <h2>Test Information</h2>
+          </div>
+          <div className="card-body">
+            <div className="test-form-container">
+            <div className="form-group">
+              <label htmlFor="test_name">Test Name *</label>
+              <input
+                type="text"
+                id="test_name"
+                name="test_name"
+                value={testForm.test_name}
+                onChange={(e) => setTestForm({...testForm, test_name: e.target.value})}
+                className={`form-control ${errors.test_name ? 'error' : ''}`}
+                placeholder="Enter test name"
+              />
+              {errors.test_name && <div className="error-message">{errors.test_name}</div>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="test_description">Description</label>
+              <textarea
+                id="test_description"
+                name="test_description"
+                value={testForm.test_description}
+                onChange={(e) => setTestForm({...testForm, test_description: e.target.value})}
+                className="form-control"
+                rows="3"
+                placeholder="Optional description of the test"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="test_notes">Notes</label>
+              <textarea
+                id="test_notes"
+                name="test_notes"
+                value={testForm.test_notes}
+                onChange={(e) => setTestForm({...testForm, test_notes: e.target.value})}
+                className="form-control"
+                rows="3"
+                placeholder="Optional notes or comments"
+              />
+            </div>
+            </div>
+          </div>
         </div>
-        <div className="card-body">
-          <div className="form-group">
-            <label htmlFor="test_name">Test Name *</label>
-            <input
-              type="text"
-              id="test_name"
-              name="test_name"
-              value={testForm.test_name}
-              onChange={(e) => setTestForm({...testForm, test_name: e.target.value})}
-              className={`form-control ${errors.test_name ? 'error' : ''}`}
-              placeholder="Enter test name"
-            />
-            {errors.test_name && <div className="error-message">{errors.test_name}</div>}
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="test_description">Description</label>
-            <textarea
-              id="test_description"
-              name="test_description"
-              value={testForm.test_description}
-              onChange={(e) => setTestForm({...testForm, test_description: e.target.value})}
-              className="form-control"
-              rows="3"
-              placeholder="Optional description of the test"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="test_notes">Notes</label>
-            <textarea
-              id="test_notes"
-              name="test_notes"
-              value={testForm.test_notes}
-              onChange={(e) => setTestForm({...testForm, test_notes: e.target.value})}
-              className="form-control"
-              rows="3"
-              placeholder="Optional notes or comments"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Machine Selection */}
-      <div className="card no-padding">
+        {/* Machine Selection */}
+        <div className="card no-padding">
         <div className="card-header">
           <h2>Select Machine *</h2>
         </div>
         <div className="card-body">
+          <div className="machine-selection-container">
           {errors.machine && <div className="error-message">{errors.machine}</div>}
 
           {/* Machine Search and Filters */}
@@ -539,7 +544,9 @@ const NewTest = () => {
               )}
             </div>
           )}
+          </div>
         </div>
+      </div>
       </div>
 
       {/* Sensor Selection */}

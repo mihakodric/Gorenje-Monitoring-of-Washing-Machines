@@ -7,6 +7,7 @@ CRUD operations for tests, test relations, and test lifecycle management.
 
 from typing import List
 from fastapi import APIRouter, HTTPException
+import logging
 
 from app.models import (
     Test, TestCreate, TestUpdate,
@@ -22,7 +23,9 @@ from database import (
     stop_test,
     get_test_relations,
 )
+from app.core import test_worker
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -55,9 +58,52 @@ async def create_test_endpoint(test: TestCreate):
 @router.put("/{test_id}", response_model=dict)
 async def update_test_endpoint(test_id: int, test: TestUpdate):
     """Update an existing test."""
-    success = await update_test_metadata(test_id, test.model_dump())
+    update_data = test.model_dump()
+    
+    # Check if test_status is being changed
+    if 'test_status' in update_data:
+        new_status = update_data['test_status']
+        current_test = await get_test_by_id(test_id)
+        
+        if not current_test:
+            raise HTTPException(status_code=404, detail="Test not found")
+        
+        old_status = current_test.get('test_status')
+        
+        # Handle status change to 'running'
+        if new_status == 'running' and old_status != 'running':
+            logger.info(f"Starting test {test_id} and its worker")
+            
+            # Check if test has sensors
+            relations = await get_test_relations(test_id)
+            if not relations:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot start test: no sensors connected"
+                )
+            
+            # Start the worker
+            worker_started = await test_worker.start_worker_for_test(test_id)
+            if not worker_started:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to start data collection worker"
+                )
+            
+            logger.info(f"✅ Worker started for test {test_id}")
+        
+        # Handle status change from 'running' to something else (stopping)
+        elif old_status == 'running' and new_status != 'running':
+            logger.info(f"Stopping test {test_id} and its worker")
+            
+            # Stop the worker
+            await test_worker.stop_worker_for_test(test_id)
+            logger.info(f"✅ Worker stopped for test {test_id}")
+    
+    success = await update_test_metadata(test_id, update_data)
     if not success:
         raise HTTPException(status_code=404, detail="Test not found")
+    
     return {"message": "Test updated successfully"}
 
 @router.delete("/{test_id}", response_model=dict)
@@ -95,3 +141,32 @@ async def stop_test_endpoint(test_id: int):
     if not success:
         raise HTTPException(status_code=404, detail="Test not found or not running")
     return {"message": "Test stopped successfully"}
+
+
+@router.get("/{test_id}/worker-status", response_model=dict)
+async def get_test_worker_status(test_id: int):
+    """Get the status of the data collection worker for a test."""
+    status = await test_worker.get_worker_status(test_id)
+    
+    if status is None:
+        return {
+            "test_id": test_id,
+            "worker_active": False,
+            "message": "No worker running for this test"
+        }
+    
+    return {
+        "worker_active": True,
+        **status
+    }
+
+
+@router.get("/workers/active", response_model=dict)
+async def get_active_workers():
+    """Get list of all active test workers."""
+    active_test_ids = await test_worker.get_active_workers()
+    
+    return {
+        "active_workers_count": len(active_test_ids),
+        "test_ids": active_test_ids
+    }
