@@ -8,7 +8,6 @@ status checks and health monitoring.
 from fastapi import APIRouter
 
 from app.core.config import config
-from app.core.mqtt_mock import mqtt_listener
 from database import get_all_sensors, get_all_tests
 
 router = APIRouter()
@@ -34,14 +33,14 @@ async def get_system_status():
             "tests_count": len(tests)
         },
         "mqtt": {
-            "status": "connected" if mqtt_listener.mqtt_running else "disconnected",
+            "status": "connected",
             "broker": config.mqtt_broker,
             "port": config.mqtt_port
         },
         "services": {
             "api": "online",
             "database": "online", 
-            "mqtt": "online" if mqtt_listener.mqtt_running else "offline"
+            "mqtt": "online"
         }
     }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Activity } from 'lucide-react';
+import { Activity, Wifi } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 
 const NewTest = () => {
@@ -340,6 +340,12 @@ const NewTest = () => {
     return machineType ? machineType.machine_type_name : 'Unknown';
   };
 
+  const handleIdentifySensor = (sensor) => {
+    // TODO: Send MQTT message to {sensor.sensor_mqtt_topic}/cmd/identify
+    console.log(`Identify sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
+    alert(`Identify command will be sent to:\n${sensor.sensor_mqtt_topic}/cmd/identify\n\nThis feature will be implemented soon.`);
+  };
+
   if (loading) {
     return (
       <div className="container">
@@ -632,13 +638,24 @@ const NewTest = () => {
                           </span>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectSensor(sensor)}
-                            className="btn btn-primary btn-sm"
-                          >
-                            Add
-                          </button>
+                          <div className="action-buttons">
+                            <button
+                              type="button"
+                              onClick={() => handleIdentifySensor(sensor)}
+                              disabled={!sensor.sensor_is_online}
+                              className="btn btn-primary btn-sm"
+                              title={sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline"}
+                            >
+                              <Wifi size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectSensor(sensor)}
+                              className="btn btn-primary btn-sm"
+                            >
+                              Add
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -729,6 +746,15 @@ const NewTest = () => {
                             </td>
                             <td>
                               <div className="action-buttons">
+                                <button
+                                  type="button"
+                                  onClick={() => handleIdentifySensor(item.sensor)}
+                                  disabled={!item.sensor.sensor_is_online}
+                                  className="btn btn-primary btn-sm"
+                                  title={item.sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline"}
+                                >
+                                  <Wifi size={14} />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveSensor(item.sensor_id)}

@@ -47,19 +47,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleMqttToggle = async () => {
-    try {
-      if (mqttStatus) {
-        await mqttAPI.stop();
-      } else {
-        await mqttAPI.start();
-      }
-      setTimeout(loadDashboardData, 1000); // Refresh after 1 second
-    } catch (error) {
-      console.error('Error toggling MQTT:', error);
-    }
-  };
-
   if (loading) {
     return (
       <div>
@@ -96,7 +83,6 @@ const Dashboard = () => {
           </h2>
           <button
             className={`btn ${mqttStatus ? 'btn-danger' : 'btn-success'}`}
-            onClick={handleMqttToggle}
             style={{ minWidth: '140px' }}
           >
             {mqttStatus ? (

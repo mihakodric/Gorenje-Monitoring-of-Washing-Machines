@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sensorsAPI, sensorTypesAPI } from '../api';
-import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X, Wifi } from 'lucide-react';
 import SensorModal from './SensorModal';
 
 const Sensors = () => {
@@ -134,6 +134,12 @@ const Sensors = () => {
     setShowModal(false);
     setEditingSensor(null);
     loadSensorsAndSensorTypes();
+  };
+
+  const handleIdentifySensor = (sensor) => {
+    // TODO: Send MQTT message to {sensor.sensor_mqtt_topic}/cmd/identify
+    console.log(`Identify sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
+    alert(`Identify command will be sent to:\n${sensor.sensor_mqtt_topic}/cmd/identify\n\nThis feature will be implemented soon.`);
   };
 
   const getSensorBadgeStyle = (sensorType) => {
@@ -397,6 +403,14 @@ const Sensors = () => {
                       </td>
                       <td>
                         <div className="action-buttons">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleIdentifySensor(sensor)}
+                            disabled={!sensor.sensor_is_online}
+                            title={sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline"}
+                          >
+                            <Wifi size={14} />
+                          </button>
                           <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleEditSensor(sensor)}

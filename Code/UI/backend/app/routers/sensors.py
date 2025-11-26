@@ -8,7 +8,6 @@ CRUD operations for sensors and their relationships with tests.
 from typing import List
 from fastapi import APIRouter, HTTPException
 
-from app.core.mqtt_mock import mqtt_publisher
 from app.models import Sensor, SensorCreate, SensorUpdate
 from database import (
     get_all_sensors,

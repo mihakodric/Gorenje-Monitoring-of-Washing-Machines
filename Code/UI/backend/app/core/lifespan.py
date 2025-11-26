@@ -10,8 +10,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import config
-from app.core.mqtt_mock import mqtt_listener
-from app.core import test_worker
 from database import set_db_pool
 from database import (
     get_all_sensor_types, create_sensor_type,
@@ -189,15 +187,6 @@ async def lifespan(app: FastAPI):
         await create_default_data()
         print("✅ Default data initialized")
         
-        # Try to start MQTT (mock for now)
-        if not mqtt_listener.mqtt_running:
-            try:
-                mqtt_listener.start_mqtt(config.mqtt_broker, config.mqtt_port)
-                print("✅ MQTT listener started")
-            except Exception as e:
-                print(f"⚠️  MQTT connection failed: {e}")
-                print("📡 Server will run without MQTT functionality")
-        
         print("🎉 Application startup complete!")
         
         yield
@@ -210,15 +199,6 @@ async def lifespan(app: FastAPI):
     print("🛑 Shutting down application...")
     
     try:
-        # Stop all test workers
-        print("🛑 Stopping all test workers...")
-        await test_worker.stop_all_workers()
-        print("✅ All test workers stopped")
-        
-        # Stop MQTT
-        if mqtt_listener.mqtt_running:
-            mqtt_listener.stop_mqtt()
-            print("✅ MQTT listener stopped")
         
         # Close database pool
         if 'db_pool' in locals():

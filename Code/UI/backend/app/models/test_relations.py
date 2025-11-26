@@ -14,6 +14,9 @@ class TestRelation(BaseModel):
     sensor_name: str
     sensor_type: str
     sensor_location: Optional[str] = ""
+    active: bool = False
+    assigned_at: Optional[datetime] = None
+    unassigned_at: Optional[datetime] = None
 
 
 class TestRelationCreate(BaseModel):
@@ -21,6 +24,10 @@ class TestRelationCreate(BaseModel):
     test_id: int
     sensor_id: int
     sensor_location: Optional[str] = ""
+    active: bool = False
+    assigned_at: Optional[datetime] = None
+    unassigned_at: Optional[datetime] = None
+
 
 class TestRelationAllDetails(TestRelationCreate):
     """Detailed test relation model including all fields."""

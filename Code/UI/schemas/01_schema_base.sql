@@ -64,8 +64,12 @@ CREATE TABLE metadata.test_relations (
     test_id INT REFERENCES metadata.tests(id) ON DELETE CASCADE,
     sensor_id INT REFERENCES metadata.sensors(id) ON DELETE CASCADE,
     sensor_location TEXT,
+    active BOOLEAN NOT NULL DEFAULT false,
+    assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    unassigned_at TIMESTAMP,
     UNIQUE (test_id, sensor_id)
 );
+
 
 CREATE TABLE metadata.mqtt_configs (
     id SERIAL PRIMARY KEY,
