@@ -7,8 +7,10 @@ CRUD operations for sensors and their relationships with tests.
 
 from typing import List
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.models import Sensor, SensorCreate, SensorUpdate
+from app.mqtt_client import publish_cmd
 from database import (
     get_all_sensors,
     get_sensor_by_id,
@@ -19,6 +21,11 @@ from database import (
 )
 
 router = APIRouter()
+
+
+class IdentifyRequest(BaseModel):
+    """Request model for sensor identification."""
+    sensor_mqtt_topic: str
 
 
 @router.get("", response_model=List[Sensor])
@@ -85,3 +92,33 @@ async def delete_sensor_endpoint(sensor_id: int):
     return {
         "message": "Sensor deleted successfully"
         }
+
+
+@router.post("/identify", response_model=dict)
+async def identify_sensor(request: IdentifyRequest):
+    """
+    Send an MQTT identify command to a sensor.
+    
+    This publishes a message to sensors/{sensor_mqtt_topic}/cmd
+    which should cause the sensor's LED to blink for identification.
+    """
+    try:
+        topic = f"sensors/{request.sensor_mqtt_topic}/cmd"
+        payload = {"cmd": "identify"}
+        
+        publish_cmd(topic, payload)
+        
+        return {
+            "message": "Identify command sent successfully",
+            "topic": topic
+        }
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"MQTT service unavailable: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send identify command: {str(e)}"
+        )

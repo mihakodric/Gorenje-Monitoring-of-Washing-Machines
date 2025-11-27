@@ -4,7 +4,8 @@ Tests API router.
 This module handles all test-related API endpoints including
 CRUD operations for tests, test relations, and test lifecycle management.
 """
-
+from uuid import uuid4
+import json
 from typing import List
 from fastapi import APIRouter, HTTPException
 import logging
@@ -14,6 +15,7 @@ from app.models import (
     TestRelation, TestRelationCreate,
 )
 from database import (
+    db_pool,
     get_all_tests,
     get_test_by_id,
     create_test,
@@ -23,6 +25,8 @@ from database import (
     stop_test,
     get_test_relations,
 )
+
+from app.mqtt_client import publish_cmd
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -96,28 +100,87 @@ async def delete_test_endpoint(test_id: int):
 
 @router.post("/{test_id}/start", response_model=dict)
 async def start_test_endpoint(test_id: int):
-    """Start a test, only if it has at least one sensor and machine connected."""
+
     relations = await get_test_relations(test_id)
     if not relations:
+        raise HTTPException(400, "No sensors connected")
+
+    for rel in relations:
+        if not rel.get("sensor_is_online", False):
+            raise HTTPException(400, f"Sensor '{rel.get('sensor_name')}' is offline")
+        
+    run_id = await start_test(test_id)
+    if not run_id:
         raise HTTPException(
             status_code=400,
-            detail="Cannot start test: no sensors or machines connected"
+            detail="Test already running or completed"
         )
-    
-    success = await start_test(test_id)
-    if not success:
-        raise HTTPException(
-            status_code=400,
-            detail="Failed to start test: already running or completed"
-        )
-    
-    return {"message": "Test started successfully"}
+
+    # ✅ Safe to notify devices ONLY after DB is consistent
+    for rel in relations:
+        sensor_topic = rel["sensor_mqtt_topic"]
+        cmd_topic = f"sensors/{sensor_topic}/cmd"
+
+        payload = {
+            "cmd": "start",
+            "run_id": run_id,
+            "test_id": test_id,
+        }
+
+        publish_cmd(topic=cmd_topic, payload=payload)
+
+    return {
+        "message": f"Test {test_id} started",
+        "run_id": run_id
+    }
 
 
 @router.post("/{test_id}/stop", response_model=dict)
 async def stop_test_endpoint(test_id: int):
-    """Stop a running test."""
-    success = await stop_test(test_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Test not found or not running")
-    return {"message": "Test stopped successfully"}
+
+    relations = await get_test_relations(test_id)
+    if not relations:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot stop test: no sensors connected"
+        )
+
+    for rel in relations:
+        if not rel.get("sensor_is_online", False):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot stop test: sensor '{rel.get('sensor_name')}' is offline"
+            )
+
+    # ✅ Atomically stop test + close run
+    closed_run_id = await stop_test(test_id)
+    if not closed_run_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Test not running or already completed"
+        )
+    
+    print(f"Test {test_id} stopped in DB, notifying sensors...")
+
+    # ✅ Notify devices only AFTER DB is consistent
+    for rel in relations:
+        sensor_topic = rel["sensor_mqtt_topic"]
+        cmd_topic = f"sensors/{sensor_topic}/cmd"
+
+        payload = {
+            "cmd": "stop",
+            "test_id": test_id,
+            "run_id": closed_run_id
+        }
+
+        publish_cmd(topic=cmd_topic, payload=payload)
+        print(f"Sent stop command to sensor topic: {cmd_topic} with payload: {payload}")    
+
+    print(f"Test {test_id} stop notifications sent to sensors.")
+
+    return {
+        "message": f"Test {test_id} stopped",
+        "run_id": closed_run_id
+    }
+
+

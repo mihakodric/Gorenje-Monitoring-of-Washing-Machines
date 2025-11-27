@@ -6,10 +6,10 @@ including database initialization and default data seeding.
 """
 
 import asyncpg
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-from app.core.config import config
 from database import set_db_pool
 from database import (
     get_all_sensor_types, create_sensor_type,
@@ -17,6 +17,7 @@ from database import (
     get_all_machines, create_machine,
     create_sensor
 )
+from app.mqtt_client import connect_mqtt, disconnect_mqtt
 
 
 async def create_default_data():
@@ -170,9 +171,10 @@ async def lifespan(app: FastAPI):
     
     try:
         # Create database connection pool
-        print(f"📊 Connecting to database: {config.database_url}")
+        database_url = os.getenv('DATABASE_URL', 'postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db')
+        print(f"📊 Connecting to database: {database_url}")
         db_pool = await asyncpg.create_pool(
-            config.database_url,
+            database_url,
             min_size=5,
             max_size=20,
             command_timeout=60
@@ -186,6 +188,11 @@ async def lifespan(app: FastAPI):
         print("📝 Creating default data...")
         await create_default_data()
         print("✅ Default data initialized")
+
+        # Connect to MQTT broker
+        print("🔌 Connecting to MQTT broker...")
+        connect_mqtt()
+        print("✅ MQTT broker connected")
         
         print("🎉 Application startup complete!")
         
@@ -200,11 +207,15 @@ async def lifespan(app: FastAPI):
     
     try:
         
+        # Disconnect from MQTT broker
+        disconnect_mqtt()
+        print("✅ MQTT disconnected")
+
         # Close database pool
         if 'db_pool' in locals():
             await db_pool.close()
             print("✅ Database connection pool closed")
-            
+                
     except Exception as e:
         print(f"⚠️  Shutdown error: {e}")
     

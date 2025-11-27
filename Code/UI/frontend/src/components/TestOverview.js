@@ -284,23 +284,24 @@ const TestOverview = () => {
 
   const handleStartTest = async () => {
     try {
-      await testsAPI.update(testId, { test_status: 'running' });
-      setTest({ ...test, test_status: 'running' });
-      console.log('Test started:', testId);
+      const res = await testsAPI.start(testId);
+      const updated = await testsAPI.getById(testId);
+      setTest(updated.data);
     } catch (error) {
       console.error('Error starting test:', error);
-      alert('Failed to start test');
+      alert(error?.response?.data?.detail || 'Failed to start test');
     }
   };
 
+
   const handleStopTest = async () => {
     try {
-      await testsAPI.update(testId, { test_status: 'idle' });
-      setTest({ ...test, test_status: 'idle' });
-      console.log('Test stopped:', testId);
+      const res = await testsAPI.stop(testId);
+      const updated = await testsAPI.getById(testId);
+      setTest(updated.data);
     } catch (error) {
       console.error('Error stopping test:', error);
-      alert('Failed to stop test');
+      alert(error?.response?.data?.detail || 'Failed to stop test');
     }
   };
 
@@ -513,7 +514,6 @@ const TestOverview = () => {
                         <th>Location</th>
                         <th>Type</th>
                         <th>Unit</th>
-                        <th>Status</th>
                         <th>Last Data</th>
                       </tr>
                     </thead>
@@ -526,6 +526,11 @@ const TestOverview = () => {
                         >
                           <td>
                             <div className="sensor-info">
+                              {sensor.sensor_is_online ? (
+                                <Wifi size={14} className="status-online" style={{ marginRight: '8px' }} />
+                              ) : (
+                                <WifiOff size={14} className="status-offline" style={{ marginRight: '8px' }} />
+                              )}
                               <strong>{sensor.sensor_name}</strong>
                             </div>
                           </td>
@@ -542,18 +547,6 @@ const TestOverview = () => {
                           </td>
                           <td>
                             <span className="unit-badge">{sensor.sensor_type_unit || 'N/A'}</span>
-                          </td>
-                          <td>
-                            <div className="sensor-status">
-                              {sensor.sensor_is_online === 'online' ? (
-                                <Wifi size={14} className="status-online" />
-                              ) : (
-                                <WifiOff size={14} className="status-offline" />
-                              )}
-                              <span className={`status-text ${sensor.sensor_is_online}`}>
-                                {sensor.sensor_is_online === 'online' ? 'Online' : 'Offline'}
-                              </span>
-                            </div>
                           </td>
                           <td>
                             <span className="last-data">

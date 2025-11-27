@@ -19,4 +19,5 @@ COPY . .
 # # Optional: healthcheck
 # HEALTHCHECK CMD python healthcheck.py || exit 1
 
-CMD ["python", "worker.py"]
+# Use -u flag to force unbuffered output for Docker logs
+CMD ["python", "-u", "worker.py"]

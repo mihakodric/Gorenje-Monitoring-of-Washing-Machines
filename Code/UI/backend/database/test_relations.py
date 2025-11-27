@@ -25,6 +25,7 @@ async def get_test_relations(test_id: int) -> List[Dict]:
             SELECT 
                 tr.*, 
                 s.sensor_name, 
+                s.sensor_mqtt_topic,
                 s.sensor_is_online, 
                 s.sensor_created_at, 
                 s.sensor_last_seen, 
@@ -41,15 +42,28 @@ async def get_test_relations(test_id: int) -> List[Dict]:
     return [dict(row) for row in rows]
 
 async def add_test_relation(test_id: int, relation_data: Dict) -> Optional[Dict]:
-    """Add a new test relation."""
+    """
+    Safely add a new test relation.
+    Only allowed fields are inserted.
+    """
+
+    ALLOWED_FIELDS = {"sensor_id", "sensor_location", "active"}
+
     fields = []
     values = []
-    for key, value in relation_data.items():
-        fields.append(key)
-        values.append(value)
+
+    # Always force test_id from argument (never trust payload)
+    fields.append("test_id")
+    values.append(test_id)
+
+    for key in ALLOWED_FIELDS:
+        if key in relation_data:
+            fields.append(key)
+            values.append(relation_data[key])
 
     if not fields:
         return None
+
     query = f"""
         INSERT INTO metadata.test_relations (
             {', '.join(fields)}
@@ -59,11 +73,19 @@ async def add_test_relation(test_id: int, relation_data: Dict) -> Optional[Dict]
         )
         RETURNING id;
     """
+
     async with get_db_pool().acquire() as conn:
-        row = await conn.fetchrow(query, *values)
+        try:
+            row = await conn.fetchrow(query, *values)
+        except Exception as e:
+            print("DB INSERT FAILED:", e)
+            return None
+
         if not row:
             return None
+
         return await get_test_relation_by_id(row["id"])
+
 
 async def delete_test_relation_for_single_relation_id(relation_id: int) -> bool:
     """Delete a test relation by ID."""

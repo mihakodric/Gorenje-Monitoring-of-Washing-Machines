@@ -34,6 +34,7 @@ class TestRelationAllDetails(TestRelationCreate):
     id: int
     sensor_name: str
     sensor_is_online: bool
+    sensor_mqtt_topic: str
     sensor_created_at: datetime
     sensor_last_seen: Optional[datetime] = None
     sensor_settings: Optional[Dict[str, Any]] = None

@@ -27,10 +27,10 @@ services:
 
   mqtt-worker:
     build: ./mqtt_worker
-    container_name: mqtt_worker
+    container_name: mqtt-worker
     environment:
       DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
-      MQTT_BROKER: mosquitto
+      MQTT_BROKER: mosquitto 
       MQTT_PORT: 1883
       FLUSH_INTERVAL_SEC: 10
       BINDING_REFRESH_SEC: 5
@@ -45,7 +45,6 @@ services:
     container_name: backend
     environment:
       DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
-      MQTT_BROKER: mosquitto
     depends_on:
       - timescaledb
     ports:

@@ -1,24 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { mqttAPI, sensorTypesAPI, machineTypesAPI} from '../api';
-import { Settings as SettingsIcon, Plus, Edit, Trash2, Save, X, Wifi, Zap, AlertTriangle, Check } from 'lucide-react';
+import { sensorTypesAPI, machineTypesAPI} from '../api';
+import { Settings as SettingsIcon, Plus, Edit, Trash2, Save, X, Zap, AlertTriangle } from 'lucide-react';
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState('mqtt');
-  const [mqttConfig, setMqttConfig] = useState({});
-  const [mqttSaving, setMqttSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('sensors');
   const [sensorTypes, setSensorTypes] = useState([]);
   const [machineTypes, setMachineTypes] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  
-  // MQTT Config form state - directly editable
-  const [mqttForm, setMqttForm] = useState({
-    mqtt_broker_host: '',
-    mqtt_broker_port: '',
-    mqtt_username: '',
-    mqtt_password: '',
-    mqtt_is_active: false
-  });
 
   // Sensor Type states
   const [showSensorTypeModal, setShowSensorTypeModal] = useState(false);
@@ -42,36 +30,21 @@ const Settings = () => {
   }, []);
 
   const loadSettings = async () => {
-  let mqttData = null;
   let sensorTypesData = [];
   let machineTypesData = [];
 
   try {
     setLoading(true);
     const results = await Promise.allSettled([
-      mqttAPI.config(),
       sensorTypesAPI.getAll(),
       machineTypesAPI.getAll()
     ]);
     
+    sensorTypesData = results[0].status === 'fulfilled' ? results[0].value.data || [] : [];
+    machineTypesData = results[1].status === 'fulfilled' ? results[1].value.data || [] : [];
 
-    mqttData = results[0].status === 'fulfilled' ? results[0].value.data : null;
-    sensorTypesData = results[1].status === 'fulfilled' ? results[1].value.data || [] : [];
-    machineTypesData = results[2].status === 'fulfilled' ? results[2].value.data || [] : [];
-
-    setMqttConfig(mqttData || {});
     setSensorTypes(sensorTypesData);
     setMachineTypes(machineTypesData);
-
-    if (mqttData) {
-      setMqttForm({
-        mqtt_broker_host: mqttData.mqtt_broker_host || 'localhost',
-        mqtt_broker_port: mqttData.mqtt_broker_port || '',
-        mqtt_username: mqttData.mqtt_username || '',
-        mqtt_password: mqttData.mqtt_password || '',
-        mqtt_is_active: mqttData.mqtt_is_active || false
-      });
-    }
 
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -80,38 +53,6 @@ const Settings = () => {
   }
 };
 
-
-  // MQTT Config handlers
-  const handleSaveMqttConfig = async () => {
-    try {
-      setMqttSaving(true);
-      await mqttAPI.setConfig(mqttForm);
-      await loadSettings(); // Reload to get updated data
-    } catch (error) {
-      console.error('Error saving MQTT config:', error);
-      alert('Error saving MQTT configuration');
-    } finally {
-      setMqttSaving(false);
-    }
-  };
-
-  const handleResetMqttConfig = () => {
-    if (mqttConfig) {
-      setMqttForm({
-        mqtt_broker_host: mqttConfig.mqtt_broker_host || 'localhost',
-        mqtt_broker_port: mqttConfig.mqtt_broker_port || 1883,
-        mqtt_username: mqttConfig.mqtt_username || '',
-        mqtt_password: mqttConfig.mqtt_password || ''
-      });
-    } else {
-      setMqttForm({
-        mqtt_broker_host: 'localhost',
-        mqtt_broker_port: 1883,
-        mqtt_username: '',
-        mqtt_password: ''
-      });
-    }
-  };
 
   // Sensor Type handlers
   const handleAddSensorType = () => {
@@ -227,19 +168,12 @@ const Settings = () => {
           System Settings
         </h1>
         <p className="page-subtitle">
-          Configure MQTT broker connection and sensor types
+          Configure sensor types and machine types
         </p>
       </div>
 
       {/* Tab Navigation */}
       <div className="tab-nav">
-        <button
-          onClick={() => setActiveTab('mqtt')}
-          className={`tab-button ${activeTab === 'mqtt' ? 'active' : 'inactive'}`}
-        >
-          <Wifi size={16} />
-          MQTT Configuration
-        </button>
         <button
           onClick={() => setActiveTab('sensors')}
           className={`tab-button ${activeTab === 'sensors' ? 'active' : 'inactive'}`}
@@ -255,177 +189,6 @@ const Settings = () => {
           Machine Types
         </button>
       </div>
-
-      {/* MQTT Configuration Tab */}
-      {activeTab === 'mqtt' && (
-        <div className="card">
-          <div className="card-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <Wifi size={28} style={{ color: '#667eea' }} />
-              <div>
-                <h2 className="card-title" style={{ margin: 0, fontSize: '20px' }}>
-                  MQTT Configuration
-                </h2>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '14px', 
-                  color: '#6b7280',
-                  fontWeight: '500'
-                }}>
-                  Configure MQTT broker connection and topics
-                </p>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className="btn btn-secondary" 
-                onClick={handleResetMqttConfig}
-                style={{ 
-                  padding: '12px 16px',
-                  fontSize: '14px',
-                  fontWeight: '600'
-                }}
-              >
-                <X size={16} />
-                Reset
-              </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleSaveMqttConfig}
-                disabled={mqttSaving}
-                style={{ 
-                  padding: '12px 24px',
-                  fontSize: '14px',
-                  fontWeight: '600'
-                }}
-              >
-                <Save size={16} />
-                {mqttSaving ? 'Saving...' : 'Save Configuration'}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ padding: '30px' }}>
-            <div className="mqtt-config-grid">
-              {/* Broker Configuration */}
-              <div>
-                <h4 style={{ 
-                  color: '#374151', 
-                  marginBottom: '15px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <Wifi size={18} />
-                  Broker Connection
-                </h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
-                      Broker Host *
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={mqttForm.mqtt_broker_host}
-                      onChange={(e) => setMqttForm({...mqttForm, mqtt_broker_host: e.target.value})}
-                      placeholder="localhost or IP address"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
-                      Port
-                    </label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={mqttForm.mqtt_broker_port}
-                      onChange={(e) => setMqttForm({...mqttForm, mqtt_broker_port: parseInt(e.target.value) || 1883})}
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Authentication */}
-              <div>
-                <h4 style={{ 
-                  color: '#374151', 
-                  marginBottom: '15px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <SettingsIcon size={18} />
-                  Authentication (Optional)
-                </h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={mqttForm.mqtt_username}
-                      onChange={(e) => setMqttForm({...mqttForm, mqtt_username: e.target.value})}
-                      placeholder="Optional"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#374151' }}>
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      value={mqttForm.mqtt_password}
-                      onChange={(e) => setMqttForm({...mqttForm, mqtt_password: e.target.value})}
-                      placeholder="Optional"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-
-            </div>
-
-            {/* Connection Status */}
-            {mqttConfig && (
-              <div style={{
-                marginTop: '30px',
-                padding: '20px',
-                backgroundColor: mqttConfig.is_active ? '#f0f9ff' : '#fef3c7',
-                border: `2px solid ${mqttConfig.is_active ? '#3b82f6' : '#f59e0b'}`,
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                {mqttConfig.is_active ? <Check size={20} style={{ color: '#3b82f6' }} /> : <AlertTriangle size={20} style={{ color: '#f59e0b' }} />}
-                <div>
-                  <p style={{ margin: 0, fontWeight: '600', color: mqttConfig.is_active ? '#1e40af' : '#92400e' }}>
-                    Connection Status: {mqttConfig.is_active ? 'Connected' : 'Disconnected'}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '14px', color: mqttConfig.is_active ? '#3730a3' : '#78350f' }}>
-                    {mqttConfig.is_active ? 
-                      `Connected to ${mqttConfig.broker_host}:${mqttConfig.broker_port}` : 
-                      'MQTT broker is not reachable or configuration is invalid'
-                    }
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Sensor Types Tab */}
       {activeTab === 'sensors' && (

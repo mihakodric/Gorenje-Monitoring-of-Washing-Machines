@@ -70,6 +70,14 @@ CREATE TABLE metadata.test_relations (
     UNIQUE (test_id, sensor_id)
 );
 
+CREATE TABLE metadata.test_runs (
+    id SERIAL PRIMARY KEY,
+    test_id INT REFERENCES metadata.tests(id) ON DELETE CASCADE,
+    run_started_at TIMESTAMPTZ DEFAULT now(),
+    run_ended_at TIMESTAMPTZ,
+    UNIQUE(test_id, run_started_at)
+);
+
 
 CREATE TABLE metadata.mqtt_configs (
     id SERIAL PRIMARY KEY,

@@ -169,22 +169,87 @@ async def delete_test(test_id: int) -> bool:
 
 
 # Additional test functions
-async def start_test(test_id: int) -> bool:
-    """Start a test by setting status to 'running'."""
-    async with get_db_pool().acquire() as conn:
-        result = await conn.execute("""
-            UPDATE metadata.tests 
-            SET status = 'running', last_modified_at = $1 
-            WHERE id = $2 AND status = 'idle'
-        """, datetime.now(), test_id)
-    return result.endswith("UPDATE 1")
+async def start_test(test_id: int) -> Optional[int]:
+    """
+    Atomically:
+    1. Mark test as running (only if idle)
+    2. Create a new test run
+    Returns run_id on success, None on failure.
+    """
 
-async def stop_test(test_id: int) -> bool:
-    """Stop a test by setting status to 'completed'.""" 
+    # 1️⃣ Attempt to transition test state
     async with get_db_pool().acquire() as conn:
         result = await conn.execute("""
             UPDATE metadata.tests 
-            SET status = 'completed', last_modified_at = $1 
-            WHERE id = $2 AND status = 'running'
+            SET test_status = 'running', test_last_modified_at = $1 
+            WHERE id = $2 AND test_status = 'idle'
         """, datetime.now(), test_id)
-    return result.endswith("UPDATE 1")
+
+        if not result.endswith("UPDATE 1"):
+            return None  # Not idle, already running or completed
+
+        # 2️⃣ Create run only if state transition succeeded
+        row = await conn.fetchrow("""
+            INSERT INTO metadata.test_runs (test_id)
+            VALUES ($1)
+            RETURNING id;
+        """, test_id)
+        # mark all sensors as active in this test in test test_relations table also assigned_at
+        await conn.execute("""
+            UPDATE metadata.test_relations
+            SET active = TRUE,
+                assigned_at = NOW()
+            WHERE test_id = $1;
+        """, test_id)
+
+        return row["id"]
+
+
+async def stop_test(test_id: int) -> Optional[int]:
+    """
+    Atomically:
+    1. Mark test as completed (only if running)
+    2. Close active test run (set run_ended_at)
+    Returns closed run_id on success, None on failure.
+    """
+
+    async with get_db_pool().acquire() as conn:
+        async with conn.transaction():
+
+            # 1️⃣ Transition test state
+            result = await conn.execute("""
+                UPDATE metadata.tests 
+                SET test_status = 'idle',
+                    test_last_modified_at = $1
+                WHERE id = $2 AND test_status = 'running'
+            """, datetime.now(), test_id)
+
+            if not result.endswith("UPDATE 1"):
+                return None  # Not running → cannot stop
+
+            # 2️⃣ Close active run
+            row = await conn.fetchrow("""
+                UPDATE metadata.test_runs
+                SET run_ended_at = NOW()
+                WHERE id = (
+                    SELECT id
+                    FROM metadata.test_runs
+                    WHERE test_id = $1 AND run_ended_at IS NULL
+                    ORDER BY run_started_at DESC
+                    LIMIT 1
+                )
+                RETURNING id;
+            """, test_id)
+
+            if not row:
+                return None  # Should never happen, but still protected
+            
+            # mark all sensors as inactive in this test in test test_relations table and unassigned_at
+            await conn.execute("""
+                UPDATE metadata.test_relations
+                SET active = FALSE,
+                    unassigned_at = NOW()
+                WHERE test_id = $1;
+            """, test_id)
+
+            return row["id"]

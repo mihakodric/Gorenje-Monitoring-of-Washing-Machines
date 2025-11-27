@@ -5,9 +5,9 @@ This module handles system-level endpoints including
 status checks and health monitoring.
 """
 
+import os
 from fastapi import APIRouter
 
-from app.core.config import config
 from database import get_all_sensors, get_all_tests
 
 router = APIRouter()
@@ -34,8 +34,8 @@ async def get_system_status():
         },
         "mqtt": {
             "status": "connected",
-            "broker": config.mqtt_broker,
-            "port": config.mqtt_port
+            "broker": os.getenv('MQTT_BROKER', 'mosquitto'),
+            "port": int(os.getenv('MQTT_PORT', '1883'))
         },
         "services": {
             "api": "online",

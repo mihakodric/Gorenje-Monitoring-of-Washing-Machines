@@ -16,6 +16,7 @@ export const sensorsAPI = {
   create: (sensor) => api.post(sensorsAPIprefix, sensor),
   update: (id, sensor) => api.put(`${sensorsAPIprefix}/${id}`, sensor),
   delete: (id) => api.delete(`${sensorsAPIprefix}/${id}`),
+  identify: (sensor_mqtt_topic) => api.post(`${sensorsAPIprefix}/identify`, { sensor_mqtt_topic }),
 };
 
 // Sensor Types API

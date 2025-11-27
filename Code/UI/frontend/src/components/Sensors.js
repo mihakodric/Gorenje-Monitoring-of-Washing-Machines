@@ -136,10 +136,15 @@ const Sensors = () => {
     loadSensorsAndSensorTypes();
   };
 
-  const handleIdentifySensor = (sensor) => {
-    // TODO: Send MQTT message to {sensor.sensor_mqtt_topic}/cmd/identify
-    console.log(`Identify sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
-    alert(`Identify command will be sent to:\n${sensor.sensor_mqtt_topic}/cmd/identify\n\nThis feature will be implemented soon.`);
+  const handleIdentifySensor = async (sensor) => {
+    try {
+      console.log(`Identifying sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
+      await sensorsAPI.identify(sensor.sensor_mqtt_topic);
+      alert(`✅ Identify command sent to sensor:\n${sensor.sensor_name}\n\nThe sensor LED should blink now.`);
+    } catch (error) {
+      console.error('Error sending identify command:', error);
+      alert(`❌ Failed to send identify command:\n${error.response?.data?.detail || error.message}`);
+    }
   };
 
   const getSensorBadgeStyle = (sensorType) => {
