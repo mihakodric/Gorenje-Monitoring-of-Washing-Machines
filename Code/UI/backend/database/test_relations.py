@@ -150,3 +150,42 @@ async def update_test_relation(relation_id: int, relation_data: Dict) -> Optiona
         row = await conn.fetchrow(query, *values)
 
     return dict(row) if row else None
+
+
+async def check_test_relation_has_measurements(relation_id: int) -> Dict[str, Any]:
+    """
+    Check if a test_relation has any measurements.
+    Returns count of measurements.
+    """
+    async with get_db_pool().acquire() as conn:
+        count = await conn.fetchval(
+            "SELECT COUNT(*) FROM timeseries.measurements WHERE test_relation_id = $1;",
+            relation_id
+        )
+    return {
+        "test_relation_id": relation_id,
+        "has_measurements": count > 0,
+        "measurement_count": count
+    }
+
+
+async def delete_test_relation_with_measurements(relation_id: int) -> bool:
+    """
+    Delete a test_relation and all its measurements.
+    Returns True if successful.
+    """
+    async with get_db_pool().acquire() as conn:
+        async with conn.transaction():
+            # Delete all measurements for this test_relation
+            await conn.execute(
+                "DELETE FROM timeseries.measurements WHERE test_relation_id = $1;",
+                relation_id
+            )
+            
+            # Delete the test_relation itself
+            result = await conn.execute(
+                "DELETE FROM metadata.test_relations WHERE id = $1;",
+                relation_id
+            )
+            
+            return result.endswith("DELETE 1")

@@ -8,7 +8,7 @@ This package contains database connection management and all database operation 
 db_pool = None
 
 # Import all modules and their functions
-from . import sensors, sensor_types, machines, machine_types, measurements, mqtt, tests
+from . import sensors, sensor_types, machines, machine_types, measurements, mqtt, tests, test_relations
 
 # Import specific functions to maintain compatibility
 from .sensors import (
@@ -71,6 +71,8 @@ from .test_relations import (
     delete_all_test_relations_for_single_test,
     get_test_relation_by_id,
     update_test_relation,
+    check_test_relation_has_measurements,
+    delete_test_relation_with_measurements,
 )
 
 from .mqtt import (
@@ -155,6 +157,8 @@ __all__ = [
     'delete_all_test_relations_for_single_test',
     'get_test_relation_by_id',
     'update_test_relation',
+    'check_test_relation_has_measurements',
+    'delete_test_relation_with_measurements',
     
     # Measurement functions
     'get_sensor_measurements_avg',

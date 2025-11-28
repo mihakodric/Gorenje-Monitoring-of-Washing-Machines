@@ -93,11 +93,12 @@ const NewTest = () => {
         setSelectedMachine(machine);
       }
       
-      // Set selected sensors with locations
+      // Set selected sensors with locations AND test_relation_id
       if (testRelationsData && testRelationsData.length > 0) {
         const selectedSensorsData = testRelationsData.map(relation => {
           const sensor = sensors.find(s => s.id === relation.sensor_id);
           return {
+            test_relation_id: relation.id, // Keep the existing relation ID
             sensor_id: relation.sensor_id,
             sensor_location: relation.sensor_location || '',
             sensor: sensor
@@ -223,14 +224,9 @@ const NewTest = () => {
     if (isEditing && testId) {
       try {
         setAutoSaving(true);
-        const sensorData = selectedSensors.map(s => ({
-          sensor_id: s.sensor_id,
-          sensor_location: s.sensor_location
-        }));
-        
-        await testsAPI.updateRelations(testId, {
-          machine_id: machine?.id,
-          sensors: sensorData
+        // Just update the machine_id on the test
+        await testsAPI.update(testId, {
+          machine_id: machine?.id
         });
       } catch (error) {
         console.error('Error auto-saving machine selection:', error);
@@ -246,6 +242,7 @@ const NewTest = () => {
       sensor_id: sensor.id,
       sensor_location: '',
       sensor: sensor
+      // No test_relation_id yet - this is a new relation
     };
     
     setSelectedSensors(prev => [...prev, newSensorRelation]);
@@ -253,15 +250,26 @@ const NewTest = () => {
     if (isEditing && testId) {
       try {
         setAutoSaving(true);
-        const currentSensorData = [...selectedSensors, newSensorRelation].map(s => ({
-          sensor_id: s.sensor_id,
-          sensor_location: s.sensor_location
-        }));
+        // Only add the new sensor relation
+        const newRelations = [{
+          test_id: parseInt(testId),
+          sensor_id: sensor.id,
+          sensor_location: ''
+        }];
         
-        await testsAPI.updateRelations(testId, {
-          machine_id: selectedMachine?.id,
-          sensors: currentSensorData
-        });
+        const response = await testRelationsAPI.create(newRelations);
+        
+        // Update the new relation with the ID returned from backend
+        if (response.data && response.data.length > 0) {
+          const createdRelation = response.data[0];
+          setSelectedSensors(prev => 
+            prev.map(s => 
+              s.sensor_id === sensor.id && !s.test_relation_id
+                ? { ...s, test_relation_id: createdRelation.id }
+                : s
+            )
+          );
+        }
       } catch (error) {
         console.error('Error auto-saving sensor relation:', error);
         setSelectedSensors(prev => prev.filter(s => s.sensor_id !== sensor.id));
@@ -273,33 +281,83 @@ const NewTest = () => {
   };
 
   const handleRemoveSensor = async (sensorId) => {
-    const originalSensors = selectedSensors;
-    setSelectedSensors(prev => prev.filter(s => s.sensor_id !== sensorId));
+    const sensorToRemove = selectedSensors.find(s => s.sensor_id === sensorId);
     
-    if (isEditing && testId) {
+    if (!sensorToRemove) {
+      console.error('Sensor not found:', sensorId);
+      return;
+    }
+    
+    const originalSensors = selectedSensors;
+    
+    // If we're editing and the sensor has a test_relation_id, check for measurements
+    if (isEditing && testId && sensorToRemove.test_relation_id) {
       try {
-        setAutoSaving(true);
-        const currentSensorData = selectedSensors.filter(s => s.sensor_id !== sensorId).map(s => ({
-          sensor_id: s.sensor_id,
-          sensor_location: s.sensor_location
-        }));
+        console.log('Checking measurements for test_relation_id:', sensorToRemove.test_relation_id);
         
-        await testsAPI.updateRelations(testId, {
-          machine_id: selectedMachine?.id,
-          sensors: currentSensorData
-        });
+        // Check if this relation has measurements
+        const checkResponse = await testRelationsAPI.checkMeasurements(sensorToRemove.test_relation_id);
+        console.log('Measurement check response:', checkResponse.data);
+        
+        const { has_measurements, measurement_count } = checkResponse.data;
+        
+        if (has_measurements) {
+          const confirmMessage = 
+            `⚠️ WARNING: This sensor has ${measurement_count} measurements stored!\n\n` +
+            `Sensor: ${sensorToRemove.sensor.sensor_name}\n` +
+            `Location: ${sensorToRemove.sensor_location || 'N/A'}\n\n` +
+            `Removing this sensor will PERMANENTLY DELETE:\n` +
+            `• ${measurement_count} raw measurements\n` +
+            `• All aggregated data\n\n` +
+            `This action CANNOT be undone!\n\n` +
+            `Do you want to proceed?`;
+          
+          if (!window.confirm(confirmMessage)) {
+            console.log('User cancelled removal');
+            return; // User cancelled
+          }
+        } else {
+          // No measurements, just confirm removal
+          if (!window.confirm(`Remove sensor "${sensorToRemove.sensor.sensor_name}" from this test?`)) {
+            console.log('User cancelled removal');
+            return;
+          }
+        }
+        
+        setAutoSaving(true);
+        
+        // Delete the test relation (force=true if has measurements)
+        console.log('Deleting test relation with force=', has_measurements);
+        await testRelationsAPI.deleteSingle(sensorToRemove.test_relation_id, has_measurements);
+        
+        setSelectedSensors(prev => prev.filter(s => s.sensor_id !== sensorId));
+        console.log('Sensor removed successfully');
+        
       } catch (error) {
-        console.error('Error auto-removing sensor relation:', error);
+        console.error('Error removing sensor relation:', error);
+        console.error('Error details:', error.response?.data);
         setSelectedSensors(originalSensors);
-        alert('Error removing sensor. Please try again.');
+        alert(`Error removing sensor:\n${error.response?.data?.detail || error.message}`);
       } finally {
         setAutoSaving(false);
       }
+    } else {
+      // Not editing or no test_relation_id (new relation not saved yet)
+      console.log('Removing sensor without database check (no test_relation_id or not editing)');
+      
+      // Simple confirmation for non-saved sensors
+      if (!window.confirm(`Remove sensor "${sensorToRemove.sensor.sensor_name}" from this test?`)) {
+        return;
+      }
+      
+      setSelectedSensors(prev => prev.filter(s => s.sensor_id !== sensorId));
     }
   };
 
   const handleUpdateSensorLocation = async (sensorId, location) => {
     const originalSensors = selectedSensors;
+    const sensorToUpdate = selectedSensors.find(s => s.sensor_id === sensorId);
+    
     setSelectedSensors(prev => 
       prev.map(s => 
         s.sensor_id === sensorId 
@@ -308,17 +366,12 @@ const NewTest = () => {
       )
     );
     
-    if (isEditing && testId) {
+    if (isEditing && testId && sensorToUpdate?.test_relation_id) {
       try {
         setAutoSaving(true);
-        const currentSensorData = selectedSensors.map(s => ({
-          sensor_id: s.sensor_id,
-          sensor_location: s.sensor_id === sensorId ? location : s.sensor_location
-        }));
-        
-        await testsAPI.updateRelations(testId, {
-          machine_id: selectedMachine?.id,
-          sensors: currentSensorData
+        // Update only this specific relation
+        await testRelationsAPI.update(sensorToUpdate.test_relation_id, {
+          sensor_location: location
         });
       } catch (error) {
         console.error('Error auto-saving sensor location:', error);

@@ -140,8 +140,10 @@ const testRelationsAPIprefix = '/api/test-relations';
 export const testRelationsAPI = {
   getByTestId: (testId) => api.get(`${testRelationsAPIprefix}/${testId}`),
   create: (relations) => api.post(testRelationsAPIprefix, relations),
-  deleteSingle: (id) => api.delete(`${testRelationsAPIprefix}/${id}`),
+  checkMeasurements: (relationId) => api.get(`${testRelationsAPIprefix}/${relationId}/check-measurements`),
+  deleteSingle: (id, force = false) => api.delete(`${testRelationsAPIprefix}/${id}`, { params: { force } }),
   deleteAllByTestId: (testId) => api.delete(`${testRelationsAPIprefix}/test/${testId}`),
+  update: (relationId, data) => api.put(`${testRelationsAPIprefix}/${relationId}`, data),
 };
 
 
