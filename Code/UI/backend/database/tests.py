@@ -154,13 +154,57 @@ async def update_test_metadata(test_id: int, test_data: Dict) -> Optional[Dict]:
         return await conn.fetchrow(query, *values)
 
 async def delete_test(test_id: int) -> bool:
-    """Delete test by ID."""
+    """
+    Delete test by ID only if it's in idle status.
+    Deletes all related data: test_relations, test_runs, and measurements.
+    """
     async with get_db_pool().acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM metadata.tests WHERE id = $1;",
-            test_id
-        )
-    return result.endswith("DELETE 1")
+        async with conn.transaction():
+            # Check if test exists and is idle
+            test = await conn.fetchrow(
+                "SELECT test_status FROM metadata.tests WHERE id = $1;",
+                test_id
+            )
+            
+            if not test:
+                return False
+            
+            if test['test_status'] != 'idle':
+                raise ValueError(f"Cannot delete test: test status is '{test['test_status']}', must be 'idle'")
+            
+            # Get all test_relation_ids for this test
+            relation_ids = await conn.fetch(
+                "SELECT id FROM metadata.test_relations WHERE test_id = $1;",
+                test_id
+            )
+            
+            # Delete measurements for all test relations
+            if relation_ids:
+                relation_id_list = [row['id'] for row in relation_ids]
+                await conn.execute(
+                    "DELETE FROM timeseries.measurements WHERE test_relation_id = ANY($1::int[]);",
+                    relation_id_list
+                )
+            
+            # Delete test relations
+            await conn.execute(
+                "DELETE FROM metadata.test_relations WHERE test_id = $1;",
+                test_id
+            )
+            
+            # Delete test runs
+            await conn.execute(
+                "DELETE FROM metadata.test_runs WHERE test_id = $1;",
+                test_id
+            )
+            
+            # Finally delete the test itself
+            result = await conn.execute(
+                "DELETE FROM metadata.tests WHERE id = $1;",
+                test_id
+            )
+            
+            return result.endswith("DELETE 1")
 
 
 # ================================

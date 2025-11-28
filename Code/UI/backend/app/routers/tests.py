@@ -92,11 +92,18 @@ async def update_test_endpoint(test_id: int, test: TestUpdate):
 
 @router.delete("/{test_id}", response_model=dict)
 async def delete_test_endpoint(test_id: int):
-    """Delete a test and all its related data."""
-    success = await delete_test(test_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Test not found")
-    return {"message": "Test and related data deleted successfully"}
+    """
+    Delete a test and all its related data.
+    Test must be in 'idle' status to be deleted.
+    Deletes: test_relations, test_runs, and all measurements.
+    """
+    try:
+        success = await delete_test(test_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Test not found")
+        return {"message": "Test and all related data deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{test_id}/start", response_model=dict)
 async def start_test_endpoint(test_id: int):

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { testsAPI, machinesAPI, machineTypesAPI } from '../api';
-import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock } from 'lucide-react';
+import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock, Trash2 } from 'lucide-react';
 
 const Tests = () => {
   const [tests, setTests] = useState([]);
@@ -161,6 +161,43 @@ const Tests = () => {
         console.error('Error stopping test:', error);
         alert('Failed to stop test');
       }
+    }
+  };
+
+  const handleDeleteTest = async (testId, testName, testStatus) => {
+    if (testStatus !== 'idle') {
+      alert(`Cannot delete test "${testName}":\nTest must be in idle status.\nCurrent status: ${testStatus}`);
+      return;
+    }
+
+    const confirmMessage = `⚠️ DELETE TEST: "${testName}"\n\n` +
+      `This will permanently delete:\n` +
+      `• The test and all its configuration\n` +
+      `• All test relations (sensor assignments)\n` +
+      `• All test runs\n` +
+      `• All measurement data (raw and aggregated)\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Type the test name to confirm deletion:`;
+
+    const userInput = window.prompt(confirmMessage);
+    
+    if (userInput === null) {
+      return; // User cancelled
+    }
+
+    if (userInput.trim() !== testName) {
+      alert('Test name does not match. Deletion cancelled.');
+      return;
+    }
+
+    try {
+      await testsAPI.delete(testId);
+      alert(`✅ Test "${testName}" and all related data deleted successfully.`);
+      loadData();
+    } catch (error) {
+      console.error('Error deleting test:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+      alert(`❌ Failed to delete test:\n${errorMessage}`);
     }
   };
 
@@ -472,6 +509,14 @@ const Tests = () => {
                             <Square size={14} />
                           </button>
                         )}
+                        <button
+                          className={`btn btn-sm ${test.test_status === 'idle' ? 'btn-danger' : 'btn-secondary'}`}
+                          onClick={() => handleDeleteTest(test.id, test.test_name, test.test_status)}
+                          disabled={test.test_status !== 'idle'}
+                          title={test.test_status === 'idle' ? 'Delete Test' : `Cannot delete - test is ${test.test_status}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>

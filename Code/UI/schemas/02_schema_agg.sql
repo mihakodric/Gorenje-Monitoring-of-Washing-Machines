@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_measurements_avg_10s_channel_relation
 
 SELECT add_continuous_aggregate_policy(
     'timeseries.measurements_avg_10s',
-    start_offset => INTERVAL '5 minutes',
-    end_offset => INTERVAL '30 seconds',
-    schedule_interval => INTERVAL '30 seconds'
+    start_offset => INTERVAL '2 minutes',
+    end_offset => INTERVAL '10 seconds',
+    schedule_interval => INTERVAL '10 seconds'
 );
