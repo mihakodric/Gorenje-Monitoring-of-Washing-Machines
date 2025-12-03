@@ -5,6 +5,22 @@ import { ArrowLeft, Plus, Edit, Save, X, Trash2 } from 'lucide-react';
 import { testsAPI, testRelationsAPI, measurementsAPI, testSegmentsAPI } from '../api';
 import '../styles/test-analysis.css';
 
+// Sensor color palette - shared across all visualizations
+const SENSOR_COLORS = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+  '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
+];
+
+// Segment color palette - used for shaded areas on plots
+const SEGMENT_COLORS = [
+  'rgba(59, 130, 246, 0.15)',   // blue
+  'rgba(239, 68, 68, 0.15)',    // red
+  'rgba(16, 185, 129, 0.15)',   // green
+  'rgba(245, 158, 11, 0.15)',   // orange
+  'rgba(139, 92, 246, 0.15)',   // purple
+  'rgba(236, 72, 153, 0.15)',   // pink
+];
+
 const TestAnalysis = () => {
   const { testId } = useParams();
   const navigate = useNavigate();
@@ -23,9 +39,9 @@ const TestAnalysis = () => {
   const [isAddingSegment, setIsAddingSegment] = useState(false);
   const [newSegment, setNewSegment] = useState({ segment_name: '', start_time: '', end_time: '' });
   
-  // Store current x-axis range and layout revision
+  // Store current x-axis range and selected segment for highlighting
   const xAxisRangeRef = useRef(null);
-  const [layoutRevision, setLayoutRevision] = useState(0);
+  const [selectedSegmentId, setSelectedSegmentId] = useState(null);
 
   useEffect(() => {
     loadTestData();
@@ -159,6 +175,14 @@ const TestAnalysis = () => {
     setNewSegment({ segment_name: '', start_time: '', end_time: '' });
   };
 
+  const handleSegmentClick = (segment) => {
+    // Don't change selection if currently editing
+    if (editingSegmentId === segment.id) return;
+    
+    // Toggle selection: if clicking the same segment, deselect it
+    setSelectedSegmentId(prevId => prevId === segment.id ? null : segment.id);
+  };
+
   const handleStartAddSegment = () => {
     // Auto-detect start and end time from stored x-axis range
     try {
@@ -195,11 +219,6 @@ const TestAnalysis = () => {
   };
 
   const buildTracesForSensor = (sensor, measurements, subplotIndex) => {
-    const sensorColors = [
-      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-      '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-    ];
-
     // Group by channel
     const channelGroups = {};
     measurements.forEach(m => {
@@ -229,8 +248,8 @@ const TestAnalysis = () => {
         type: 'scattergl',
         mode: 'lines+markers',
         name: traceName,
-        line: { color: sensorColors[colorIndex % sensorColors.length], width: 2 },
-        marker: { color: sensorColors[colorIndex % sensorColors.length], size: 3 },
+        line: { color: SENSOR_COLORS[colorIndex % SENSOR_COLORS.length], width: 2 },
+        marker: { color: SENSOR_COLORS[colorIndex % SENSOR_COLORS.length], size: 3 },
         xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
         yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
         hovertemplate: `<b>${traceName}</b><br>` +
@@ -273,8 +292,8 @@ const TestAnalysis = () => {
       autosize: true,
       height: plotHeight,
       annotations: [],
-      datarevision: layoutRevision,
-      uirevision: 'preserve-zoom' // This preserves zoom/pan state
+      shapes: [],
+      uirevision: 'preserve-zoom' // Always preserve zoom state
     };
 
     // Create axes for each subplot
@@ -328,13 +347,8 @@ const TestAnalysis = () => {
         channelGroups[channel].push(m);
       });
       
-      const sensorColors = [
-        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-        '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-      ];
-      
       const channelLegends = Object.keys(channelGroups).sort().map((channel, colorIndex) => {
-        const color = sensorColors[colorIndex % sensorColors.length];
+        const color = SENSOR_COLORS[colorIndex % SENSOR_COLORS.length];
         if (channel === 'main' || channel === 'null') {
             // skip main channel in legend
             return '';
@@ -359,6 +373,34 @@ const TestAnalysis = () => {
         bordercolor: '#e2e8f0',
         borderwidth: 1,
         borderpad: 4
+      });
+    });
+
+    // Add segment shapes (shaded areas) for each subplot
+    segments.forEach((segment, segmentIndex) => {
+      const segmentColor = SEGMENT_COLORS[segmentIndex % SEGMENT_COLORS.length];
+      const isSelected = segment.id === selectedSegmentId;
+      
+      // Add shape for each subplot
+      testSensors.forEach((sensor, sensorIndex) => {
+        const xAxisRef = sensorIndex === 0 ? 'x' : `x${sensorIndex + 1}`;
+        const yAxisRef = sensorIndex === 0 ? 'y' : `y${sensorIndex + 1}`;
+        
+        layout.shapes.push({
+          type: 'rect',
+          xref: xAxisRef,
+          yref: yAxisRef + ' domain',
+          x0: new Date(segment.start_time).getTime(),
+          x1: new Date(segment.end_time).getTime(),
+          y0: 0,
+          y1: 1,
+          fillcolor: segmentColor,
+          line: {
+            color: SEGMENT_COLORS[segmentIndex % SEGMENT_COLORS.length].replace('0.15', '0.6'),
+            width: isSelected ? 3 : 1  // Thicker border for selected segment
+          },
+          layer: 'below'
+        });
       });
     });
 
@@ -520,8 +562,18 @@ const TestAnalysis = () => {
                           </>
                         ) : (
                           <>
-                            <td>{segment.segment_name}</td>
-                            <td>
+                            <td 
+                              onClick={() => handleSegmentClick(segment)}
+                              style={{ cursor: 'pointer' }}
+                              title="Click to highlight this segment"
+                            >
+                              {segment.segment_name}
+                            </td>
+                            <td 
+                              onClick={() => handleSegmentClick(segment)}
+                              style={{ cursor: 'pointer' }}
+                              title="Click to highlight this segment"
+                            >
                               <div className="segment-datetime-stack">
                                 <div style={{ fontSize: '11px' }}>{new Date(segment.start_time).toLocaleString()}</div>
                                 <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(segment.end_time).toLocaleString()}</div>
