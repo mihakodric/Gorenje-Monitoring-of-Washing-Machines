@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
-import { ArrowLeft } from 'lucide-react';
-import { testsAPI, testRelationsAPI, measurementsAPI } from '../api';
+import { ArrowLeft, Plus, Edit, Save, X, Trash2 } from 'lucide-react';
+import { testsAPI, testRelationsAPI, measurementsAPI, testSegmentsAPI } from '../api';
 import '../styles/test-analysis.css';
 
 const TestAnalysis = () => {
@@ -15,9 +15,21 @@ const TestAnalysis = () => {
   const [error, setError] = useState(null);
   const [sensorData, setSensorData] = useState({});
   const [loadingData, setLoadingData] = useState(false);
+  
+  // Segment state
+  const [segments, setSegments] = useState([]);
+  const [editingSegmentId, setEditingSegmentId] = useState(null);
+  const [editedSegment, setEditedSegment] = useState({});
+  const [isAddingSegment, setIsAddingSegment] = useState(false);
+  const [newSegment, setNewSegment] = useState({ segment_name: '', start_time: '', end_time: '' });
+  
+  // Store current x-axis range and layout revision
+  const xAxisRangeRef = useRef(null);
+  const [layoutRevision, setLayoutRevision] = useState(0);
 
   useEffect(() => {
     loadTestData();
+    loadSegments();
   }, [testId]);
 
   const loadTestData = async () => {
@@ -72,6 +84,114 @@ const TestAnalysis = () => {
       setLoading(false);
       setLoadingData(false);
     }
+  };
+
+  const loadSegments = async () => {
+    try {
+      const response = await testSegmentsAPI.getByTestId(testId);
+      setSegments(response.data);
+    } catch (error) {
+      console.error('Error loading segments:', error);
+    }
+  };
+
+  const handleAddSegment = async () => {
+    try {
+      await testSegmentsAPI.create({
+        test_id: parseInt(testId),
+        segment_name: newSegment.segment_name,
+        start_time: new Date(newSegment.start_time).toISOString(),
+        end_time: new Date(newSegment.end_time).toISOString()
+      });
+      setNewSegment({ segment_name: '', start_time: '', end_time: '' });
+      setIsAddingSegment(false);
+      loadSegments();
+    } catch (error) {
+      console.error('Error adding segment:', error);
+      alert('Failed to add segment: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const handleEditSegment = (segment) => {
+    setEditingSegmentId(segment.id);
+    setEditedSegment({
+      segment_name: segment.segment_name,
+      start_time: new Date(segment.start_time).toISOString().slice(0, 16),
+      end_time: new Date(segment.end_time).toISOString().slice(0, 16)
+    });
+  };
+
+  const handleSaveSegment = async (segmentId) => {
+    try {
+      await testSegmentsAPI.update(segmentId, {
+        segment_name: editedSegment.segment_name,
+        start_time: new Date(editedSegment.start_time).toISOString(),
+        end_time: new Date(editedSegment.end_time).toISOString()
+      });
+      setEditingSegmentId(null);
+      setEditedSegment({});
+      loadSegments();
+    } catch (error) {
+      console.error('Error updating segment:', error);
+      alert('Failed to update segment: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const handleDeleteSegment = async (segmentId) => {
+    if (window.confirm('Are you sure you want to delete this segment?')) {
+      try {
+        await testSegmentsAPI.delete(segmentId);
+        loadSegments();
+      } catch (error) {
+        console.error('Error deleting segment:', error);
+        alert('Failed to delete segment: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSegmentId(null);
+    setEditedSegment({});
+  };
+
+  const handleCancelAdd = () => {
+    setIsAddingSegment(false);
+    setNewSegment({ segment_name: '', start_time: '', end_time: '' });
+  };
+
+  const handleStartAddSegment = () => {
+    // Auto-detect start and end time from stored x-axis range
+    try {
+      if (xAxisRangeRef.current && xAxisRangeRef.current.length === 2) {
+        const startTime = new Date(xAxisRangeRef.current[0]).toISOString().slice(0, 16);
+        const endTime = new Date(xAxisRangeRef.current[1]).toISOString().slice(0, 16);
+        setNewSegment({ 
+          segment_name: '', 
+          start_time: startTime, 
+          end_time: endTime 
+        });
+        setIsAddingSegment(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Error detecting x-axis range:', error);
+    }
+    
+    // Fallback: empty values
+    setNewSegment({ segment_name: '', start_time: '', end_time: '' });
+    setIsAddingSegment(true);
+  };
+
+  const handlePlotRelayout = (eventData) => {
+    // Store x-axis range when user zooms/pans
+    // Use setTimeout to avoid blocking the event
+    setTimeout(() => {
+      if (eventData['xaxis.range[0]'] && eventData['xaxis.range[1]']) {
+        xAxisRangeRef.current = [eventData['xaxis.range[0]'], eventData['xaxis.range[1]']];
+      } else if (eventData['xaxis.range']) {
+        xAxisRangeRef.current = eventData['xaxis.range'];
+      }
+    }, 0);
   };
 
   const buildTracesForSensor = (sensor, measurements, subplotIndex) => {
@@ -152,7 +272,9 @@ const TestAnalysis = () => {
       margin: { l: 60, r: 20, t: 20, b: 60 },
       autosize: true,
       height: plotHeight,
-      annotations: []
+      annotations: [],
+      datarevision: layoutRevision,
+      uirevision: 'preserve-zoom' // This preserves zoom/pan state
     };
 
     // Create axes for each subplot
@@ -172,11 +294,15 @@ const TestAnalysis = () => {
         showticklabels: isLast,
         domain: [0, 1],
         anchor: index === 0 ? 'y' : `y${index + 1}`,
-        matches: 'x', // This makes all x-axes linked!
         linecolor: '#cbd5e1',
         linewidth: 2,
         mirror: true
       };
+      
+      // Link all x-axes to the first one (except the first itself)
+      if (index > 0) {
+        layout[xAxisKey].matches = 'x';
+      }
 
       // Y-axis configuration
       layout[yAxisKey] = {
@@ -318,6 +444,7 @@ const TestAnalysis = () => {
                 layout={buildSubplotLayout()}
                 config={plotConfig}
                 style={{ width: '100%', height: '100%' }}
+                onRelayout={handlePlotRelayout}
               />
             </div>
           )}
@@ -328,12 +455,161 @@ const TestAnalysis = () => {
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Segment Definition</h3>
-              <p className="card-subtitle">Define analysis segments</p>
+              <p className="card-subtitle">Define time segments for analysis</p>
             </div>
-            <div className="card-body">
-              <div className="segment-placeholder">
-                <p>Segment definition tools will be added here</p>
+            <div className="card-body segments-table-body">
+              <div className="segments-table-container">
+                <table className="segments-table">
+                  <thead>
+                    <tr>
+                      <th>Segment Name</th>
+                      <th>Time Range</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {segments.map(segment => (
+                      <tr key={segment.id}>
+                        {editingSegmentId === segment.id ? (
+                          <>
+                            <td>
+                              <input
+                                type="text"
+                                className="segment-input"
+                                value={editedSegment.segment_name}
+                                onChange={(e) => setEditedSegment({ ...editedSegment, segment_name: e.target.value })}
+                              />
+                            </td>
+                            <td>
+                              <div className="segment-datetime-stack">
+                                <input
+                                  type="datetime-local"
+                                  className="segment-input"
+                                  value={editedSegment.start_time}
+                                  onChange={(e) => setEditedSegment({ ...editedSegment, start_time: e.target.value })}
+                                  placeholder="Start"
+                                />
+                                <input
+                                  type="datetime-local"
+                                  className="segment-input"
+                                  value={editedSegment.end_time}
+                                  onChange={(e) => setEditedSegment({ ...editedSegment, end_time: e.target.value })}
+                                  placeholder="End"
+                                />
+                              </div>
+                            </td>
+                            <td>
+                              <div className="segment-actions">
+                                <button
+                                  className="btn-icon-sm btn-success-sm"
+                                  onClick={() => handleSaveSegment(segment.id)}
+                                  disabled={!editedSegment.segment_name || !editedSegment.start_time || !editedSegment.end_time}
+                                  title="Save"
+                                >
+                                  <Save size={14} />
+                                </button>
+                                <button
+                                  className="btn-icon-sm btn-secondary-sm"
+                                  onClick={handleCancelEdit}
+                                  title="Cancel"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td>{segment.segment_name}</td>
+                            <td>
+                              <div className="segment-datetime-stack">
+                                <div style={{ fontSize: '11px' }}>{new Date(segment.start_time).toLocaleString()}</div>
+                                <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(segment.end_time).toLocaleString()}</div>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="segment-actions">
+                                <button
+                                  className="btn-icon-sm btn-primary-sm"
+                                  onClick={() => handleEditSegment(segment)}
+                                  title="Edit"
+                                >
+                                  <Edit size={14} />
+                                </button>
+                                <button
+                                  className="btn-icon-sm btn-danger-sm"
+                                  onClick={() => handleDeleteSegment(segment.id)}
+                                  title="Delete"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                    {isAddingSegment && (
+                      <tr className="adding-row">
+                        <td>
+                          <input
+                            type="text"
+                            className="segment-input"
+                            placeholder="Segment name"
+                            value={newSegment.segment_name}
+                            onChange={(e) => setNewSegment({ ...newSegment, segment_name: e.target.value })}
+                          />
+                        </td>
+                        <td>
+                          <div className="segment-datetime-stack">
+                            <input
+                              type="datetime-local"
+                              className="segment-input"
+                              value={newSegment.start_time}
+                              onChange={(e) => setNewSegment({ ...newSegment, start_time: e.target.value })}
+                              placeholder="Start"
+                            />
+                            <input
+                              type="datetime-local"
+                              className="segment-input"
+                              value={newSegment.end_time}
+                              onChange={(e) => setNewSegment({ ...newSegment, end_time: e.target.value })}
+                              placeholder="End"
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div className="segment-actions">
+                            <button
+                              className="btn-icon-sm btn-success-sm"
+                              onClick={handleAddSegment}
+                              disabled={!newSegment.segment_name || !newSegment.start_time || !newSegment.end_time}
+                              title="Save"
+                            >
+                              <Save size={14} />
+                            </button>
+                            <button
+                              className="btn-icon-sm btn-secondary-sm"
+                              onClick={handleCancelAdd}
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
+              <button
+                className="btn btn-primary btn-add-segment"
+                onClick={handleStartAddSegment}
+                disabled={isAddingSegment}
+              >
+                <Plus size={16} />
+                Add Segment
+              </button>
             </div>
           </div>
         </div>

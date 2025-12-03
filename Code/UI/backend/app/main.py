@@ -16,6 +16,7 @@ from app.routers import (
     machine_types,
     tests,
     test_relations,
+    test_segments,
     measurements,
     mqtt,
     system
@@ -84,6 +85,12 @@ def create_app() -> FastAPI:
         test_relations.router,
         prefix="/api/test-relations",
         tags=["Test Relations"]
+    )
+    
+    app.include_router(
+        test_segments.router,
+        prefix="/api/test-segments",
+        tags=["Test Segments"]
     )
     
     app.include_router(

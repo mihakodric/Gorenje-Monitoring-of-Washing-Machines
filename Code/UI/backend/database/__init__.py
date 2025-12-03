@@ -8,7 +8,7 @@ This package contains database connection management and all database operation 
 db_pool = None
 
 # Import all modules and their functions
-from . import sensors, sensor_types, machines, machine_types, measurements, mqtt, tests, test_relations
+from . import sensors, sensor_types, machines, machine_types, measurements, mqtt, tests, test_relations, test_segments
 
 # Import specific functions to maintain compatibility
 from .sensors import (
@@ -97,6 +97,7 @@ def set_db_pool(pool):
     mqtt.set_db_pool(pool)
     tests.set_db_pool(pool)
     test_relations.set_db_pool(pool)
+    test_segments.set_db_pool(pool)
 
 __all__ = [
     # Core database management

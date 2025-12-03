@@ -159,6 +159,16 @@ export const measurementsAPI = {
     api.get(`${measurementsAPIprefix}/raw/${testRelationId}`, { params }),
 };
 
+// Test Segments API
+const testSegmentsAPIprefix = '/api/test-segments';
+export const testSegmentsAPI = {
+  getByTestId: (testId) => api.get(`${testSegmentsAPIprefix}/test/${testId}`),
+  getById: (segmentId) => api.get(`${testSegmentsAPIprefix}/${segmentId}`),
+  create: (segment) => api.post(testSegmentsAPIprefix, segment),
+  update: (segmentId, segment) => api.put(`${testSegmentsAPIprefix}/${segmentId}`, segment),
+  delete: (segmentId) => api.delete(`${testSegmentsAPIprefix}/${segmentId}`),
+};
+
 // MQTT API
 const mqttAPIprefix = '/api/mqtt';
 export const mqttAPI = {

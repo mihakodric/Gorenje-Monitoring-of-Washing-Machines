@@ -131,7 +131,7 @@
 }
 
 .segments-section .card-header {
-  padding: 16px;
+  padding: 12px;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -149,25 +149,153 @@
 }
 
 .segments-section .card-body {
-  padding: 16px;
+  padding: 0;
 }
 
-.segment-placeholder {
+.segments-table-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.segments-table-container {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 500px;
+  padding: 8px;
+}
+
+.segments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.segments-table thead {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.segments-table th {
+  text-align: left;
+  padding: 8px 4px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.segments-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.segments-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.segments-table tbody tr.adding-row {
+  background: #f0f9ff;
+}
+
+.segment-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: white;
+}
+
+.segment-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* Stack datetime inputs vertically */
+.segment-datetime-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.segment-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-icon-sm {
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  background: #f8fafc;
-  border: 2px dashed #cbd5e1;
-  border-radius: 6px;
-  min-height: 200px;
+  transition: all 0.2s ease;
 }
 
-.segment-placeholder p {
-  color: #64748b;
-  font-size: 14px;
-  text-align: center;
-  margin: 0;
+.btn-primary-sm {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary-sm:hover {
+  background: #2563eb;
+}
+
+.btn-success-sm {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success-sm:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-success-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #9ca3af;
+}
+
+.btn-danger-sm {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger-sm:hover {
+  background: #dc2626;
+}
+
+.btn-secondary-sm {
+  background: #6b7280;
+  color: white;
+}
+
+.btn-secondary-sm:hover {
+  background: #4b5563;
+}
+
+.btn-add-segment {
+  margin: 8px;
+  width: calc(100% - 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-add-segment:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .loading-message {
