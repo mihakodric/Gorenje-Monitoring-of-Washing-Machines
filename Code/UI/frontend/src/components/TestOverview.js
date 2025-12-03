@@ -14,7 +14,8 @@ import {
   MapPin,
   Info,
   Wifi,
-  WifiOff
+  WifiOff,
+  Sparkles
 } from 'lucide-react';
 import { testsAPI, testRelationsAPI, sensorsAPI, machinesAPI, measurementsAPI } from '../api';
 
@@ -476,6 +477,14 @@ const TestOverview = () => {
                     Start Test
                   </button>
                 )}
+                <button 
+                  className="btn btn-primary btn-icon"
+                  onClick={() => navigate(`/tests/analysis/${testId}`)}
+                  title="Analysis"
+                >
+                  <Sparkles size={16} />
+                  Analysis
+                </button>
               </div>
               <span className={`status-card ${getStatusColor(test.test_status)}`}>
                 {test.test_status === 'running' ? <Play size={14} /> : null}
@@ -707,7 +716,7 @@ const TestOverview = () => {
                           title="Refresh chart data"
                           style={{ marginRight: '10px' }}
                         >
-                          {isRefreshing ? '⟳' : '🔄'} Refresh
+                          🔄 Refresh
                         </button>
                         <button 
                           className="btn btn-secondary btn-sm"

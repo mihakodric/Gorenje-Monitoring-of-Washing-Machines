@@ -6,6 +6,7 @@ import Sensors from './components/Sensors';
 import Tests from './components/Tests';
 import NewTest from './components/NewTest';
 import TestOverview from './components/TestOverview';
+import TestAnalysis from './components/TestAnalysis';
 import Machines from './components/Machines';
 import Settings from './components/Settings';
 import './App.css';
@@ -44,6 +45,7 @@ function App() {
             <Route path="/tests/new" element={<NewTest />} />
             <Route path="/tests/edit/:id" element={<NewTest />} />
             <Route path="/tests/overview/:testId" element={<TestOverview />} />
+            <Route path="/tests/analysis/:testId" element={<TestAnalysis />} />
             <Route path="/machines" element={<Machines/>} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
