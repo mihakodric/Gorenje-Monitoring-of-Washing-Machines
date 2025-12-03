@@ -19,3 +19,10 @@ class MeasurementAveraged(BaseModel):
     min_abs_value: float
     max_abs_value: float
     num_samples: int
+
+class MeasurementRaw(BaseModel):
+    """Model for raw sensor measurements."""
+    measurement_timestamp: datetime
+    test_relation_id: int
+    measurement_channel: Optional[str] = None
+    measurement_value: float

@@ -39,3 +39,4 @@ class Sensor(SensorBase):
     sensor_type_name: Optional[str] = None
     sensor_type_description: Optional[str] = None
     sensor_type_unit: Optional[str] = None
+    sensor_is_active: bool = False

@@ -17,6 +17,9 @@ export const sensorsAPI = {
   update: (id, sensor) => api.put(`${sensorsAPIprefix}/${id}`, sensor),
   delete: (id) => api.delete(`${sensorsAPIprefix}/${id}`),
   identify: (sensor_mqtt_topic) => api.post(`${sensorsAPIprefix}/identify`, { sensor_mqtt_topic }),
+  requestConfig: (id) => api.post(`${sensorsAPIprefix}/${id}/request-config`),
+  updateConfig: (id, config, restart = true) => api.post(`${sensorsAPIprefix}/${id}/update-config`, { config, restart }),
+  isActive: (id) => api.get(`${sensorsAPIprefix}/${id}/is-active`),
 };
 
 // Sensor Types API
@@ -152,6 +155,8 @@ const measurementsAPIprefix = '/api/measurements';
 export const measurementsAPI = {
   getSensorDataAvg: (testRelationId, params = {}) => 
     api.get(`${measurementsAPIprefix}/avg/${testRelationId}`, { params }),
+  getSensorDataRaw: (testRelationId, params = {}) => 
+    api.get(`${measurementsAPIprefix}/raw/${testRelationId}`, { params }),
 };
 
 // MQTT API

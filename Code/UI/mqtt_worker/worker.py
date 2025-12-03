@@ -16,7 +16,7 @@ DB_URL = os.environ["DATABASE_URL"]
 MQTT_BROKER = os.environ.get("MQTT_BROKER", "mosquitto")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
 
-TOPIC_FILTER = ["sensors/+/data", "sensors/+/heartbeat"]
+TOPIC_FILTER = ["sensors/+/data", "sensors/+/heartbeat", "sensors/+/config"]
 
 BINDING_REFRESH_SEC = int(os.environ.get("BINDING_REFRESH_SEC", 5))
 FLUSH_INTERVAL_SEC = int(os.environ.get("FLUSH_INTERVAL_SEC", 10))
@@ -96,6 +96,14 @@ class MQTTWorker:
                 self.queue.put((sensor_name, payload)),
                 self.loop,
             )
+
+        if msg_type == "config":
+            print(f"[MQTT] Config message received from {sensor_name}: {payload}")
+            asyncio.run_coroutine_threadsafe(
+                self.process_config(sensor_name, payload),
+                self.loop,
+            )
+            return
 
 
     # =========================
@@ -260,6 +268,34 @@ class MQTTWorker:
             await conn.execute(sql, sensor_id)
 
         print(f"[HB] Sensor {sensor_name} marked ONLINE")
+
+    async def process_config(self, sensor_name: str, payload: dict):
+        if sensor_name not in self.sensor_cache:
+            sensor_id = await self.resolve_sensor_id(sensor_name)
+            if not sensor_id:
+                print(f"[CONFIG] Sensor {sensor_name} not found in database")
+                return
+            self.sensor_cache[sensor_name] = sensor_id
+
+        sensor_id = self.sensor_cache[sensor_name]
+
+        # Extract the config object from the payload
+        config_data = payload.get("config", {})
+        
+        sql = """
+        UPDATE metadata.sensors
+        SET sensor_settings = $1::jsonb,
+            sensor_last_seen = now()
+        WHERE id = $2
+        """
+
+        try:
+            async with self.db_pool.acquire() as conn:
+                await conn.execute(sql, json.dumps(config_data), sensor_id)
+
+            print(f"[CONFIG] Sensor {sensor_name} config saved: {config_data}")
+        except Exception as e:
+            print(f"[ERROR] Failed to save config for {sensor_name}: {e}")
 
     async def offline_watcher(self):
         while True:

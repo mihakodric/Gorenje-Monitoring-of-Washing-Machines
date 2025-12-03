@@ -487,6 +487,10 @@
   100% { transform: rotate(360deg); }
 }
 
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
 @keyframes pulse-green {
   0%, 100% {
     opacity: 1;
@@ -531,6 +535,17 @@
   }
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
 .spinner {
   width: 12px;
   height: 12px;
@@ -538,6 +553,11 @@
   border-top: 2px solid #3498db;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+/* Recording indicator animation */
+.recording-icon {
+  animation: blink-red 1.5s ease-in-out infinite;
 }
 
 /* Settings Page Grid */

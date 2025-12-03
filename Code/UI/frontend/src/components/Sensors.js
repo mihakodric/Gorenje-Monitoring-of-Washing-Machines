@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sensorsAPI, sensorTypesAPI } from '../api';
-import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X, Wifi } from 'lucide-react';
+import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X, Wifi, Target, MapPin, Crosshair, Radio } from 'lucide-react';
 import SensorModal from './SensorModal';
 
 const Sensors = () => {
@@ -407,14 +407,39 @@ const Sensors = () => {
                         </div>
                       </td>
                       <td>
-                        <div className="action-buttons">
+                        <div className="action-buttons" style={{ position: 'relative' }}>
+                          {sensor.sensor_is_active && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: '-30px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Radio 
+                                size={18} 
+                                style={{ 
+                                  color: '#ef4444',
+                                  animation: 'blink-red 1s ease-in-out infinite'
+                                }} 
+                              />
+                            </div>
+                          )}
                           <button
                             className="btn btn-primary btn-sm"
                             onClick={() => handleIdentifySensor(sensor)}
-                            disabled={!sensor.sensor_is_online}
-                            title={sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline"}
+                            disabled={!sensor.sensor_is_online || sensor.sensor_is_active}
+                            title={
+                              sensor.sensor_is_active 
+                                ? "Cannot identify - sensor is recording" 
+                                : (sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline")
+                            }
                           >
-                            <Wifi size={14} />
+                            <Crosshair size={14} />
                           </button>
                           <button
                             className="btn btn-secondary btn-sm"
@@ -426,7 +451,12 @@ const Sensors = () => {
                           <button
                             className="btn btn-danger btn-sm"
                             onClick={() => handleDeleteSensor(sensor.id)}
-                            title="Delete sensor"
+                            disabled={sensor.sensor_is_active}
+                            title={
+                              sensor.sensor_is_active 
+                                ? "Cannot delete - sensor is recording" 
+                                : "Delete sensor"
+                            }
                           >
                             <Trash2 size={14} />
                           </button>

@@ -152,14 +152,26 @@ const Tests = () => {
   //   setShowModal(true);
   // };
 
+  const handleStartTest = async (testId) => {
+    if (window.confirm('Are you sure you want to start this test?')) {
+      try {
+        await testsAPI.start(testId);
+        loadData();
+      } catch (error) {
+        console.error('Error starting test:', error);
+        alert('Failed to start test: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
   const handleStopTest = async (testId) => {
     if (window.confirm('Are you sure you want to stop this test?')) {
       try {
-        await testsAPI.update(testId, { test_status: 'idle' });
+        await testsAPI.stop(testId);
         loadData();
       } catch (error) {
         console.error('Error stopping test:', error);
-        alert('Failed to stop test');
+        alert('Failed to stop test: ' + (error.response?.data?.detail || error.message));
       }
     }
   };
@@ -500,6 +512,23 @@ const Tests = () => {
                         >
                           <Edit size={14} />
                         </Link>
+                        <button
+                          className={`btn btn-sm ${test.test_status === 'idle' ? 'btn-danger' : 'btn-secondary'}`}
+                          onClick={() => handleDeleteTest(test.id, test.test_name, test.test_status)}
+                          disabled={test.test_status !== 'idle'}
+                          title={test.test_status === 'idle' ? 'Delete Test' : `Cannot delete - test is ${test.test_status}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        {test.test_status === 'idle' && (
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleStartTest(test.id)}
+                            title="Start Test"
+                          >
+                            <Play size={14} />
+                          </button>
+                        )}
                         {test.test_status === 'running' && (
                           <button
                             className="btn btn-danger btn-sm"
@@ -509,14 +538,6 @@ const Tests = () => {
                             <Square size={14} />
                           </button>
                         )}
-                        <button
-                          className={`btn btn-sm ${test.test_status === 'idle' ? 'btn-danger' : 'btn-secondary'}`}
-                          onClick={() => handleDeleteTest(test.id, test.test_name, test.test_status)}
-                          disabled={test.test_status !== 'idle'}
-                          title={test.test_status === 'idle' ? 'Delete Test' : `Cannot delete - test is ${test.test_status}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
                       </div>
                     </td>
                   </tr>

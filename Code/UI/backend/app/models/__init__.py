@@ -19,7 +19,7 @@ from .machines import Machine, MachineCreate, MachineUpdate, MachineBase
 from .machine_types import MachineType, MachineTypeCreate, MachineTypeUpdate, MachineTypeBase
 from .tests import Test, TestCreate, TestUpdate, TestBase
 from .test_relations import TestRelation, TestRelationCreate, TestRelationAllDetails
-from .measurements import MeasurementAveraged
+from .measurements import MeasurementAveraged, MeasurementRaw
 from .mqtt import MqttConfig, MqttConfigUpdate, MqttConfigBase
 
 __all__ = [
@@ -42,7 +42,7 @@ __all__ = [
     "TestRelation", "TestRelationCreate", "TestRelationAllDetails",
     
     # Measurements
-    "MeasurementAveraged",
+    "MeasurementAveraged", "MeasurementRaw"
     
     # MQTT
     "MqttConfig", "MqttConfigUpdate", "MqttConfigBase",

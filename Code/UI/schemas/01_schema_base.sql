@@ -45,7 +45,7 @@ CREATE TABLE metadata.sensors (
     sensor_is_online BOOLEAN DEFAULT FALSE,
     sensor_created_at TIMESTAMPTZ DEFAULT now(),
     sensor_last_seen TIMESTAMPTZ DEFAULT NULL,
-    sensor_settings JSONB DEFAULT '{}'  -- holds calibration, ranges, etc.
+    sensor_settings JSONB DEFAULT '{}'
 );
 
 CREATE TABLE metadata.tests (

@@ -852,8 +852,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 400px; /* Fixed height instead of min-height */
-  max-height: 500px; /* Maximum height limit */
+  min-height: 600px; /* Increased minimum height */
+  height: 100%; /* Take full available height */
   position: relative;
   overflow: visible; /* Allow content to be visible */
   padding: 5px; /* Small padding to prevent edge cropping */
@@ -1375,6 +1375,52 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Data mode toggle switch */
+.data-mode-toggle {
+  display: flex;
+  border-radius: 100px;
+  background-color: rgba(0, 109, 253, 0.2);
+  position: relative;
+  width: 240px;
+  height: 36px;
+  overflow: hidden;
+}
+
+.data-mode-toggle.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.toggle-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background-color: #0d6efd;
+  border-radius: 40px;
+  transition: transform 0.3s ease;
+}
+
+.toggle-option {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.3s ease;
+  user-select: none;
+}
+
+.toggle-option.active {
+  color: white;
+  font-weight: 600;
 }
 
 .chart-instructions {

@@ -31,10 +31,22 @@ async def get_all_sensors() -> List[Dict]:
     """
     Fetch all sensors from the database, ordered by creation time descending.
     Converts 'sensor_settings' JSON string to a Python dict if present.
+    Includes sensor_is_active flag indicating if sensor is active in any test.
     """
     async with get_db_pool().acquire() as conn:
         rows = await conn.fetch("""
-            SELECT sensors.*, st.sensor_type_name, st.sensor_type_description, st.sensor_type_unit
+            SELECT 
+                sensors.*, 
+                st.sensor_type_name, 
+                st.sensor_type_description, 
+                st.sensor_type_unit,
+                COALESCE(
+                    (SELECT TRUE 
+                     FROM metadata.test_relations tr 
+                     WHERE tr.sensor_id = sensors.id AND tr.active = TRUE 
+                     LIMIT 1), 
+                    FALSE
+                ) as sensor_is_active
             FROM metadata.sensors
             LEFT JOIN metadata.sensor_types st ON sensors.sensor_type_id = st.id
             ORDER BY sensor_created_at DESC
@@ -57,10 +69,25 @@ async def get_all_sensors() -> List[Dict]:
 
 
 async def get_sensor_by_id(sensor_id: int) -> Optional[Dict]:
-    """Get sensor by ID."""
+    """Get sensor by ID with sensor_is_active flag and sensor type details."""
     async with get_db_pool().acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT * FROM metadata.sensors WHERE id = $1;",
+        row = await conn.fetchrow("""
+            SELECT 
+                sensors.*,
+                st.sensor_type_name,
+                st.sensor_type_description,
+                st.sensor_type_unit,
+                COALESCE(
+                    (SELECT TRUE 
+                     FROM metadata.test_relations tr 
+                     WHERE tr.sensor_id = sensors.id AND tr.active = TRUE 
+                     LIMIT 1), 
+                    FALSE
+                ) as sensor_is_active
+            FROM metadata.sensors sensors
+            LEFT JOIN metadata.sensor_types st ON sensors.sensor_type_id = st.id
+            WHERE sensors.id = $1;
+        """,
             sensor_id
         )
         if not row:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Activity, Wifi } from 'lucide-react';
+import { Activity, Wifi, WifiOff, Crosshair } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 
 const NewTest = () => {
@@ -27,6 +27,7 @@ const NewTest = () => {
   
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [selectedSensors, setSelectedSensors] = useState([]);
+  const [testStatus, setTestStatus] = useState('idle');
   
   // Filter states
   const [machineSearch, setMachineSearch] = useState('');
@@ -86,6 +87,9 @@ const NewTest = () => {
         test_description: testData.test_description || '',
         test_notes: testData.test_notes || ''
       });
+      
+      // Set test status
+      setTestStatus(testData.test_status || 'idle');
       
       // Set selected machine
       if (testData.machine_id) {
@@ -672,7 +676,6 @@ const NewTest = () => {
                     <tr>
                       <th>Name</th>
                       <th>Type</th>
-                      <th>Status</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -680,9 +683,16 @@ const NewTest = () => {
                     {getFilteredAvailableSensors().map((sensor, index) => (
                       <tr key={`available-sensor-${sensor.id}-${index}`}>
                         <td>
-                          <div>
-                            <strong>{sensor.sensor_name}</strong>
-                            <div className="sensor-id">{sensor.sensor_id}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {sensor.sensor_is_online ? (
+                              <Wifi size={14} className="status-online" />
+                            ) : (
+                              <WifiOff size={14} className="status-offline" />
+                            )}
+                            <div>
+                              <strong>{sensor.sensor_name}</strong>
+                              <div className="sensor-id">{sensor.sensor_id}</div>
+                            </div>
                           </div>
                         </td>
                         <td>
@@ -691,25 +701,28 @@ const NewTest = () => {
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge ${sensor.sensor_is_online ? 'online' : 'offline'}`}>
-                            {sensor.sensor_is_online ? 'Online' : 'Offline'}
-                          </span>
-                        </td>
-                        <td>
                           <div className="action-buttons">
                             <button
                               type="button"
                               onClick={() => handleIdentifySensor(sensor)}
-                              disabled={!sensor.sensor_is_online}
+                              disabled={!sensor.sensor_is_online || sensor.sensor_is_active}
                               className="btn btn-primary btn-sm"
-                              title={sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline"}
+                              title={
+                                sensor.sensor_is_active 
+                                  ? "Sensor is active in a running test" 
+                                  : sensor.sensor_is_online 
+                                    ? "Identify sensor (blink LED)" 
+                                    : "Sensor offline"
+                              }
                             >
-                              <Wifi size={14} />
+                              <Crosshair size={14} />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleSelectSensor(sensor)}
                               className="btn btn-primary btn-sm"
+                              disabled={testStatus === 'running'}
+                              title={testStatus === 'running' ? 'Cannot add sensors - test is running' : 'Add sensor to test'}
                             >
                               Add
                             </button>
@@ -769,7 +782,6 @@ const NewTest = () => {
                         <tr>
                           <th>Name</th>
                           <th>Type</th>
-                          <th>Status</th>
                           <th>Test Location</th>
                           <th>Action</th>
                         </tr>
@@ -778,19 +790,21 @@ const NewTest = () => {
                         {getFilteredSelectedSensors().map((item, index) => (
                           <tr key={`selected-sensor-${item.sensor_id}-${index}`}>
                             <td>
-                              <div>
-                                <strong>{item.sensor.sensor_name}</strong>
-                                <div className="sensor-id">{item.sensor.sensor_id}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {item.sensor.sensor_is_online ? (
+                                  <Wifi size={14} className="status-online" />
+                                ) : (
+                                  <WifiOff size={14} className="status-offline" />
+                                )}
+                                <div>
+                                  <strong>{item.sensor.sensor_name}</strong>
+                                  <div className="sensor-id">{item.sensor.sensor_id}</div>
+                                </div>
                               </div>
                             </td>
                             <td>
                               <span className="badge">
                                 {getSensorTypeName(item.sensor.sensor_type_id)}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`status-badge ${item.sensor.sensor_is_online ? 'online' : 'offline'}`}>
-                                {item.sensor.sensor_is_online ? 'Online' : 'Offline'}
                               </span>
                             </td>
                             <td>
@@ -807,16 +821,24 @@ const NewTest = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleIdentifySensor(item.sensor)}
-                                  disabled={!item.sensor.sensor_is_online}
+                                  disabled={!item.sensor.sensor_is_online || item.sensor.sensor_is_active}
                                   className="btn btn-primary btn-sm"
-                                  title={item.sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline"}
+                                  title={
+                                    item.sensor.sensor_is_active 
+                                      ? "Sensor is active in a running test" 
+                                      : item.sensor.sensor_is_online 
+                                        ? "Identify sensor (blink LED)" 
+                                        : "Sensor offline"
+                                  }
                                 >
-                                  <Wifi size={14} />
+                                  <Crosshair size={14} />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveSensor(item.sensor_id)}
                                   className="btn btn-secondary btn-sm"
+                                  disabled={testStatus === 'running'}
+                                  title={testStatus === 'running' ? 'Cannot remove sensors - test is running' : 'Remove sensor from test'}
                                 >
                                   Remove
                                 </button>

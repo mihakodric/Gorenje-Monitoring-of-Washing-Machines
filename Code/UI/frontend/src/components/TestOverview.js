@@ -39,6 +39,8 @@ const TestOverview = () => {
   const [plotData, setPlotData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [sensorMeasurements, setSensorMeasurements] = useState({});
+  const [dataMode, setDataMode] = useState('aggregated'); // 'aggregated' or 'raw'
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Chart ref for zoom controls
   const chartRef = useRef(null);
@@ -70,8 +72,7 @@ const TestOverview = () => {
       t: 60,
       b: 60
     },
-    autosize: true,
-    height: 400
+    autosize: true
   };
 
   // Plotly config for interactions
@@ -152,7 +153,7 @@ const TestOverview = () => {
     }
   };
 
-  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0) => {
+  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0, mode = 'aggregated') => {
     const sensorColors = [
       '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
       '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
@@ -168,93 +169,172 @@ const TestOverview = () => {
     Object.keys(channelGroups).sort().forEach(channel => {
       const channelData = channelGroups[channel].sort((a, b) => new Date(a.measurement_timestamp) - new Date(b.measurement_timestamp));
       const times = channelData.map(m => new Date(m.measurement_timestamp));
-      const values = channelData.map(m => parseFloat(m.avg_value));
+      const values = channelData.map(m => parseFloat(mode === 'raw' ? m.measurement_value : m.avg_value));
       const traceName = channel === 'main' || channel === 'null'
         ? `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'})`
         : `${sensor.sensor_name} - ${channel.toUpperCase()} (${sensor.sensor_location || 'N/A'})`;
-      traces.push({
+      const trace = {
         x: times,
         y: values,
         type: 'scattergl',
-        mode: 'lines+markers',
+        mode: mode === 'raw' ? 'lines' : 'lines+markers',
         name: traceName,
         sensorId: sensor.id,
-        line: { color: sensorColors[colorIndex % sensorColors.length], width: 2 },
-        marker: { color: sensorColors[colorIndex % sensorColors.length], size: 4 },
+        line: { color: sensorColors[colorIndex % sensorColors.length], width: mode === 'raw' ? 1 : 2 },
         hovertemplate: `<b>%{fullData.name}</b><br>` +
           `Time: %{x}<br>` +
           `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
           `<extra></extra>`,
         connectgaps: false
-      });
+      };
+      
+      // Only add marker if not in raw mode
+      if (mode !== 'raw') {
+        trace.marker = { color: sensorColors[colorIndex % sensorColors.length], size: 4 };
+      }
+      traces.push(trace);
       colorIndex++;
     });
     return traces;
   }, []);
 
-  const fetchAndCacheSensor = useCallback(async (sensor) => {
-    try {
-      setChartLoading(true);
-      const response = await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 1000 });
-      const measurements = response.data || [];
-      const traces = buildTracesFromMeasurements(sensor, measurements, plotData.length);
-      setSensorMeasurements(prev => ({ ...prev, [sensor.id]: measurements }));
-      setPlotData(prev => [...prev, ...traces]);
-    } catch (e) {
-      console.warn(`Failed to fetch measurements for sensor ${sensor.sensor_name}`, e);
-    } finally {
-      setChartLoading(false);
-    }
+  const fetchAndCacheSensor = useCallback(async (sensor, mode = 'aggregated') => {
+    const response = mode === 'raw' 
+      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 1000 })
+      : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 1000 });
+    const measurements = response.data || [];
+    const traces = buildTracesFromMeasurements(sensor, measurements, plotData.length, mode);
+    setSensorMeasurements(prev => ({ ...prev, [`${sensor.id}_${mode}`]: measurements }));
+    return traces; // Return traces instead of updating state here
   }, [buildTracesFromMeasurements, plotData.length]);
 
-  // Mock function to generate chart data (replace with real API call to measurements)
+  // Handle sensor toggle with current data mode
   const handleSensorToggle = async (sensorId, event) => {
     const multi = event && (event.ctrlKey || event.metaKey);
     let newSelectedIds = new Set(selectedSensorIds);
 
-    if (multi) {
-      // Multi-select toggle behavior
-      if (newSelectedIds.has(sensorId)) {
-        newSelectedIds.delete(sensorId);
-        // Remove traces for this sensor
-        setPlotData(prev => prev.filter(t => t.sensorId !== sensorId));
-      } else {
-        newSelectedIds.add(sensorId);
-        const sensor = testSensors.find(s => s.id === sensorId);
-        if (sensor) {
-          // Only fetch if not cached
-          if (!sensorMeasurements[sensorId]) {
-            await fetchAndCacheSensor(sensor);
-          } else {
-            // Build traces from cached measurements
-            const traces = buildTracesFromMeasurements(sensor, sensorMeasurements[sensorId], plotData.length);
+    try {
+      setChartLoading(true);
+      
+      if (multi) {
+        // Multi-select toggle behavior
+        if (newSelectedIds.has(sensorId)) {
+          newSelectedIds.delete(sensorId);
+          // Remove traces for this sensor
+          setPlotData(prev => prev.filter(t => t.sensorId !== sensorId));
+        } else {
+          newSelectedIds.add(sensorId);
+          const sensor = testSensors.find(s => s.id === sensorId);
+          if (sensor) {
+            const cacheKey = `${sensorId}_${dataMode}`;
+            let traces;
+            // Only fetch if not cached
+            if (!sensorMeasurements[cacheKey]) {
+              traces = await fetchAndCacheSensor(sensor, dataMode);
+            } else {
+              // Build traces from cached measurements
+              traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], plotData.length, dataMode);
+            }
             setPlotData(prev => [...prev, ...traces]);
           }
         }
-      }
-    } else {
-      // Single-select mode
-      if (newSelectedIds.has(sensorId) && newSelectedIds.size === 1) {
-        // Deselect if already sole selected
-        newSelectedIds = new Set();
-        setPlotData([]);
       } else {
-        // Replace selection with only this sensor
-        newSelectedIds = new Set([sensorId]);
-        // Remove all existing traces
-        setPlotData([]);
-        const sensor = testSensors.find(s => s.id === sensorId);
-        if (sensor) {
-          if (!sensorMeasurements[sensorId]) {
-            await fetchAndCacheSensor(sensor);
-          } else {
-            const traces = buildTracesFromMeasurements(sensor, sensorMeasurements[sensorId], 0);
+        // Single-select mode
+        if (newSelectedIds.has(sensorId) && newSelectedIds.size === 1) {
+          // Deselect if already sole selected
+          newSelectedIds = new Set();
+          setPlotData([]);
+        } else {
+          // Replace selection with only this sensor
+          newSelectedIds = new Set([sensorId]);
+          const sensor = testSensors.find(s => s.id === sensorId);
+          if (sensor) {
+            const cacheKey = `${sensorId}_${dataMode}`;
+            let traces;
+            if (!sensorMeasurements[cacheKey]) {
+              traces = await fetchAndCacheSensor(sensor, dataMode);
+            } else {
+              traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], 0, dataMode);
+            }
             setPlotData(traces);
           }
         }
       }
+    } catch (error) {
+      console.error('Error toggling sensor:', error);
+    } finally {
+      setChartLoading(false);
     }
+    
     setSelectedSensorIds(newSelectedIds);
+  };
+
+  const handleDataModeChange = async (newMode) => {
+    if (newMode === dataMode) return;
+    
+    setDataMode(newMode);
+    
+    // Clear current plot and reload data for selected sensors
+    if (selectedSensorIds.size > 0) {
+      setPlotData([]);
+      setChartLoading(true);
+      
+      try {
+        const selectedSensors = testSensors.filter(s => selectedSensorIds.has(s.id));
+        
+        const allTraces = [];
+        for (const sensor of selectedSensors) {
+          const cacheKey = `${sensor.id}_${newMode}`;
+          
+          let traces;
+          if (!sensorMeasurements[cacheKey]) {
+            traces = await fetchAndCacheSensor(sensor, newMode);
+          } else {
+            traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], allTraces.length, newMode);
+          }
+          allTraces.push(...traces);
+        }
+        
+        setPlotData(allTraces);
+      } catch (error) {
+        console.error('Error switching data mode:', error);
+      } finally {
+        setChartLoading(false);
+      }
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (selectedSensorIds.size === 0) return;
+    
+    setIsRefreshing(true);
+    setPlotData([]);
+    
+    try {
+      const selectedSensors = testSensors.filter(s => selectedSensorIds.has(s.id));
+      
+      // Clear cache for selected sensors in current mode
+      const newCache = { ...sensorMeasurements };
+      selectedSensors.forEach(sensor => {
+        const cacheKey = `${sensor.id}_${dataMode}`;
+        delete newCache[cacheKey];
+      });
+      setSensorMeasurements(newCache);
+      
+      // Fetch fresh data and collect all traces
+      const allTraces = [];
+      for (const sensor of selectedSensors) {
+        const traces = await fetchAndCacheSensor(sensor, dataMode);
+        allTraces.push(...traces);
+      }
+      
+      setPlotData(allTraces);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      alert('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleSaveNote = async () => {
@@ -577,7 +657,7 @@ const TestOverview = () => {
                     <h3 className="card-title">Sensor Data Visualization</h3>
                     <p className="card-subtitle">
                       {selectedSensorIds.size > 0 
-                        ? `${selectedSensorIds.size} sensor${selectedSensorIds.size > 1 ? 's' : ''} selected`
+                        ? `${selectedSensorIds.size} sensor${selectedSensorIds.size > 1 ? 's' : ''} selected • ${dataMode === 'raw' ? 'Raw data (last 1000 points)' : 'Aggregated data (10s avg)'}`
                         : 'Click on sensors to view data'
                       }
                     </p>
@@ -600,6 +680,35 @@ const TestOverview = () => {
                   <div className="chart-container">
                     <div className="chart-controls">
                       <div className="chart-control-buttons">
+                        <div 
+                          className={`data-mode-toggle ${chartLoading || isRefreshing ? 'disabled' : ''}`}
+                          style={{ marginRight: '10px' }}
+                        >
+                          <div className="toggle-background" style={{
+                            transform: dataMode === 'aggregated' ? 'translateX(0)' : 'translateX(100%)'
+                          }} />
+                          <div 
+                            className={`toggle-option ${dataMode === 'aggregated' ? 'active' : ''}`}
+                            onClick={() => !chartLoading && !isRefreshing && handleDataModeChange('aggregated')}
+                          >
+                            📊 Aggregated
+                          </div>
+                          <div 
+                            className={`toggle-option ${dataMode === 'raw' ? 'active' : ''}`}
+                            onClick={() => !chartLoading && !isRefreshing && handleDataModeChange('raw')}
+                          >
+                            📈 Raw
+                          </div>
+                        </div>
+                        <button 
+                          className="btn btn-success btn-sm"
+                          onClick={handleRefresh}
+                          disabled={selectedSensorIds.size === 0 || isRefreshing || chartLoading}
+                          title="Refresh chart data"
+                          style={{ marginRight: '10px' }}
+                        >
+                          {isRefreshing ? '⟳' : '🔄'} Refresh
+                        </button>
                         <button 
                           className="btn btn-secondary btn-sm"
                           onClick={resetZoom}

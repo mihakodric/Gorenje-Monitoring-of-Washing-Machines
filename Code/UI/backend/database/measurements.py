@@ -43,6 +43,36 @@ async def get_sensor_measurements_avg(test_relation_id: int) -> List[Dict]:
         """, test_relation_id)
     return [dict(row) for row in rows]
 
+async def get_sensor_measurements_raw(test_relation_id: int, limit: int = 1000) -> List[Dict]:
+    """Get recent raw sensor measurements for a given test relation ID.
+    Returns the most recent measurements up to the specified limit per channel.
+    """
+    async with get_db_pool().acquire() as conn:
+        rows = await conn.fetch("""
+            WITH latest_measurements AS (
+                SELECT 
+                    measurement_timestamp,
+                    test_relation_id,
+                    measurement_channel,
+                    measurement_value,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY measurement_channel 
+                        ORDER BY measurement_timestamp DESC
+                    ) as rn
+                FROM timeseries.measurements
+                WHERE test_relation_id = $1
+            )
+            SELECT 
+                measurement_timestamp,
+                test_relation_id,
+                measurement_channel,
+                measurement_value
+            FROM latest_measurements
+            WHERE rn <= $2
+            ORDER BY measurement_timestamp ASC, measurement_channel
+        """, test_relation_id, limit)
+    return [dict(row) for row in rows]
+
 
 async def insert_measurements(measurements: List[Dict]) -> bool:
     """Insert multiple measurements into the database efficiently."""
