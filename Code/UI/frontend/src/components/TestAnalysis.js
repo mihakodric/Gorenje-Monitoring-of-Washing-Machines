@@ -12,13 +12,15 @@ const SENSOR_COLORS = [
 ];
 
 // Segment color palette - used for shaded areas on plots
+const SEGMENT_TRANSPARENCY_FILL = 0.10;
+const SEGMENT_TRANSPARENCY_BORDER = 0.7;
 const SEGMENT_COLORS = [
-  'rgba(59, 130, 246, 0.15)',   // blue
-  'rgba(239, 68, 68, 0.15)',    // red
-  'rgba(16, 185, 129, 0.15)',   // green
-  'rgba(245, 158, 11, 0.15)',   // orange
-  'rgba(139, 92, 246, 0.15)',   // purple
-  'rgba(236, 72, 153, 0.15)',   // pink
+  `rgba(59, 130, 246, ${SEGMENT_TRANSPARENCY_FILL})`,   // blue
+  `rgba(239, 68, 68, ${SEGMENT_TRANSPARENCY_FILL})`,    // red
+  `rgba(16, 185, 129, ${SEGMENT_TRANSPARENCY_FILL})`,   // green
+  `rgba(245, 158, 11, ${SEGMENT_TRANSPARENCY_FILL})`,   // orange
+  `rgba(139, 92, 246, ${SEGMENT_TRANSPARENCY_FILL})`,   // purple
+  `rgba(236, 72, 153, ${SEGMENT_TRANSPARENCY_FILL})`,   // pink
 ];
 
 const TestAnalysis = () => {
@@ -187,12 +189,24 @@ const TestAnalysis = () => {
     // Auto-detect start and end time from stored x-axis range
     try {
       if (xAxisRangeRef.current && xAxisRangeRef.current.length === 2) {
-        const startTime = new Date(xAxisRangeRef.current[0]).toISOString().slice(0, 16);
-        const endTime = new Date(xAxisRangeRef.current[1]).toISOString().slice(0, 16);
+        // Convert to local time format for datetime-local input
+        const startDate = new Date(xAxisRangeRef.current[0]);
+        const endDate = new Date(xAxisRangeRef.current[1]);
+        
+        // Format as YYYY-MM-DDTHH:mm in local timezone
+        const formatLocalDateTime = (date) => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+        
         setNewSegment({ 
           segment_name: '', 
-          start_time: startTime, 
-          end_time: endTime 
+          start_time: formatLocalDateTime(startDate), 
+          end_time: formatLocalDateTime(endDate)
         });
         setIsAddingSegment(true);
         return;
@@ -396,7 +410,7 @@ const TestAnalysis = () => {
           y1: 1,
           fillcolor: segmentColor,
           line: {
-            color: SEGMENT_COLORS[segmentIndex % SEGMENT_COLORS.length].replace('0.15', '0.6'),
+            color: SEGMENT_COLORS[segmentIndex % SEGMENT_COLORS.length].replace(`${SEGMENT_TRANSPARENCY_FILL}`, `${SEGMENT_TRANSPARENCY_BORDER}`),
             width: isSelected ? 3 : 1  // Thicker border for selected segment
           },
           layer: 'below'
