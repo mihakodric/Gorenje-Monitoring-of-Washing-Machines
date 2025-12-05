@@ -1,0 +1,543 @@
+/* =================================
+   TABLE COMPONENTS
+   ================================= */
+
+/* Table Container */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Base Table */
+.table {
+  width: 100%;
+  margin-bottom: 0;
+  color: #374151;
+  background-color: transparent;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+  min-width: auto; /* Remove fixed minimum width to prevent horizontal scroll */
+}
+
+/* Table Header */
+.table thead {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.table thead th {
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: #1f2937;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.table thead th:first-child {
+  padding-left: 20px;
+  border-top-left-radius: 8px;
+}
+
+.table thead th:last-child {
+  padding-right: 20px;
+  border-top-right-radius: 8px;
+}
+
+/* Table Body */
+.table tbody {
+  background: white;
+}
+
+.table tbody tr {
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 8px;
+}
+
+.table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 8px;
+}
+
+/* Table Cells */
+.table td {
+  padding: 14px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f3f4f6;
+  line-height: 1.4;
+}
+
+.table td:first-child {
+  padding-left: 20px;
+}
+
+.table td:last-child {
+  padding-right: 20px;
+}
+
+/* Table Cell Content */
+.table td strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.table td .sensor-id {
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: 'Courier New', monospace;
+  margin-top: 2px;
+  font-weight: normal;
+}
+
+/* Action Buttons in Tables */
+.table .action-buttons {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.table .btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+  min-width: 70px;
+}
+
+/* Badge Styling in Tables */
+.table .badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+/* Status Badges in Tables */
+.table .status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-radius: 4px;
+  border: 1px solid;
+}
+
+.table .status-badge.online {
+  background-color: #dcfdf7;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.table .status-badge.offline {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.table .status-badge.running {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+
+.table .status-badge.idle {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+/* Compact Tables */
+.table.table-compact td,
+.table.table-compact th {
+  padding: 10px 12px;
+}
+
+.table.table-compact {
+  font-size: 13px;
+}
+
+.table.compact-table td,
+.table.compact-table th {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.table.compact-table tbody tr {
+  height: 48px;
+}
+
+/* Sticky Action Column */
+.table.compact-table thead th[style*="position: sticky"],
+.table.compact-table tbody td[style*="position: sticky"] {
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+.table.compact-table thead th[style*="position: sticky"] {
+  z-index: 15;
+}
+
+.table.compact-table tbody tr:hover td[style*="position: sticky"] {
+  background-color: #f8fafc !important;
+}
+
+.table.compact-table.table-striped tbody tr:nth-of-type(odd) td[style*="position: sticky"] {
+  background-color: #f9fafb !important;
+}
+
+.table.compact-table.table-striped tbody tr:nth-of-type(odd):hover td[style*="position: sticky"] {
+  background-color: #f3f4f6 !important;
+}
+
+/* Striped Tables */
+.table.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #f9fafb;
+}
+
+.table.table-striped tbody tr:nth-of-type(odd):hover {
+  background-color: #f3f4f6;
+}
+
+/* Bordered Tables */
+.table.table-bordered {
+  border: 1px solid #e5e7eb;
+}
+
+.table.table-bordered th,
+.table.table-bordered td {
+  border: 1px solid #e5e7eb;
+}
+
+/* Full Height Tables (fills available vertical space) */
+.table-full-height {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-full-height .table-responsive {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.table-full-height .table {
+  flex: 1;
+  height: 100%;
+}
+
+.table-full-height .table tbody {
+  height: 100%;
+}
+
+/* Empty State */
+.table-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.table-empty-icon {
+  font-size: 48px;
+  color: #d1d5db;
+  margin-bottom: 16px;
+}
+
+/* Loading State */
+.table-loading {
+  position: relative;
+}
+
+.table-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+/* Sortable Headers */
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 24px;
+}
+
+.table th.sortable:hover {
+  background-color: #f1f5f9;
+}
+
+.table th.sortable::after {
+  content: '↕';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
+  font-size: 12px;
+}
+
+.table th.sortable.sort-asc::after {
+  content: '↑';
+  opacity: 1;
+  color: #3b82f6;
+}
+
+.table th.sortable.sort-desc::after {
+  content: '↓';
+  opacity: 1;
+  color: #3b82f6;
+}
+
+/* Responsive Table Adjustments */
+@media (max-width: 768px) {
+  .table-responsive {
+    border-radius: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table {
+    font-size: 13px;
+    min-width: auto; /* Remove fixed width on tablets */
+  }
+  
+  .table th,
+  .table td {
+    padding: 12px 8px;
+  }
+  
+  .table th:first-child,
+  .table td:first-child {
+    padding-left: 12px;
+  }
+  
+  .table th:last-child,
+  .table td:last-child {
+    padding-right: 12px;
+  }
+  
+  .table .btn-sm {
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 60px;
+  }
+  
+  .table .action-buttons {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  /* Improve table-full-height on mobile */
+  .table-full-height {
+    min-height: auto;
+    max-height: 600px;
+  }
+  
+  .table-full-height h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .table {
+    font-size: 12px;
+    min-width: auto; /* Remove fixed width on mobile */
+  }
+  
+  .table th,
+  .table td {
+    padding: 10px 6px;
+  }
+  
+  .table th:first-child,
+  .table td:first-child {
+    padding-left: 10px;
+  }
+  
+  .table th:last-child,
+  .table td:last-child {
+    padding-right: 10px;
+  }
+  
+  .table .sensor-id {
+    font-size: 10px;
+  }
+  
+  .table .action-buttons {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  /* Further adjust for smaller screens */
+  .table-full-height {
+    max-height: 500px;
+  }
+  
+  .table-full-height h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  /* Make form controls in tables more compact */
+  .table .form-control-sm {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}
+
+/* ========================================
+   SENSOR TABLE SECTION (NewTest Page)
+   ======================================== */
+
+/* Sensor Tables Wrapper - Side by side container */
+.sensor-tables-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+  align-items: start;
+}
+
+/* Base Sensor Table Section Styles */
+.sensor-table-section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0; /* Allow flex items to shrink below content size */
+}
+
+.sensor-table-section h3 {
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  flex-shrink: 0;
+}
+
+.sensor-table-section .filter-section {
+  flex-shrink: 0;
+  margin-bottom: 15px;
+}
+
+.sensor-table-section .table-responsive {
+  flex: 0 1 auto;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.sensor-table-section .table-empty {
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sticky Action Column for Sensor Tables */
+.sensor-table-section .table thead th:last-child,
+.sensor-table-section .table tbody td:last-child {
+  position: sticky;
+  right: 0;
+  background-color: white;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+.sensor-table-section .table thead th:last-child {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  z-index: 15; /* Higher than tbody cells */
+}
+
+.sensor-table-section .table tbody tr:hover td:last-child {
+  background-color: #f8fafc;
+}
+
+.sensor-table-section .table.table-striped tbody tr:nth-of-type(odd) td:last-child {
+  background-color: #f9fafb;
+}
+
+.sensor-table-section .table.table-striped tbody tr:nth-of-type(odd):hover td:last-child {
+  background-color: #f3f4f6;
+}
+
+/* Responsive adjustments for sensor tables */
+@media (max-width: 768px) {
+  .sensor-tables-wrapper {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  
+  .sensor-table-section h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .sensor-table-section .table-responsive {
+    max-height: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sensor-tables-wrapper {
+    gap: 25px;
+  }
+  
+  .sensor-table-section h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  .sensor-table-section .table-responsive {
+    max-height: 300px;
+  }
+  
+  .sensor-table-section .filter-section {
+    margin-bottom: 12px;
+  }
+}

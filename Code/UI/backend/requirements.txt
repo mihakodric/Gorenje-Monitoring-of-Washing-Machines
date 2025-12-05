@@ -1,7 +1,9 @@
 fastapi
 uvicorn
+asyncpg
 paho-mqtt
 pandas
 python-multipart
 pydantic
-paho-mqtt
+python-dotenv
+httpx

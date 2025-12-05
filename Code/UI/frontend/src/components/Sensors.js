@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { sensorsAPI } from '../api';
-import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X } from 'lucide-react';
+import { sensorsAPI, sensorTypesAPI } from '../api';
+import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X, Wifi, Target, MapPin, Crosshair, Radio } from 'lucide-react';
 import SensorModal from './SensorModal';
 
 const Sensors = () => {
   const [sensors, setSensors] = useState([]);
+  const [sensorTypes, setSensorTypes] = useState([]);
   const [filteredSensors, setFilteredSensors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -14,11 +15,11 @@ const Sensors = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
   const [typeFilter, setTypeFilter] = useState('all'); // all, temperature, current, etc.
-  const [sortField, setSortField] = useState('name');
+  const [sortField, setSortField] = useState('sensor_name');
   const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
-    loadSensors();
+    loadSensorsAndSensorTypes();
   }, []);
 
   useEffect(() => {
@@ -29,16 +30,16 @@ const Sensors = () => {
     let filtered = sensors.filter(sensor => {
       // Search filter
       const matchesSearch = sensor.sensor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           sensor.sensor_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           sensor.mqtt_topic.toLowerCase().includes(searchTerm.toLowerCase());
+                           (sensor.sensor_type_id && sensor.sensor_type_id.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           sensor.sensor_mqtt_topic.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Status filter
       const matchesStatus = statusFilter === 'all' || 
-                           (statusFilter === 'active' && sensor.is_online) ||
-                           (statusFilter === 'inactive' && !sensor.is_online);
+                           (statusFilter === 'active' && sensor.sensor_is_online) ||
+                           (statusFilter === 'inactive' && !sensor.sensor_is_online);
 
       // Type filter
-      const matchesType = typeFilter === 'all' || sensor.sensor_type === typeFilter;
+      const matchesType = typeFilter === 'all' || sensor.sensor_type_id?.toString() === typeFilter;
 
       return matchesSearch && matchesStatus && matchesType;
     });
@@ -48,7 +49,7 @@ const Sensors = () => {
       let aValue = a[sortField];
       let bValue = b[sortField];
 
-      if (sortField === 'last_seen') {
+      if (sortField === 'sensor_last_seen') {
         aValue = new Date(aValue || 0).getTime();
         bValue = new Date(bValue || 0).getTime();
       } else if (typeof aValue === 'string') {
@@ -79,18 +80,22 @@ const Sensors = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setTypeFilter('all');
-    setSortField('name');
+    setSortField('sensor_name');
     setSortDirection('asc');
   };
 
   const getSensorTypes = () => {
-    return [...new Set(sensors.map(s => s.sensor_type))];
+    return [...new Set(sensors.map(s => s.sensor_type_id).filter(Boolean))];
   };
 
-  const loadSensors = async () => {
+  const loadSensorsAndSensorTypes = async () => {
     try {
-      const response = await sensorsAPI.getAll();
-      setSensors(response.data);
+      const [sensorsResponse, sensorTypesResponse] = await Promise.all([
+        sensorsAPI.getAll(),
+        sensorTypesAPI.getAll()
+      ]);
+      setSensors(sensorsResponse.data);
+      setSensorTypes(sensorTypesResponse.data);
     } catch (error) {
       console.error('Error loading sensors:', error);
     } finally {
@@ -112,7 +117,7 @@ const Sensors = () => {
     if (window.confirm('Are you sure you want to delete this sensor? This action cannot be undone.')) {
       try {
         await sensorsAPI.delete(sensorId);
-        loadSensors();
+        loadSensorsAndSensorTypes();
       } catch (error) {
         console.error('Error deleting sensor:', error);
         alert('Error deleting sensor. Please try again.');
@@ -128,35 +133,22 @@ const Sensors = () => {
   const handleModalSave = () => {
     setShowModal(false);
     setEditingSensor(null);
-    loadSensors();
+    loadSensorsAndSensorTypes();
   };
 
-  const getSensorIcon = (sensorType) => {
-    const iconMap = {
-      temperature: Thermometer,
-      current: Zap,
-      infrared: Eye,
-      water_flow: Droplets,
-      acceleration: Gauge,
-      distance: Activity
-    };
-    return iconMap[sensorType] || Activity;
-  };
-
-  const getSensorColor = (sensorType) => {
-    const colorMap = {
-      temperature: '#f59e0b',
-      current: '#8b5cf6',
-      infrared: '#ef4444',
-      water_flow: '#06b6d4',
-      acceleration: '#10b981',
-      distance: '#3b82f6'
-    };
-    return colorMap[sensorType] || '#6b7280';
+  const handleIdentifySensor = async (sensor) => {
+    try {
+      console.log(`Identifying sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
+      await sensorsAPI.identify(sensor.sensor_mqtt_topic);
+      alert(`✅ Identify command sent to sensor:\n${sensor.sensor_name}\n\nThe sensor LED should blink now.`);
+    } catch (error) {
+      console.error('Error sending identify command:', error);
+      alert(`❌ Failed to send identify command:\n${error.response?.data?.detail || error.message}`);
+    }
   };
 
   const getSensorBadgeStyle = (sensorType) => {
-    const color = getSensorColor(sensorType);
+    const color = '#10b981'; // Default to green
     return {
       background: `linear-gradient(135deg, ${color}20 0%, ${color}10 100%)`,
       color: color,
@@ -174,7 +166,7 @@ const Sensors = () => {
 
   if (loading) {
     return (
-      <div>
+      <div className="container">
         <div className="loading">
           <div className="loading-spinner"></div>
           <p>Loading sensors...</p>
@@ -184,36 +176,24 @@ const Sensors = () => {
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '10px'
-        }}>
+    <div className="container">
+      <div className="page-header">
+        <h1 className="page-title">
           Sensor Management
         </h1>
-        <p style={{ color: '#6b7280', fontSize: '16px', fontWeight: '500' }}>
+        <p className="page-subtitle">
           Configure and monitor your washing machine sensors
         </p>
       </div>
 
-      <div className="card">
+      <div className="card no-padding">
         <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <Activity size={28} style={{ color: '#667eea' }} />
+          <div className="card-title">
+            <Activity size={28} className="text-primary" />
             <div>
-              <h2 className="card-title" style={{ margin: 0, fontSize: '20px' }}>
-                Active Sensors
-              </h2>
-              <p style={{ 
-                margin: 0, 
-                fontSize: '14px', 
-                color: '#6b7280',
-                fontWeight: '500'
-              }}>
-                {filteredSensors.filter(s => s.is_online).length} of {filteredSensors.length} sensors online
+              <h2>Active Sensors</h2>
+              <p className="card-subtitle">
+                {filteredSensors.filter(s => s.sensor_is_online).length} of {filteredSensors.length} sensors online
                 {sensors.length !== filteredSensors.length && ` (${sensors.length} total)`}
               </p>
             </div>
@@ -221,125 +201,80 @@ const Sensors = () => {
           <button 
             className="btn btn-primary" 
             onClick={handleAddSensor}
-            style={{ 
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600'
-            }}
           >
             <Plus size={18} />
             Add New Sensor
           </button>
         </div>
 
-        {/* Filters */}
-        <div style={{
-          padding: '20px',
-          borderBottom: '2px solid #f0f2f5',
-          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-          borderRadius: '12px 12px 0 0'
-        }}>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Search */}
-            <div style={{ position: 'relative', minWidth: '250px' }}>
-              <Search size={18} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#9ca3af'
-              }} />
+        <div className="card-body">
+          {/* Filters */}
+          <div className="filter-section">
+          {/* Search */}
+          <div className="form-group">
+            <div className="search-container">
+              <Search size={18} className="search-icon" />
               <input
                 type="text"
                 placeholder="Search sensors..."
                 className="form-control"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  paddingLeft: '40px',
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
               />
             </div>
-
-            {/* Status Filter */}
-            <div style={{ minWidth: '120px' }}>
-              <select
-                className="form-control"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: 'white'
-                }}
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive Only</option>
-              </select>
-            </div>
-
-            {/* Type Filter */}
-            <div style={{ minWidth: '140px' }}>
-              <select
-                className="form-control"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: 'white'
-                }}
-              >
-                <option value="all">All Types</option>
-                {getSensorTypes().map(type => (
-                  <option key={type} value={type}>
-                    {type.replace('_', ' ').toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Clear Filters */}
-            {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={clearFilters}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <X size={14} />
-                Clear Filters
-              </button>
-            )}
-
-            {/* Results count */}
-            <div style={{
-              marginLeft: 'auto',
-              fontSize: '14px',
-              color: '#6b7280',
-              fontWeight: '500'
-            }}>
-              Showing {filteredSensors.length} of {sensors.length} sensors
-            </div>
           </div>
-        </div>
 
-        {sensors.length === 0 ? (
-          <div className="text-center" style={{ padding: '60px 40px' }}>
-            <Activity size={64} style={{ color: '#d1d5db', marginBottom: '20px' }} />
-            <h3 style={{ color: '#4b5563', marginBottom: '10px' }}>No Sensors Found</h3>
-            <p style={{ color: '#9ca3af', marginBottom: '25px' }}>
+          {/* Status Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+          </div>
+
+          {/* Type Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="all">All Types</option>
+              {getSensorTypes().map(type => (
+                <option key={type} value={type}>
+                  {sensorTypes.find(st => st.id === type)?.sensor_type_name || `Type ${type}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={clearFilters}
+            >
+              <X size={14} />
+              Clear
+            </button>
+          )}
+
+          {/* Results count */}
+          <div className="filter-count">
+            Showing {filteredSensors.length} of {sensors.length} sensors
+          </div>
+          </div>
+
+          {sensors.length === 0 ? (
+          <div className="empty-state">
+            <Activity size={64} className="empty-icon" />
+            <h3 className="empty-title">No Sensors Found</h3>
+            <p className="empty-description">
               Get started by adding your first sensor to begin monitoring your washing machine.
             </p>
             <button className="btn btn-primary" onClick={handleAddSensor}>
@@ -348,10 +283,10 @@ const Sensors = () => {
             </button>
           </div>
         ) : filteredSensors.length === 0 ? (
-          <div className="text-center" style={{ padding: '60px 40px' }}>
-            <Filter size={64} style={{ color: '#d1d5db', marginBottom: '20px' }} />
-            <h3 style={{ color: '#4b5563', marginBottom: '10px' }}>No Matching Sensors</h3>
-            <p style={{ color: '#9ca3af', marginBottom: '25px' }}>
+          <div className="empty-state">
+            <Filter size={64} className="empty-icon" />
+            <h3 className="empty-title">No Matching Sensors</h3>
+            <p className="empty-description">
               No sensors match your current filters. Try adjusting your search criteria.
             </p>
             <button className="btn btn-secondary" onClick={clearFilters}>
@@ -360,31 +295,31 @@ const Sensors = () => {
             </button>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table">
+          <div className="table-responsive">
+            <table className="table table-striped">
               <thead>
                 <tr>
                   <th 
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => handleSort('name')}
+                    className="sortable"
+                    onClick={() => handleSort('sensor_name')}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="sort-header">
                       Sensor Details
-                      {sortField === 'name' && (
-                        <span style={{ fontSize: '12px' }}>
+                      {sortField === 'sensor_name' && (
+                        <span className="sort-indicator">
                           {sortDirection === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
                     </div>
                   </th>
                   <th 
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => handleSort('sensor_type')}
+                    className="sortable"
+                    onClick={() => handleSort('sensor_type_id')}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="sort-header">
                       Type
-                      {sortField === 'sensor_type' && (
-                        <span style={{ fontSize: '12px' }}>
+                      {sortField === 'sensor_type_id' && (
+                        <span className="sort-indicator">
                           {sortDirection === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
@@ -392,26 +327,26 @@ const Sensors = () => {
                   </th>
                   <th>MQTT Configuration</th>
                   <th 
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => handleSort('is_online')}
+                    className="sortable"
+                    onClick={() => handleSort('sensor_is_online')}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="sort-header">
                       Status
-                      {sortField === 'is_online' && (
-                        <span style={{ fontSize: '12px' }}>
+                      {sortField === 'sensor_is_online' && (
+                        <span className="sort-indicator">
                           {sortDirection === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
                     </div>
                   </th>
                   <th 
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => handleSort('last_seen')}
+                    className="sortable"
+                    onClick={() => handleSort('sensor_last_seen')}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div className="sort-header">
                       Last Activity
-                      {sortField === 'last_seen' && (
-                        <span style={{ fontSize: '12px' }}>
+                      {sortField === 'sensor_last_seen' && (
+                        <span className="sort-indicator">
                           {sortDirection === 'asc' ? '↑' : '↓'}
                         </span>
                       )}
@@ -422,129 +357,106 @@ const Sensors = () => {
               </thead>
               <tbody>
                 {filteredSensors.map((sensor) => {
-                  const IconComponent = getSensorIcon(sensor.sensor_type);
-                  const sensorColor = getSensorColor(sensor.sensor_type);
-                  
                   return (
                     <tr key={sensor.id}>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '10px',
-                            backgroundColor: sensorColor + '20',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <IconComponent size={20} style={{ color: sensorColor }} />
+                        <div className={`sensor-card`}>
+                          <div className="sensor-icon">
+                            <Activity size={20} />
                           </div>
-                          <div>
-                            <div style={{ fontWeight: '600', color: '#374151', fontSize: '14px' }}>
+                          <div className="sensor-content">
+                            <div className="sensor-name">
                               {sensor.sensor_name}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'monospace' }}>
-                              ID: {sensor.sensor_id}
-                            </div>
+                            {sensor.sensor_description && (
+                              <div className="sensor-description">
+                                {sensor.sensor_description}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td>
-                        <div style={getSensorBadgeStyle(sensor.sensor_type)}>
-                          <IconComponent size={14} />
-                          {sensor.sensor_type.replace('_', ' ')}
-                        </div>
-                        {sensor.description && (
-                          <div style={{ 
-                            marginTop: '8px', 
-                            fontSize: '12px', 
-                            color: '#6b7280',
-                            fontWeight: '500'
-                          }}>
-                            {sensor.description}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{
-                          fontFamily: 'monospace',
-                          fontSize: '13px',
-                          color: '#374151',
-                          backgroundColor: '#f3f4f6',
-                          padding: '6px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid #e5e7eb'
-                        }}>
-                          {sensor.mqtt_topic}
+                        <div className="badge badge-success">
+                          {sensorTypes.find(st => st.id === sensor.sensor_type_id)?.sensor_type_name || `Type ${sensor.sensor_type_id}`}
                         </div>
                       </td>
                       <td>
-                        <div style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px 12px',
-                          borderRadius: '20px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                          ...(sensor.is_online ? {
-                            background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
-                            color: '#065f46',
-                            border: '2px solid #a7f3d0'
-                          } : {
-                            background: 'linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)',
-                            color: '#7f1d1d',
-                            border: '2px solid #fca5a5'
-                          })
-                        }}>
-                          <div style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            backgroundColor: sensor.is_online ? '#10b981' : '#ef4444',
-                            animation: sensor.is_online ? 'pulse 2s infinite' : 'none'
-                          }}></div>
-                          {sensor.is_online ? 'Online' : 'Offline'}
+                        <div className="code-block">
+                          {sensor.sensor_mqtt_topic}
                         </div>
                       </td>
                       <td>
-                        <div style={{ fontSize: '13px', color: '#374151', fontWeight: '500' }}>
-                          {sensor.last_seen ? 
-                            new Date(sensor.last_seen).toLocaleDateString() : 
+                        <div className={`status-badge ${sensor.sensor_is_online ? 'status-online' : 'status-offline'}`}>
+                          <div className={`status-dot ${sensor.sensor_is_online ? 'online' : 'offline'}`} />
+                          {sensor.sensor_is_online ? 'Online' : 'Offline'}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="date-primary">
+                          {sensor.sensor_last_seen ? 
+                            new Date(sensor.sensor_last_seen).toLocaleDateString() : 
                             'Never'
                           }
                         </div>
-                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                          {sensor.last_seen ? 
-                            new Date(sensor.last_seen).toLocaleTimeString() : 
+                        <div className="date-secondary">
+                          {sensor.sensor_last_seen ? 
+                            new Date(sensor.sensor_last_seen).toLocaleTimeString() : 
                             'No data received'
                           }
                         </div>
                       </td>
                       <td>
-                        <div className="action-buttons">
+                        <div className="action-buttons" style={{ position: 'relative' }}>
+                          {sensor.sensor_is_active && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: '-30px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Radio 
+                                size={18} 
+                                style={{ 
+                                  color: '#ef4444',
+                                  animation: 'blink-red 1s ease-in-out infinite'
+                                }} 
+                              />
+                            </div>
+                          )}
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleIdentifySensor(sensor)}
+                            disabled={!sensor.sensor_is_online || sensor.sensor_is_active}
+                            title={
+                              sensor.sensor_is_active 
+                                ? "Cannot identify - sensor is recording" 
+                                : (sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline")
+                            }
+                          >
+                            <Crosshair size={14} />
+                          </button>
                           <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleEditSensor(sensor)}
                             title="Edit sensor"
-                            style={{ 
-                              padding: '8px 12px',
-                              minWidth: 'auto'
-                            }}
                           >
                             <Edit size={14} />
                           </button>
                           <button
                             className="btn btn-danger btn-sm"
-                            onClick={() => handleDeleteSensor(sensor.sensor_id)}
-                            title="Delete sensor"
-                            style={{ 
-                              padding: '8px 12px',
-                              minWidth: 'auto'
-                            }}
+                            onClick={() => handleDeleteSensor(sensor.id)}
+                            disabled={sensor.sensor_is_active}
+                            title={
+                              sensor.sensor_is_active 
+                                ? "Cannot delete - sensor is recording" 
+                                : "Delete sensor"
+                            }
                           >
                             <Trash2 size={14} />
                           </button>
@@ -557,6 +469,7 @@ const Sensors = () => {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       {showModal && (

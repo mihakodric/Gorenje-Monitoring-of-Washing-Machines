@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navigation from './components/Navigation';
-import Dashboard from './components/Dashboard';
+// import Dashboard from './components/Dashboard';
 import Sensors from './components/Sensors';
 import Tests from './components/Tests';
 import NewTest from './components/NewTest';
+import TestOverview from './components/TestOverview';
+import TestAnalysis from './components/TestAnalysis';
 import Machines from './components/Machines';
 import Settings from './components/Settings';
-import Settings1 from './components/Settings1';
 import './App.css';
+import './styles/index.css';
 
 function App() {
   const [isNavCollapsed, setIsNavCollapsed] = useState(false);
@@ -37,14 +39,15 @@ function App() {
         />
         <div className={`main-content ${isNavCollapsed ? 'nav-collapsed' : ''}`}>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            {/* <Route path="/" element={<Dashboard />} /> */}
             <Route path="/sensors" element={<Sensors />} />
             <Route path="/tests" element={<Tests />} />
             <Route path="/tests/new" element={<NewTest />} />
             <Route path="/tests/edit/:id" element={<NewTest />} />
+            <Route path="/tests/overview/:testId" element={<TestOverview />} />
+            <Route path="/tests/analysis/:testId" element={<TestAnalysis />} />
             <Route path="/machines" element={<Machines/>} />
             <Route path="/settings" element={<Settings />} />
-            <Route path="/settings1" element={<Settings1 />} />
           </Routes>
         </div>
       </div>

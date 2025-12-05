@@ -1,0 +1,428 @@
+/* =================================
+   TEST ANALYSIS STYLES
+   ================================= */
+
+.analysis-container {
+  width: 100%;
+  max-width: 100%;
+  padding: 20px;
+}
+
+.analysis-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  min-height: calc(100vh - 200px);
+}
+
+/* Plots Section (Left 2/3) */
+.plots-section {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: calc(100vh - 180px);
+  min-height: 400px;
+  padding-right: 10px;
+}
+
+.subplot-container {
+  width: 100%;
+  min-height: 100%;
+  flex: 1;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow-y: auto;
+}
+
+.subplot-container .js-plotly-plot {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.sensor-plot-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  padding: 8px 10px;
+}
+
+.sensor-plot-row:first-child {
+  border-radius: 8px 8px 0 0;
+  padding-top: 10px;
+}
+
+.sensor-plot-row:last-child {
+  border-radius: 0 0 8px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.sensor-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 10px;
+  border-right: 2px solid #e2e8f0;
+}
+
+.sensor-label h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 3px 0;
+  line-height: 1.2;
+}
+
+.sensor-meta {
+  font-size: 10px;
+  color: #6b7280;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+
+.sensor-type {
+  font-size: 9px;
+  color: #9ca3af;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.2;
+}
+
+.sensor-plot {
+  min-height: 120px;
+  height: 120px;
+  position: relative;
+}
+
+.sensor-plot .js-plotly-plot {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.no-data-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* Segments Section (Right 1/3) */
+.segments-section {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+  overflow: hidden;
+}
+
+
+
+.segments-section .card {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 0px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.segments-section .card-header {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.segments-section .card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+}
+
+.segments-section .card-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.segments-section .card-body {
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.segments-table-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.segments-table-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.segments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.segments-table thead {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.segments-table th {
+  text-align: left;
+  padding: 8px 4px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.segments-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.segments-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.segments-table tbody tr.adding-row {
+  background: #f0f9ff;
+}
+
+/* Clickable segment cells */
+.segments-table tbody td[style*="cursor: pointer"]:hover {
+  background: #dbeafe;
+  transition: background-color 0.2s ease;
+}
+
+.segment-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: white;
+}
+
+.segment-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+/* Stack datetime inputs vertically */
+.segment-datetime-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.segment-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-icon-sm {
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-primary-sm {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary-sm:hover {
+  background: #2563eb;
+}
+
+.btn-success-sm {
+  background: #10b981;
+  color: white;
+}
+
+.btn-success-sm:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-success-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #9ca3af;
+}
+
+.btn-danger-sm {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-danger-sm:hover {
+  background: #dc2626;
+}
+
+.btn-secondary-sm {
+  background: #6b7280;
+  color: white;
+}
+
+.btn-secondary-sm:hover {
+  background: #4b5563;
+}
+
+.btn-add-segment {
+  margin: 8px;
+  width: calc(100% - 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-add-segment:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.loading-message .spinner {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 16px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-message p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .analysis-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .segments-section {
+    position: static;
+    max-height: none;
+  }
+
+  .sensor-plot-row {
+    grid-template-columns: 150px 1fr;
+  }
+
+  .sensor-label h3 {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .analysis-container {
+    padding: 15px;
+  }
+
+  .sensor-plot-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .sensor-label {
+    border-right: none;
+    border-bottom: 2px solid #e2e8f0;
+    padding-right: 0;
+    padding-bottom: 10px;
+  }
+
+  .sensor-plot {
+    min-height: 250px;
+    height: 250px;
+  }
+
+  .plots-section {
+    max-height: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .analysis-container {
+    padding: 10px;
+  }
+
+  .sensor-label h3 {
+    font-size: 14px;
+  }
+
+  .sensor-meta {
+    font-size: 11px;
+  }
+
+  .sensor-type {
+    font-size: 10px;
+  }
+
+  .sensor-plot {
+    min-height: 200px;
+    height: 200px;
+  }
+}
+
+/* Scrollbar styling for plots section */
+.plots-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.plots-section::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.plots-section::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.plots-section::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

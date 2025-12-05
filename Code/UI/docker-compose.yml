@@ -1,0 +1,74 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg17
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: long_term_monitoring_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./schemas/:/docker-entrypoint-initdb.d/:ro
+    restart: always
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: always
+
+  mqtt-worker:
+    build: ./mqtt_worker
+    container_name: mqtt-worker
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
+      MQTT_BROKER: mosquitto 
+      MQTT_PORT: 1883
+      FLUSH_INTERVAL_SEC: 10
+      BINDING_REFRESH_SEC: 5
+      MAX_BUFFER_SIZE: 5000
+    depends_on:
+      - timescaledb
+      - mosquitto
+    restart: always
+
+  backend:
+    build: ./backend
+    container_name: backend
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
+    depends_on:
+      - timescaledb
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+
+volumes:
+  timescale_data:

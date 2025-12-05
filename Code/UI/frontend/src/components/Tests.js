@@ -1,31 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { testsAPI } from '../api';
-import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock } from 'lucide-react';
+import { testsAPI, machinesAPI, machineTypesAPI } from '../api';
+import { Plus, Edit, Square, Eye, Play, Search, Filter, X, Calendar, Clock, Trash2 } from 'lucide-react';
 
 const Tests = () => {
   const [tests, setTests] = useState([]);
   const [filteredTests, setFilteredTests] = useState([]);
+  const [machines, setMachines] = useState([]);
+  const [machineTypes, setMachineTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, running, completed
   const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
-  const [sortField, setSortField] = useState('created_at');
+  const [machineFilter, setMachineFilter] = useState('all'); // all, specific machine name
+  const [machineTypeFilter, setMachineTypeFilter] = useState('all'); // all, specific machine type
+  const [sortField, setSortField] = useState('test_created_at');
   const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
-    loadTests();
+    loadData();
   }, []);
 
-  const loadTests = async () => {
+  const loadData = async () => {
     try {
-      const response = await testsAPI.getAll();
-      setTests(response.data);
-      setFilteredTests(response.data);
+      const [testsResponse, machinesResponse, machineTypesResponse] = await Promise.all([
+        testsAPI.getAll(),
+        machinesAPI.getAll(),
+        machineTypesAPI.getAll()
+      ]);
+      
+      setTests(testsResponse.data);
+      setFilteredTests(testsResponse.data);
+      setMachines(machinesResponse.data);
+      setMachineTypes(machineTypesResponse.data);
     } catch (error) {
-      console.error('Error loading tests:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -38,17 +49,19 @@ const Tests = () => {
     let filtered = tests.filter(test => {
       const matchesSearch = searchTerm === '' || 
         test.test_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        test.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.test_description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.machine_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        test.machine_type_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         test.id.toString().includes(searchTerm);
       
       let matchesStatus = true;
       if (statusFilter !== 'all') {
-        matchesStatus = test.status === statusFilter;
+        matchesStatus = test.test_status === statusFilter;
       }
 
       let matchesDate = true;
-      if (dateFilter !== 'all' && test.created_at) {
-        const testDate = new Date(test.created_at);
+      if (dateFilter !== 'all' && test.test_created_at) {
+        const testDate = new Date(test.test_created_at);
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
@@ -63,7 +76,17 @@ const Tests = () => {
         }
       }
 
-      return matchesSearch && matchesStatus && matchesDate;
+      let matchesMachine = true;
+      if (machineFilter !== 'all') {
+        matchesMachine = test.machine_name === machineFilter;
+      }
+
+      let matchesMachineType = true;
+      if (machineTypeFilter !== 'all') {
+        matchesMachineType = test.machine_type_name === machineTypeFilter;
+      }
+
+      return matchesSearch && matchesStatus && matchesDate && matchesMachine && matchesMachineType;
     });
 
     // Sort
@@ -72,7 +95,7 @@ const Tests = () => {
       let bValue = b[sortField];
       
       // Handle dates
-      if (sortField === 'created_at' || sortField === 'last_modified_at') {
+      if (sortField === 'test_created_at' || sortField === 'test_last_modified_at') {
         aValue = aValue ? new Date(aValue) : new Date(0);
         bValue = bValue ? new Date(bValue) : new Date(0);
       }
@@ -84,7 +107,7 @@ const Tests = () => {
       }
       
       // Handle numbers
-      if (sortField === 'sensor_count' || sortField === 'data_points') {
+      if (sortField === 'test_sensor_count' || sortField === 'test_data_points') {
         aValue = Number(aValue) || 0;
         bValue = Number(bValue) || 0;
       }
@@ -102,7 +125,7 @@ const Tests = () => {
   // Apply filters when dependencies change
   useEffect(() => {
     filterAndSortTests();
-  }, [tests, searchTerm, statusFilter, dateFilter, sortField, sortDirection]);
+  }, [tests, searchTerm, statusFilter, dateFilter, machineFilter, machineTypeFilter, sortField, sortDirection]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -117,7 +140,9 @@ const Tests = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDateFilter('all');
-    setSortField('created_at');
+    setMachineFilter('all');
+    setMachineTypeFilter('all');
+    setSortField('test_created_at');
     setSortDirection('desc');
   };
 
@@ -127,15 +152,64 @@ const Tests = () => {
   //   setShowModal(true);
   // };
 
-  const handleStopTest = async (testName) => {
+  const handleStartTest = async (testId) => {
+    if (window.confirm('Are you sure you want to start this test?')) {
+      try {
+        await testsAPI.start(testId);
+        loadData();
+      } catch (error) {
+        console.error('Error starting test:', error);
+        alert('Failed to start test: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
+  const handleStopTest = async (testId) => {
     if (window.confirm('Are you sure you want to stop this test?')) {
       try {
-        await testsAPI.stop(testName);
-        loadTests();
+        await testsAPI.stop(testId);
+        loadData();
       } catch (error) {
         console.error('Error stopping test:', error);
-        alert('Error stopping test');
+        alert('Failed to stop test: ' + (error.response?.data?.detail || error.message));
       }
+    }
+  };
+
+  const handleDeleteTest = async (testId, testName, testStatus) => {
+    if (testStatus !== 'idle') {
+      alert(`Cannot delete test "${testName}":\nTest must be in idle status.\nCurrent status: ${testStatus}`);
+      return;
+    }
+
+    const confirmMessage = `⚠️ DELETE TEST: "${testName}"\n\n` +
+      `This will permanently delete:\n` +
+      `• The test and all its configuration\n` +
+      `• All test relations (sensor assignments)\n` +
+      `• All test runs\n` +
+      `• All measurement data (raw and aggregated)\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Type the test name to confirm deletion:`;
+
+    const userInput = window.prompt(confirmMessage);
+    
+    if (userInput === null) {
+      return; // User cancelled
+    }
+
+    if (userInput.trim() !== testName) {
+      alert('Test name does not match. Deletion cancelled.');
+      return;
+    }
+
+    try {
+      await testsAPI.delete(testId);
+      alert(`✅ Test "${testName}" and all related data deleted successfully.`);
+      loadData();
+    } catch (error) {
+      console.error('Error deleting test:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Unknown error';
+      alert(`❌ Failed to delete test:\n${errorMessage}`);
     }
   };
 
@@ -145,189 +219,175 @@ const Tests = () => {
     switch (status) {
       case 'running': return 'status-running';
       case 'completed': return 'status-completed';
+      case 'idle': return 'status-inactive';
+      case 'failed': return 'status-error';
       default: return 'status-inactive';
     }
   };
 
   if (loading) {
     return (
-      <div className="loading">
-        <div className="loading-spinner"></div>
-        <p>Loading tests...</p>
+      <div className="loading-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <span className="loading-text">Loading tests...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '10px'
-        }}>
-          Test Management
-        </h1>
-        <p style={{ color: '#6b7280', fontSize: '16px', fontWeight: '500' }}>
-          Monitor and manage your washing machine tests
-        </p>
+    <div className="container">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title" style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            Test Management
+          </h1>
+          <p className="page-subtitle">
+            Monitor and manage your washing machine tests
+          </p>
+        </div>
+        <Link to="/tests/new" className="btn btn-primary">
+          <Plus size={16} />
+          Create New Test
+        </Link>
       </div>
 
       <div className="card">
         <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div className="flex-center gap-15">
             <Play size={28} style={{ color: '#667eea' }} />
             <div>
-              <h2 className="card-title" style={{ margin: 0, fontSize: '20px' }}>
-                Test Sessions
-              </h2>
-              <p style={{ 
-                margin: 0, 
-                fontSize: '14px', 
-                color: '#6b7280',
-                fontWeight: '500'
-              }}>
-                {filteredTests.filter(t => t.status === 'running').length} running tests
+              <h2 className="card-title">Test Sessions</h2>
+              <p className="card-subtitle">
+                {filteredTests.filter(t => t.test_status === 'running').length} running tests
                 {tests.length !== filteredTests.length && ` (${tests.length} total)`}
               </p>
             </div>
           </div>
-          <Link 
-            to="/tests/new"
-            className="btn btn-primary" 
-            style={{ 
-              padding: '12px 24px',
-              fontSize: '14px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              textDecoration: 'none'
-            }}
-          >
-            <Plus size={18} />
-            New Test
-          </Link>
         </div>
 
         {/* Filter Controls */}
-        <div style={{
-          padding: '20px',
-          background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-          borderRadius: '12px 12px 0 0'
-        }}>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* Search */}
-            <div style={{ position: 'relative', minWidth: '250px' }}>
-              <Search size={18} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#9ca3af'
-              }} />
+        <div className="filter-section">
+          {/* Search */}
+          <div className="form-group">
+            <div className="search-container">
+              <Search size={18} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search tests..."
+                placeholder="Search tests, machines..."
                 className="form-control"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  paddingLeft: '40px',
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px'
-                }}
               />
             </div>
-
-            {/* Status Filter */}
-            <div style={{ minWidth: '140px' }}>
-              <select
-                className="form-control"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: 'white'
-                }}
-              >
-                <option value="all">All Statuses</option>
-                <option value="running">Running</option>
-                <option value="completed">Completed</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-
-            {/* Date Filter */}
-            <div style={{ minWidth: '140px' }}>
-              <select
-                className="form-control"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                style={{
-                  fontSize: '14px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: 'white'
-                }}
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-              </select>
-            </div>
-
-            {/* Clear Filters */}
-            {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all') && (
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={clearFilters}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <X size={14} />
-                Clear Filters
-              </button>
-            )}
           </div>
-          
-          <div style={{
-            marginTop: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '13px',
-            color: '#6b7280',
-            fontWeight: '500'
-          }}>
-            <Filter size={14} />
-            <span>Showing {filteredTests.length} of {tests.length} tests</span>
+
+          {/* Status Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="idle">Idle</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+
+          {/* Machine Type Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={machineTypeFilter}
+              onChange={(e) => setMachineTypeFilter(e.target.value)}
+            >
+              <option value="all">All Machine Types</option>
+              {machineTypes.map((type) => (
+                <option key={type.id} value={type.machine_type_name}>
+                  {type.machine_type_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Machine Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={machineFilter}
+              onChange={(e) => setMachineFilter(e.target.value)}
+            >
+              <option value="all">All Machines</option>
+              {machines.map((machine) => (
+                <option key={machine.id} value={machine.machine_name}>
+                  {machine.machine_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Filter */}
+          <div className="form-group">
+            <select
+              className="form-control"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || machineFilter !== 'all' || machineTypeFilter !== 'all') && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={clearFilters}
+            >
+              <X size={14} />
+              Clear
+            </button>
+          )}
+
+          {/* Results count */}
+          <div className="filter-count">
+            Showing {filteredTests.length} of {tests.length} tests
           </div>
         </div>
 
         {tests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <Square size={48} />
+            </div>
             <p>No tests found. Create your first test to get started.</p>
+            <Link to="/tests/new" className="btn btn-primary">
+              <Plus size={16} />
+              Create First Test
+            </Link>
           </div>
         ) : filteredTests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <Filter size={48} />
+            </div>
             <p>No tests match your current filters.</p>
             <button onClick={clearFilters} className="btn btn-secondary">
               Clear Filters
             </button>
           </div>
         ) : (
-          <div className="table-container">
+          <div className="table-responsive">
             <table className="table">
               <thead>
                 <tr>
@@ -343,33 +403,55 @@ const Tests = () => {
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('status')}
-                    className={`sortable ${sortField === 'status' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('machine_name')}
+                    className={`sortable ${sortField === 'machine_name' ? 'sorted' : ''}`}
+                  >
+                    Machine
+                    {sortField === 'machine_name' && (
+                      <span className={`sort-indicator ${sortDirection}`}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('machine_type_name')}
+                    className={`sortable ${sortField === 'machine_type_name' ? 'sorted' : ''}`}
+                  >
+                    Machine Type
+                    {sortField === 'machine_type_name' && (
+                      <span className={`sort-indicator ${sortDirection}`}>
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('test_status')}
+                    className={`sortable ${sortField === 'test_status' ? 'sorted' : ''}`}
                   >
                     Status
-                    {sortField === 'status' && (
+                    {sortField === 'test_status' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('created_at')}
-                    className={`sortable ${sortField === 'created_at' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('test_created_at')}
+                    className={`sortable ${sortField === 'test_created_at' ? 'sorted' : ''}`}
                   >
                     Created
-                    {sortField === 'created_at' && (
+                    {sortField === 'test_created_at' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
                     )}
                   </th>
                   <th 
-                    onClick={() => handleSort('sensor_count')}
-                    className={`sortable ${sortField === 'sensor_count' ? 'sorted' : ''}`}
+                    onClick={() => handleSort('test_sensor_count')}
+                    className={`sortable ${sortField === 'test_sensor_count' ? 'sorted' : ''}`}
                   >
                     Sensors
-                    {sortField === 'sensor_count' && (
+                    {sortField === 'test_sensor_count' && (
                       <span className={`sort-indicator ${sortDirection}`}>
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
@@ -383,36 +465,75 @@ const Tests = () => {
                   <tr key={test.id}>
                     <td>
                       <strong>{test.test_name}</strong>
-                      {test.description && (
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {test.description}
+                      {test.test_description && (
+                        <div className="text-small text-secondary">
+                          {test.test_description}
                         </div>
                       )}
                     </td>
                     <td>
-                      <span className={`status ${getStatusColor(test.status)}`}>
-                        {test.status === 'running' ? <Play size={12} /> : null}
-                        {test.status.toUpperCase()}
+                      <strong>{test.machine_name || 'N/A'}</strong>
+                      {test.machine_description && (
+                        <div className="text-small text-secondary">
+                          {test.machine_description}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <span className="text-secondary">
+                        {test.machine_type_name || 'N/A'}
                       </span>
                     </td>
                     <td>
-                      {new Date(test.created_at).toLocaleString()}
+                      <span className={`status-card ${getStatusColor(test.test_status)}`}>
+                        {test.test_status === 'running' ? <Play size={12} /> : null}
+                        {test.test_status.toUpperCase()}
+                      </span>
                     </td>
                     <td>
-                      <strong>{test.sensor_count || 0}</strong>
+                      {new Date(test.test_created_at).toLocaleString()}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '5px' }}>
+                      <strong>{test.test_sensor_count || 0}</strong>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <Link
+                          to={`/tests/overview/${test.id}`}
+                          className="btn btn-primary btn-sm"
+                          title="View Test Overview"
+                        >
+                          <Eye size={14} />
+                        </Link>
                         <Link
                           to={`/tests/edit/${test.id}`}
                           className="btn btn-secondary btn-sm"
+                          title="Edit Test"
                         >
                           <Edit size={14} />
                         </Link>
-                        {test.status === 'running' && (
+                        <button
+                          className={`btn btn-sm ${test.test_status === 'idle' ? 'btn-danger' : 'btn-secondary'}`}
+                          onClick={() => handleDeleteTest(test.id, test.test_name, test.test_status)}
+                          disabled={test.test_status !== 'idle'}
+                          title={test.test_status === 'idle' ? 'Delete Test' : `Cannot delete - test is ${test.test_status}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        {test.test_status === 'idle' && (
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleStartTest(test.id)}
+                            title="Start Test"
+                          >
+                            <Play size={14} />
+                          </button>
+                        )}
+                        {test.test_status === 'running' && (
                           <button
                             className="btn btn-danger btn-sm"
-                            onClick={() => handleStopTest(test.test_name)}
+                            onClick={() => handleStopTest(test.id)}
+                            title="Stop Test"
                           >
                             <Square size={14} />
                           </button>
