@@ -1,0 +1,6 @@
+{
+  "sensitivity": 0.000488,
+  "buffer_size": 100,
+  "sampling_frequency_Hz": 200,
+  "range_g": 16
+}

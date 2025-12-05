@@ -1,0 +1,5 @@
+{
+  "buffer_size": 5,
+  "sampling_interval_ms" : 5000,
+  "pulses_per_rev": 1
+}

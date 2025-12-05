@@ -10,7 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -32,10 +31,17 @@ venv.bak/
 
 # IDEs and Editors
 .vscode/
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
 .idea/
 *.swp
 *.swo
 *~
+
+# PlatformIO
+.pio
 
 # OS generated files
 .DS_Store

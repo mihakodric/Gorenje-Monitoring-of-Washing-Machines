@@ -1,0 +1,18 @@
+//"TP-Link_B0E0",
+// "89846834",
+
+
+{  
+  "wifi_ssid": "Telekom Slovenije-4FB885", 
+  "wifi_password": "BH004129", 
+  "mqtt_server": "192.168.1.16",
+  "mqtt_port": 1883
+}
+
+
+{  
+  "wifi_ssid": "TP-Link_B0E0", 
+  "wifi_password": "89846834", 
+  "mqtt_server": "192.168.1.16",
+  "mqtt_port": 1883
+}
