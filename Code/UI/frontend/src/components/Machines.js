@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Activity, Search, X, Filter } from "lucide-react";
+import { Plus, Edit, Trash2, Activity, Search, X, Filter, Laptop } from "lucide-react";
 import { machinesAPI, machineTypesAPI } from "../api";
 import MachineModal from "./MachineModal";
 
@@ -282,7 +282,7 @@ const Machines = () => {
                     <td>
                       <div className="machine-card">
                         <div className="machine-icon">
-                          <Activity size={20} />
+                          <Laptop size={20} />
                         </div>
                         <div className="machine-content">
                           <div className="machine-name">

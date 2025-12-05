@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Laptop, Wifi, WifiOff, Crosshair } from 'lucide-react';
+import { Laptop, Wifi, WifiOff, Crosshair, Eye } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 
 const NewTest = () => {
@@ -424,6 +424,16 @@ const NewTest = () => {
       <div className="page-header">
         <h1>{isEditing ? 'Edit Test' : 'Create New Test'}</h1>
         <div className="btn-group">
+          {isEditing && (
+            <button 
+              className="btn btn-secondary btn-icon" 
+              onClick={() => navigate(`/tests/overview/${testId}`)}
+              title="View Test Overview"
+            >
+              <Eye size={16} />
+              Overview
+            </button>
+          )}
           <button className="btn btn-secondary" onClick={handleCancel}>
             Cancel
           </button>

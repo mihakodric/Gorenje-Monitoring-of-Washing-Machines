@@ -116,7 +116,7 @@ async def get_sensor_measurements_raw(
                 FROM timeseries.measurements m
                 CROSS JOIN max_timestamp mt
                 WHERE m.test_relation_id = $1
-                  AND m.measurement_timestamp >= mt.latest_time - ($3 || ' minutes')::interval
+                  AND m.measurement_timestamp >= mt.latest_time - INTERVAL '1 minute' * $3
         """
 
     else:

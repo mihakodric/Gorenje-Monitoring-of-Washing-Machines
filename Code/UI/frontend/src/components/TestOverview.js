@@ -201,7 +201,7 @@ const TestOverview = () => {
 
   const fetchAndCacheSensor = useCallback(async (sensor, mode = 'aggregated', colorStartIndex = 0) => {
     const response = mode === 'raw' 
-      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 10000 })
+      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 10000, last_minutes: 5 })
       : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 10000 });
     const measurements = response.data || [];
     const traces = buildTracesFromMeasurements(sensor, measurements, colorStartIndex, mode);
@@ -214,8 +214,12 @@ const TestOverview = () => {
     const multi = event && (event.ctrlKey || event.metaKey);
     let newSelectedIds = new Set(selectedSensorIds);
 
+    // Set loading immediately
+    setChartLoading(true);
+    
     try {
-      setChartLoading(true);
+      // Small delay to ensure loading spinner renders
+      await new Promise(resolve => setTimeout(resolve, 0));
       
       if (multi) {
         // Multi-select toggle behavior
@@ -462,6 +466,14 @@ const TestOverview = () => {
           <div className="header-right">
             <div className="test-control-status-group">
               <div className="test-control-buttons">
+                <button 
+                  className="btn btn-secondary btn-icon"
+                  onClick={() => navigate(`/tests/edit/${testId}`)}
+                  title="Edit Test"
+                >
+                  <Edit2 size={16} />
+                  Edit
+                </button>
                 {test.test_status === 'running' ? (
                   <button 
                     className="btn btn-danger btn-icon"
@@ -607,7 +619,6 @@ const TestOverview = () => {
                         <th>Location</th>
                         <th>Type</th>
                         <th>Unit</th>
-                        <th>Last Data</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -640,11 +651,6 @@ const TestOverview = () => {
                           </td>
                           <td>
                             <span className="unit-badge">{sensor.sensor_type_unit || 'N/A'}</span>
-                          </td>
-                          <td>
-                            <span className="last-data">
-                              {formatLastReceived(sensor.last_data_received)}
-                            </span>
                           </td>
                         </tr>
                       ))}

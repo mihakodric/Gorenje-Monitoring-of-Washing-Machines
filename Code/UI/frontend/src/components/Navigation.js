@@ -25,7 +25,6 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
     { path: '/sensors', label: 'Sensors', icon: Zap },
     { path: '/machines', label: 'Machines', icon: Droplet },
     { path: '/tests', label: 'Tests', icon: TestTube },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
@@ -61,7 +60,7 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
               </div>
               <div className="nav-brand-text">
                 <span className="nav-brand-title">Gorenje Monitor</span>
-                <span className="nav-brand-subtitle">Washing Machine Control</span>
+                <span className="nav-brand-subtitle">Long term monitoring</span>
               </div>
             </>
           )}
