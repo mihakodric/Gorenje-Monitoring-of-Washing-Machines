@@ -23,7 +23,7 @@
   border-collapse: collapse;
   font-size: 14px;
   line-height: 1.5;
-  min-width: 800px; /* Ensures table has minimum width for readability */
+  min-width: auto; /* Remove fixed minimum width to prevent horizontal scroll */
 }
 
 /* Table Header */
@@ -188,6 +188,39 @@
   font-size: 13px;
 }
 
+.table.compact-table td,
+.table.compact-table th {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.table.compact-table tbody tr {
+  height: 48px;
+}
+
+/* Sticky Action Column */
+.table.compact-table thead th[style*="position: sticky"],
+.table.compact-table tbody td[style*="position: sticky"] {
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+.table.compact-table thead th[style*="position: sticky"] {
+  z-index: 15;
+}
+
+.table.compact-table tbody tr:hover td[style*="position: sticky"] {
+  background-color: #f8fafc !important;
+}
+
+.table.compact-table.table-striped tbody tr:nth-of-type(odd) td[style*="position: sticky"] {
+  background-color: #f9fafb !important;
+}
+
+.table.compact-table.table-striped tbody tr:nth-of-type(odd):hover td[style*="position: sticky"] {
+  background-color: #f3f4f6 !important;
+}
+
 /* Striped Tables */
 .table.table-striped tbody tr:nth-of-type(odd) {
   background-color: #f9fafb;
@@ -309,7 +342,7 @@
   
   .table {
     font-size: 13px;
-    min-width: 700px; /* Adjust minimum width for tablets */
+    min-width: auto; /* Remove fixed width on tablets */
   }
   
   .table th,
@@ -353,7 +386,7 @@
 @media (max-width: 480px) {
   .table {
     font-size: 12px;
-    min-width: 600px; /* Adjust minimum width for mobile */
+    min-width: auto; /* Remove fixed width on mobile */
   }
   
   .table th,

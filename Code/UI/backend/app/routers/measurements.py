@@ -62,33 +62,38 @@ async def get_sensor_measurements_raw(
     test_relation_id: int,
     start_time: Optional[datetime] = Query(None, description="Start time for data range"),
     end_time: Optional[datetime] = Query(None, description="End time for data range"),
-    limit: Optional[int] = Query(1000, description="Maximum number of data points per channel")
+    last_minutes: Optional[int] = Query(None, description="Fetch measurements from the last N minutes"),
+    limit: Optional[int] = Query(10000, description="Maximum number of data points per channel")
 ):
     """Get raw measurements for a specific test relation (sensor in a test).
-    Returns the most recent raw measurements (up to limit per channel).
+    
+    Time filtering options (mutually exclusive):
+    - start_time/end_time: Fetch measurements within explicit time range
+    - last_minutes: Fetch measurements from the last N minutes relative to latest timestamp
+    - None: Fetch all available measurements (still limited by 'limit' per channel)
+    
+    Returns up to 'limit' measurements per channel.
     """
     try:
-        # Pass limit to database function for optimized query
-        measurements = await measurements_db.get_sensor_measurements_raw(test_relation_id, limit)
+        # Validate conflicting parameters
+        if last_minutes is not None and (start_time or end_time):
+            raise HTTPException(
+                status_code=400, 
+                detail="Cannot use 'last_minutes' together with 'start_time' or 'end_time'. Choose one filtering method."
+            )
         
-        # Filter by time range if provided
-        if start_time or end_time:
-            filtered_measurements = []
-            for measurement in measurements:
-                measurement_time = measurement.get('measurement_timestamp')
-                if measurement_time:
-                    if isinstance(measurement_time, str):
-                        measurement_time = datetime.fromisoformat(measurement_time.replace('Z', '+00:00'))
-                    
-                    if start_time and measurement_time < start_time:
-                        continue
-                    if end_time and measurement_time > end_time:
-                        continue
-                    
-                    filtered_measurements.append(measurement)
-            measurements = filtered_measurements
+        # Pass all parameters to database function - it handles the filtering efficiently
+        measurements = await measurements_db.get_sensor_measurements_raw(
+            test_relation_id=test_relation_id,
+            limit=limit,
+            last_minutes=last_minutes,
+            start_time=start_time,
+            end_time=end_time
+        )
         
         return measurements
         
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching raw measurements: {str(e)}")

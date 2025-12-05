@@ -199,15 +199,15 @@ const TestOverview = () => {
     return traces;
   }, []);
 
-  const fetchAndCacheSensor = useCallback(async (sensor, mode = 'aggregated') => {
+  const fetchAndCacheSensor = useCallback(async (sensor, mode = 'aggregated', colorStartIndex = 0) => {
     const response = mode === 'raw' 
-      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 1000 })
-      : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 1000 });
+      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 10000 })
+      : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 10000 });
     const measurements = response.data || [];
-    const traces = buildTracesFromMeasurements(sensor, measurements, plotData.length, mode);
+    const traces = buildTracesFromMeasurements(sensor, measurements, colorStartIndex, mode);
     setSensorMeasurements(prev => ({ ...prev, [`${sensor.id}_${mode}`]: measurements }));
     return traces; // Return traces instead of updating state here
-  }, [buildTracesFromMeasurements, plotData.length]);
+  }, [buildTracesFromMeasurements]);
 
   // Handle sensor toggle with current data mode
   const handleSensorToggle = async (sensorId, event) => {
@@ -228,13 +228,15 @@ const TestOverview = () => {
           const sensor = testSensors.find(s => s.id === sensorId);
           if (sensor) {
             const cacheKey = `${sensorId}_${dataMode}`;
+            // Calculate color index based on how many sensors are already selected
+            const colorIndex = Array.from(newSelectedIds).indexOf(sensorId);
             let traces;
             // Only fetch if not cached
             if (!sensorMeasurements[cacheKey]) {
-              traces = await fetchAndCacheSensor(sensor, dataMode);
+              traces = await fetchAndCacheSensor(sensor, dataMode, colorIndex);
             } else {
               // Build traces from cached measurements
-              traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], plotData.length, dataMode);
+              traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], colorIndex, dataMode);
             }
             setPlotData(prev => [...prev, ...traces]);
           }
@@ -253,7 +255,7 @@ const TestOverview = () => {
             const cacheKey = `${sensorId}_${dataMode}`;
             let traces;
             if (!sensorMeasurements[cacheKey]) {
-              traces = await fetchAndCacheSensor(sensor, dataMode);
+              traces = await fetchAndCacheSensor(sensor, dataMode, 0);
             } else {
               traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], 0, dataMode);
             }
@@ -284,14 +286,15 @@ const TestOverview = () => {
         const selectedSensors = testSensors.filter(s => selectedSensorIds.has(s.id));
         
         const allTraces = [];
-        for (const sensor of selectedSensors) {
+        for (let i = 0; i < selectedSensors.length; i++) {
+          const sensor = selectedSensors[i];
           const cacheKey = `${sensor.id}_${newMode}`;
           
           let traces;
           if (!sensorMeasurements[cacheKey]) {
-            traces = await fetchAndCacheSensor(sensor, newMode);
+            traces = await fetchAndCacheSensor(sensor, newMode, i);
           } else {
-            traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], allTraces.length, newMode);
+            traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], i, newMode);
           }
           allTraces.push(...traces);
         }
@@ -324,8 +327,9 @@ const TestOverview = () => {
       
       // Fetch fresh data and collect all traces
       const allTraces = [];
-      for (const sensor of selectedSensors) {
-        const traces = await fetchAndCacheSensor(sensor, dataMode);
+      for (let i = 0; i < selectedSensors.length; i++) {
+        const sensor = selectedSensors[i];
+        const traces = await fetchAndCacheSensor(sensor, dataMode, i);
         allTraces.push(...traces);
       }
       
@@ -666,7 +670,7 @@ const TestOverview = () => {
                     <h3 className="card-title">Sensor Data Visualization</h3>
                     <p className="card-subtitle">
                       {selectedSensorIds.size > 0 
-                        ? `${selectedSensorIds.size} sensor${selectedSensorIds.size > 1 ? 's' : ''} selected • ${dataMode === 'raw' ? 'Raw data (last 1000 points)' : 'Aggregated data (10s avg)'}`
+                        ? `${selectedSensorIds.size} sensor${selectedSensorIds.size > 1 ? 's' : ''} selected • ${dataMode === 'raw' ? 'Raw data (last 10000 points)' : 'Aggregated data (10s avg)'}`
                         : 'Click on sensors to view data'
                       }
                     </p>

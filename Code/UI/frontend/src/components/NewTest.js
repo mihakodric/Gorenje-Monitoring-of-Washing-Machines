@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Activity, Wifi, WifiOff, Crosshair } from 'lucide-react';
+import { Laptop, Wifi, WifiOff, Crosshair } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 
 const NewTest = () => {
@@ -556,21 +556,21 @@ const NewTest = () => {
             <div className="table-full-height">
               <h3>Available Machines ({getFilteredMachines().length}):</h3>
               <div className="table-responsive">
-                <table className="table table-striped">
+                <table className="table table-striped compact-table">
                   <thead>
                     <tr>
-                      <th>Machine Details</th>
-                      <th>Machine Type</th>
-                      <th>Action</th>
+                      <th style={{ width: '45%' }}>Machine Details</th>
+                      <th style={{ width: '35%' }}>Machine Type</th>
+                      <th style={{ width: '20%', position: 'sticky', right: 0, background: 'inherit' }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {getFilteredMachines().map((machine, index) => (
                       <tr key={`machine-${machine.id}-${index}`}>
-                        <td>
+                        <td style={{ width: '45%' }}>
                           <div className="machine-card">
                             <div className="machine-icon">
-                              <Activity size={20} />
+                              <Laptop size={18} />
                             </div>
                             <div className="machine-content">
                               <div className="machine-name">
@@ -582,12 +582,12 @@ const NewTest = () => {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td style={{ width: '35%' }}>
                           <span className="badge">
                             {getMachineTypeName(machine.machine_type_id)}
                           </span>
                         </td>
-                        <td>
+                        <td style={{ width: '20%', position: 'sticky', right: 0, background: 'white' }}>
                           <div className="action-buttons">
                             <button
                               type="button"
