@@ -6,4 +6,3 @@ pandas
 python-multipart
 pydantic
 python-dotenv
-httpx
