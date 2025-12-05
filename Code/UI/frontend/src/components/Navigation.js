@@ -8,20 +8,25 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 1024);
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // Auto-collapse on smaller screens but keep visible
+      if (mobile && !isCollapsed) {
+        setIsCollapsed(true);
+      }
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [isCollapsed, setIsCollapsed]);
 
   const toggleNavigation = () => {
     setIsCollapsed(!isCollapsed);
   };
 
   const navItems = [
-    // { path: '/', label: 'Dashboard', icon: Home },
+    { path: '/', label: 'Dashboard', icon: Home },
     { path: '/sensors', label: 'Sensors', icon: Zap },
     { path: '/machines', label: 'Machines', icon: Droplet },
     { path: '/tests', label: 'Tests', icon: TestTube },
@@ -30,16 +35,10 @@ const Navigation = ({ isCollapsed, setIsCollapsed }) => {
 
   return (
     <>
-      {/* Mobile Overlay */}
-      {isMobile && !isCollapsed && (
-        <div className="nav-overlay" onClick={toggleNavigation}></div>
-      )}
-
       <nav 
         className="navigation-sidebar"
         style={{
           width: isCollapsed ? '70px' : '260px',
-          transform: isMobile && isCollapsed ? 'translateX(-100%)' : 'translateX(0)',
         }}
       >
         <div 

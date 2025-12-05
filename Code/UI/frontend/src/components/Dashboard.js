@@ -1,44 +1,69 @@
 import React, { useState, useEffect } from 'react';
-import { systemAPI, mqttAPI, sensorsAPI, testsAPI } from '../api';
-import { Activity, Zap, TestTube, Play, Square, Settings, TrendingUp, Database, Wifi } from 'lucide-react';
+import { sensorsAPI, testsAPI, machinesAPI, sensorTypesAPI, machineTypesAPI } from '../api';
+import { Activity, Zap, TestTube, Droplet, Layers } from 'lucide-react';
+import Plot from 'react-plotly.js';
 
 const Dashboard = () => {
-  const [systemStatus, setSystemStatus] = useState(null);
-  const [mqttStatus, setMqttStatus] = useState(false);
   const [stats, setStats] = useState({
-    sensors: 0,
-    tests: 0,
-    activeSensors: 0,
-    runningTests: 0
+    totalMachines: 0,
+    totalSensors: 0,
+    totalTests: 0,
+    machineTypes: [],
+    sensorTypes: [],
+    testsByStatus: { idle: 0, running: 0, completed: 0, failed: 0 }
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadDashboardData();
-    const interval = setInterval(loadDashboardData, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
   }, []);
 
   const loadDashboardData = async () => {
     try {
-      const [systemRes, mqttRes, sensorsRes, testsRes] = await Promise.all([
-        systemAPI.status(),
-        mqttAPI.status(),
+      const [machinesRes, sensorsRes, testsRes, machineTypesRes, sensorTypesRes] = await Promise.all([
+        machinesAPI.getAll(),
         sensorsAPI.getAll(),
-        testsAPI.getAll()
+        testsAPI.getAll(),
+        machineTypesAPI.getAll(),
+        sensorTypesAPI.getAll()
       ]);
 
-      setSystemStatus(systemRes.data);
-      setMqttStatus(mqttRes.data.running);
+      const machines = machinesRes.data || [];
+      const sensors = sensorsRes.data || [];
+      const tests = testsRes.data || [];
+      const machineTypes = machineTypesRes.data || [];
+      const sensorTypes = sensorTypesRes.data || [];
 
-      const sensors = sensorsRes.data;
-      const tests = testsRes.data;
+      // Count machines by type
+      const machineTypeCount = {};
+      machines.forEach(m => {
+        const typeName = machineTypes.find(mt => mt.id === m.machine_type_id)?.machine_type_name || 'Unknown';
+        machineTypeCount[typeName] = (machineTypeCount[typeName] || 0) + 1;
+      });
+
+      // Count sensors by type
+      const sensorTypeCount = {};
+      sensors.forEach(s => {
+        const typeName = sensorTypes.find(st => st.id === s.sensor_type_id)?.sensor_type_name || 'Unknown';
+        sensorTypeCount[typeName] = (sensorTypeCount[typeName] || 0) + 1;
+      });
+
+      // Count tests by status
+      const testsByStatus = { idle: 0, running: 0, completed: 0, failed: 0 };
+      tests.forEach(t => {
+        const status = t.test_status || 'idle';
+        if (testsByStatus.hasOwnProperty(status)) {
+          testsByStatus[status]++;
+        }
+      });
 
       setStats({
-        sensors: sensors.length,
-        tests: tests.length,
-        activeSensors: sensors.filter(s => s.is_online).length,
-        runningTests: tests.filter(t => t.status === 'running').length
+        totalMachines: machines.length,
+        totalSensors: sensors.length,
+        totalTests: tests.length,
+        machineTypes: Object.entries(machineTypeCount).map(([name, count]) => ({ name, count })),
+        sensorTypes: Object.entries(sensorTypeCount).map(([name, count]) => ({ name, count })),
+        testsByStatus
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -49,326 +74,142 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div>
-        <div className="loading">
-          <div className="loading-spinner"></div>
-          <p>Loading dashboard...</p>
+      <div className="container">
+        <div className="loading-container">
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <span className="loading-text">Loading dashboard...</span>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '10px'
-        }}>
-          Washing Machine Monitor
-        </h1>
-        <p style={{ color: '#6b7280', fontSize: '16px', fontWeight: '500' }}>
-          Real-time system overview and control center
-        </p>
-      </div>
-      
-      {/* System Status Card */}
-      <div className="card" style={{ marginBottom: '30px' }}>
-        <div className="card-header">
-          <h2 className="card-title">
-            <Settings size={24} />
-            System Control Center
-          </h2>
-          <button
-            className={`btn ${mqttStatus ? 'btn-danger' : 'btn-success'}`}
-            style={{ minWidth: '140px' }}
-          >
-            {mqttStatus ? (
-              <>
-                <Square size={16} />
-                Stop MQTT
-              </>
-            ) : (
-              <>
-                <Play size={16} />
-                Start MQTT
-              </>
-            )}
-          </button>
-        </div>
-        
-        <div className="grid grid-3">
-          <div style={{
-            padding: '25px',
-            borderRadius: '12px',
-            background: mqttStatus ? 
-              'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)' : 
-              'linear-gradient(135deg, #fef2f2 0%, #fecaca 100%)',
-            border: mqttStatus ? '2px solid #a7f3d0' : '2px solid #fca5a5',
-            textAlign: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-              <Wifi size={28} style={{ 
-                color: mqttStatus ? '#10b981' : '#ef4444',
-                marginRight: '10px'
-              }} />
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: mqttStatus ? '#10b981' : '#ef4444',
-                boxShadow: `0 0 8px ${mqttStatus ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`,
-                animation: 'pulse 2s infinite'
-              }}></div>
-            </div>
-            <h3 style={{ 
-              margin: '0 0 5px 0', 
-              color: mqttStatus ? '#065f46' : '#7f1d1d',
-              fontSize: '18px'
-            }}>
-              MQTT Service
-            </h3>
-            <p style={{ 
-              margin: 0, 
-              color: mqttStatus ? '#047857' : '#991b1b',
-              fontWeight: '600'
-            }}>
-              {mqttStatus ? 'Online & Connected' : 'Offline'}
-            </p>
-            <small style={{ 
-              color: mqttStatus ? '#059669' : '#b91c1c',
-              fontSize: '12px'
-            }}>
-              Broker: {systemStatus?.mqtt_broker || '192.168.0.77'}
-            </small>
-          </div>
-
-          <div style={{
-            padding: '25px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-            border: '2px solid #93c5fd',
-            textAlign: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-              <Database size={28} style={{ color: '#3b82f6', marginRight: '10px' }} />
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: '#3b82f6',
-                boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
-                animation: 'pulse 2s infinite'
-              }}></div>
-            </div>
-            <h3 style={{ margin: '0 0 5px 0', color: '#1e40af', fontSize: '18px' }}>
-              Database
-            </h3>
-            <p style={{ margin: 0, color: '#1d4ed8', fontWeight: '600' }}>
-              Connected & Active
-            </p>
-            <small style={{ color: '#2563eb', fontSize: '12px' }}>
-              {systemStatus?.database || 'SQLite Database'}
-            </small>
-          </div>
-
-          <div style={{
-            padding: '25px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-            border: '2px solid #86efac',
-            textAlign: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-              <Activity size={28} style={{ color: '#22c55e', marginRight: '10px' }} />
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: '#22c55e',
-                boxShadow: '0 0 8px rgba(34, 197, 94, 0.5)',
-                animation: 'pulse 2s infinite'
-              }}></div>
-            </div>
-            <h3 style={{ margin: '0 0 5px 0', color: '#15803d', fontSize: '18px' }}>
-              System Status
-            </h3>
-            <p style={{ margin: 0, color: '#166534', fontWeight: '600' }}>
-              All Systems Online
-            </p>
-            <small style={{ color: '#16a34a', fontSize: '12px' }}>
-              Monitoring Active
-            </small>
-          </div>
+    <div className="container">
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">System overview and statistics</p>
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-4" style={{ marginBottom: '30px' }}>
-        <div className="card stats-card" style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          transform: 'none'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-            <Zap size={32} style={{ opacity: 0.9 }} />
-            <div className="stats-number">{stats.sensors}</div>
-          </div>
-          <div className="stats-label">Total Sensors</div>
-          <div style={{ 
-            marginTop: '8px', 
-            fontSize: '12px', 
-            opacity: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px'
-          }}>
-            <TrendingUp size={14} />
-            Registered devices
-          </div>
-        </div>
-
-        <div className="card stats-card" style={{ 
-          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-          transform: 'none'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-            <Activity size={32} style={{ opacity: 0.9 }} />
-            <div className="stats-number">{stats.activeSensors}</div>
-          </div>
-          <div className="stats-label">Active Sensors</div>
-          <div style={{ 
-            marginTop: '8px', 
-            fontSize: '12px', 
-            opacity: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px'
-          }}>
-            <TrendingUp size={14} />
-            Currently monitoring
-          </div>
-        </div>
-
-        <div className="card stats-card" style={{ 
-          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-          transform: 'none'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-            <TestTube size={32} style={{ opacity: 0.9 }} />
-            <div className="stats-number">{stats.tests}</div>
-          </div>
-          <div className="stats-label">Total Tests</div>
-          <div style={{ 
-            marginTop: '8px', 
-            fontSize: '12px', 
-            opacity: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px'
-          }}>
-            <TrendingUp size={14} />
-            All time records
-          </div>
-        </div>
-
-        <div className="card stats-card" style={{ 
-          background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-          transform: 'none'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px' }}>
-            <Play size={32} style={{ opacity: 0.9 }} />
-            <div className="stats-number">{stats.runningTests}</div>
-          </div>
-          <div className="stats-label">Running Tests</div>
-          <div style={{ 
-            marginTop: '8px', 
-            fontSize: '12px', 
-            opacity: 0.8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px'
-          }}>
-            <TrendingUp size={14} />
-            Currently executing
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">
-            <Activity size={24} />
-            Quick Actions
-          </h2>
-          <div style={{
-            background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#6b7280'
-          }}>
-            Control Panel
-          </div>
-        </div>
-        
-        <div className="grid grid-3" style={{ gap: '20px' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => window.location.href = '/sensors'}
-            style={{ 
-              padding: '20px',
-              fontSize: '16px',
-              height: 'auto',
-              flexDirection: 'column',
-              gap: '12px'
-            }}
-          >
-            <Zap size={32} />
-            <div>
-              <div style={{ fontWeight: 'bold' }}>Manage Sensors</div>
-              <small style={{ opacity: 0.8 }}>Configure & monitor sensors</small>
+      {/* Charts */}
+      <div className="grid-2-col" style={{ marginBottom: '30px' }}>
+        {/* Machine Types Chart */}
+        {stats.machineTypes.length > 0 && (
+          <div className="card">
+            <div className="card-header">
+              <div className="flex-center gap-10">
+                <Droplet size={20} style={{ color: '#3b82f6' }} />
+                <h3 className="card-title">Machines by Type</h3>
+              </div>
             </div>
-          </button>
-          
-          <button 
-            className="btn btn-success" 
-            onClick={() => window.location.href = '/tests'}
-            style={{ 
-              padding: '20px',
-              fontSize: '16px',
-              height: 'auto',
-              flexDirection: 'column',
-              gap: '12px'
-            }}
-          >
-            <TestTube size={32} />
-            <div>
-              <div style={{ fontWeight: 'bold' }}>Manage Tests</div>
-              <small style={{ opacity: 0.8 }}>Create & analyze tests</small>
+            <div className="card-body">
+              <Plot
+                data={[{
+                  values: stats.machineTypes.map(mt => mt.count),
+                  labels: stats.machineTypes.map(mt => mt.name),
+                  type: 'pie',
+                  marker: {
+                    colors: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444']
+                  },
+                  textinfo: 'label+value',
+                  textposition: 'auto',
+                  hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+                }]}
+                layout={{
+                  showlegend: true,
+                  legend: { orientation: 'h', y: -0.1 },
+                  margin: { t: 20, b: 40, l: 20, r: 20 },
+                  height: 300
+                }}
+                config={{
+                  displayModeBar: false,
+                  responsive: true
+                }}
+                style={{ width: '100%', height: '100%' }}
+              />
             </div>
-          </button>
-          
-          <button 
-            className="btn btn-secondary" 
-            onClick={loadDashboardData}
-            style={{ 
-              padding: '20px',
-              fontSize: '16px',
-              height: 'auto',
-              flexDirection: 'column',
-              gap: '12px'
-            }}
-          >
-            <Activity size={32} />
-            <div>
-              <div style={{ fontWeight: 'bold' }}>Refresh Data</div>
-              <small style={{ opacity: 0.8 }}>Update system status</small>
+          </div>
+        )}
+
+        {/* Sensor Types Chart */}
+        {stats.sensorTypes.length > 0 && (
+          <div className="card">
+            <div className="card-header">
+              <div className="flex-center gap-10">
+                <Zap size={20} style={{ color: '#8b5cf6' }} />
+                <h3 className="card-title">Sensors by Type</h3>
+              </div>
             </div>
-          </button>
+            <div className="card-body">
+              <Plot
+                data={[{
+                  values: stats.sensorTypes.map(st => st.count),
+                  labels: stats.sensorTypes.map(st => st.name),
+                  type: 'pie',
+                  marker: {
+                    colors: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4']
+                  },
+                  textinfo: 'label+value',
+                  textposition: 'auto',
+                  hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+                }]}
+                layout={{
+                  showlegend: true,
+                  legend: { orientation: 'h', y: -0.1 },
+                  margin: { t: 20, b: 40, l: 20, r: 20 },
+                  height: 300
+                }}
+                config={{
+                  displayModeBar: false,
+                  responsive: true
+                }}
+                style={{ width: '100%', height: '100%' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Test Status Chart */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex-center gap-10">
+              <TestTube size={20} style={{ color: '#f59e0b' }} />
+              <h3 className="card-title">Tests by Status</h3>
+            </div>
+          </div>
+          <div className="card-body">
+            <Plot
+              data={[{
+                values: [
+                  stats.testsByStatus.idle,
+                  stats.testsByStatus.running
+                ],
+                labels: ['Idle', 'Running'],
+                type: 'pie',
+                marker: {
+                  colors: ['#6b7280', '#10b981']
+                },
+                textinfo: 'label+value',
+                textposition: 'auto',
+                hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+              }]}
+              layout={{
+                showlegend: true,
+                legend: { orientation: 'h', y: -0.1 },
+                margin: { t: 20, b: 40, l: 20, r: 20 },
+                height: 300
+              }}
+              config={{
+                displayModeBar: false,
+                responsive: true
+              }}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
         </div>
       </div>
     </div>
