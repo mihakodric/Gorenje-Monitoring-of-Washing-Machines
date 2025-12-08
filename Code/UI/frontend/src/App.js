@@ -18,18 +18,15 @@ function App() {
 
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = window.innerWidth <= 768;
+      const mobile = window.innerWidth <= 1024;
       setIsMobile(mobile);
-      // Auto-collapse on smaller screens but keep visible
-      if (mobile && !isNavCollapsed) {
-        setIsNavCollapsed(true);
-      }
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [isNavCollapsed]);
+  }, []);
+
   return (
     <Router>
       <div className="App">
@@ -37,7 +34,7 @@ function App() {
           isCollapsed={isNavCollapsed} 
           setIsCollapsed={setIsNavCollapsed} 
         />
-        <div className={`main-content ${isNavCollapsed ? 'nav-collapsed' : ''}`}>
+        <div className={`main-content ${!isMobile && isNavCollapsed ? 'nav-collapsed' : ''}`}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/sensors" element={<Sensors />} />

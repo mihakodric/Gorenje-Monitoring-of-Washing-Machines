@@ -28,7 +28,8 @@ body {
 .main-content {
   flex: 1;
   margin-left: 260px;
-  padding: 15px; /* Reduced from 20px to give more width */
+  padding: 15px;
+  padding-top: 75px; /* Extra padding for hamburger button */
   height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   transition: margin-left 0.3s ease;
@@ -36,7 +37,7 @@ body {
   overflow-x: hidden;
 }
 
-/* When navigation is hidden/collapsed */
+/* When navigation is collapsed on desktop */
 .main-content.nav-collapsed {
   margin-left: 70px;
 }
@@ -49,6 +50,7 @@ body {
   .main-content {
     margin-left: 0 !important;
     padding: 15px;
+    padding-top: 75px;
     height: 100vh;
     overflow-y: auto;
   }
@@ -61,6 +63,7 @@ body {
 @media (max-width: 768px) {
   .main-content {
     padding: 10px;
+    padding-top: 75px;
     height: 100vh;
     overflow-y: auto;
   }
@@ -69,6 +72,7 @@ body {
 @media (max-width: 480px) {
   .main-content {
     padding: 8px;
+    padding-top: 75px;
     height: 100vh;
     overflow-y: auto;
   }
