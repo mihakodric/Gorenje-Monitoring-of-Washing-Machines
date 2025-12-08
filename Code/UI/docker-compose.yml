@@ -66,6 +66,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - HOST=0.0.0.0
+      - REACT_APP_API_URL=http://192.168.0.19:8000
     depends_on:
       - backend
     restart: unless-stopped

@@ -21,7 +21,6 @@ EXPOSE 3000
 ENV CHOKIDAR_USEPOLLING=true
 ENV WATCHPACK_POLLING=true
 ENV WDS_SOCKET_PORT=0
-ENV REACT_APP_API_URL=http://localhost:8000
 
 # Start development server with hot reload
 CMD ["npm", "start"]
