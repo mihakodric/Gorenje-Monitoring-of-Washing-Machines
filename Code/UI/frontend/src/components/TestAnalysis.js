@@ -134,8 +134,8 @@ const TestAnalysis = () => {
     setEditingSegmentId(segment.id);
     setEditedSegment({
       segment_name: segment.segment_name,
-      start_time: new Date(segment.start_time).toISOString().slice(0, 16),
-      end_time: new Date(segment.end_time).toISOString().slice(0, 16)
+      start_time: new Date(segment.start_time).toISOString().slice(0, 19),
+      end_time: new Date(segment.end_time).toISOString().slice(0, 19)
     });
   };
 
@@ -193,14 +193,15 @@ const TestAnalysis = () => {
         const startDate = new Date(xAxisRangeRef.current[0]);
         const endDate = new Date(xAxisRangeRef.current[1]);
         
-        // Format as YYYY-MM-DDTHH:mm in local timezone
+        // Format as YYYY-MM-DDTHH:mm:ss in local timezone
         const formatLocalDateTime = (date) => {
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
           const day = String(date.getDate()).padStart(2, '0');
           const hours = String(date.getHours()).padStart(2, '0');
           const minutes = String(date.getMinutes()).padStart(2, '0');
-          return `${year}-${month}-${day}T${hours}:${minutes}`;
+          const seconds = String(date.getSeconds()).padStart(2, '0');
+          return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
         };
         
         setNewSegment({ 
@@ -540,6 +541,7 @@ const TestAnalysis = () => {
                               <div className="segment-datetime-stack">
                                 <input
                                   type="datetime-local"
+                                  step="1"
                                   className="segment-input"
                                   value={editedSegment.start_time}
                                   onChange={(e) => setEditedSegment({ ...editedSegment, start_time: e.target.value })}
@@ -547,6 +549,7 @@ const TestAnalysis = () => {
                                 />
                                 <input
                                   type="datetime-local"
+                                  step="1"
                                   className="segment-input"
                                   value={editedSegment.end_time}
                                   onChange={(e) => setEditedSegment({ ...editedSegment, end_time: e.target.value })}
@@ -589,8 +592,8 @@ const TestAnalysis = () => {
                               title="Click to highlight this segment"
                             >
                               <div className="segment-datetime-stack">
-                                <div style={{ fontSize: '11px' }}>{new Date(segment.start_time).toLocaleString()}</div>
-                                <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(segment.end_time).toLocaleString()}</div>
+                                <div style={{ fontSize: '11px' }}>{new Date(segment.start_time).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</div>
+                                <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(segment.end_time).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</div>
                               </div>
                             </td>
                             <td>
@@ -630,6 +633,7 @@ const TestAnalysis = () => {
                           <div className="segment-datetime-stack">
                             <input
                               type="datetime-local"
+                              step="1"
                               className="segment-input"
                               value={newSegment.start_time}
                               onChange={(e) => setNewSegment({ ...newSegment, start_time: e.target.value })}
@@ -637,6 +641,7 @@ const TestAnalysis = () => {
                             />
                             <input
                               type="datetime-local"
+                              step="1"
                               className="segment-input"
                               value={newSegment.end_time}
                               onChange={(e) => setNewSegment({ ...newSegment, end_time: e.target.value })}
