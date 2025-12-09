@@ -231,7 +231,7 @@ const Settings = () => {
                   <th>Display Name</th>
                   <th>Unit</th>
                   <th>Description</th>
-                  <th>Actions</th>
+                  <th className="sticky-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -246,7 +246,7 @@ const Settings = () => {
                         {sensorType.sensor_type_description || '-'}
                       </div>
                     </td>
-                    <td>
+                    <td className="sticky-actions">
                       <div style={{ display: 'flex', gap: '5px' }}>
                         <button
                           className="btn btn-secondary btn-sm"
@@ -311,7 +311,7 @@ const Settings = () => {
                   <th>Display Name</th>
                   <th>Description</th>
                   <th>Created At</th>
-                  <th>Actions</th>
+                  <th className="sticky-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -330,7 +330,7 @@ const Settings = () => {
                         {new Date(machineType.machine_type_created_at).toLocaleDateString()}
                       </span>
                     </td>
-                    <td>
+                    <td className="sticky-actions">
                       <div style={{ display: 'flex', gap: '5px' }}>
                         <button
                           className="btn btn-secondary btn-sm"

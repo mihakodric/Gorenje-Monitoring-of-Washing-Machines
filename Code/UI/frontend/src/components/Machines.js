@@ -273,7 +273,7 @@ const Machines = () => {
                     </div>
                   </th>
                   <th>Machine Type</th>
-                  <th>Actions</th>
+                  <th className="sticky-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,7 +299,7 @@ const Machines = () => {
                         {getMachineTypeName(machine.machine_type_id)}
                       </span>
                     </td>
-                    <td>
+                    <td className="sticky-actions">
                       <div className="action-buttons">
                         <button
                           className="btn btn-secondary btn-sm"

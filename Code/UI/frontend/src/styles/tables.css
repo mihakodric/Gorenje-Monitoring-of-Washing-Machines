@@ -199,6 +199,24 @@
 }
 
 /* Sticky Action Column */
+.table thead th.sticky-actions,
+.table tbody td.sticky-actions {
+  position: sticky;
+  right: 0;
+  background: white;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.08);
+  z-index: 5;
+}
+
+.table thead th.sticky-actions {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  z-index: 15;
+}
+
+.table tbody tr:hover td.sticky-actions {
+  background-color: #f8fafc;
+}
+
 .table.compact-table thead th[style*="position: sticky"],
 .table.compact-table tbody td[style*="position: sticky"] {
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);

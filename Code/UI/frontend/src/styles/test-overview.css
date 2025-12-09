@@ -852,19 +852,20 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 600px; /* Increased minimum height */
-  height: 100%; /* Take full available height */
+  min-height: 700px;
+  height: 100%;
   position: relative;
-  overflow: visible; /* Allow content to be visible */
-  padding: 5px; /* Small padding to prevent edge cropping */
+  overflow: visible;
+  padding: 5px;
 }
 
 .chart-container {
   flex: 1;
   position: relative;
-  height: 100%; /* Use full height of wrapper */
+  height: 100%;
+  min-height: 650px;
   padding: 15px;
-  overflow: visible; /* Allow chart to be fully visible */
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
@@ -873,13 +874,14 @@
 .chart-container .js-plotly-plot {
   width: 100% !important;
   height: 100% !important;
-  min-height: 0;
+  min-height: 500px !important;
+  flex: 1;
 }
 
 .chart-container .plotly {
   width: 100% !important;
   height: 100% !important;
-  min-height: 0;
+  min-height: 500px !important;
 }
 
 .chart-empty-state {
@@ -1059,8 +1061,8 @@
   }
   
   .chart-container-wrapper {
-    height: 350px; /* Smaller height for tablets */
-    max-height: 400px;
+    min-height: 450px;
+    height: 450px;
   }
   
   .header-top-row {
@@ -1136,8 +1138,8 @@
   }
   
   .chart-container-wrapper {
-    height: 300px;
-    max-height: 400px;
+    min-height: 400px;
+    height: 400px;
     padding: 3px;
   }
   

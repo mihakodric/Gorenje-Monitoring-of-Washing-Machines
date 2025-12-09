@@ -289,12 +289,12 @@ const TestAnalysis = () => {
     const gap = 0.01; // Small gap between subplots
     const actualRowHeight = rowHeight - gap;
 
-    // Calculate height: minimum 150px per sensor, but use available space if more
-    const minHeightPerSensor = 100;
+    // Calculate height: minimum per sensor, but fit to available space
+    const minHeightPerSensor = 80;
     const minTotalHeight = numSensors * minHeightPerSensor;
     
-    // Available viewport height (subtract header, margins, and padding - more conservative estimate)
-    const availableHeight = window.innerHeight - 200;
+    // Available viewport height (subtract header, margins, and padding)
+    const availableHeight = window.innerHeight - 170;
     
     // Use the larger of: minimum required height or available height
     const plotHeight = Math.max(minTotalHeight, availableHeight);
@@ -521,7 +521,7 @@ const TestAnalysis = () => {
                     <tr>
                       <th>Segment Name</th>
                       <th>Time Range</th>
-                      <th>Actions</th>
+                      <th className="sticky-actions">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -557,7 +557,7 @@ const TestAnalysis = () => {
                                 />
                               </div>
                             </td>
-                            <td>
+                            <td className="sticky-actions">
                               <div className="segment-actions">
                                 <button
                                   className="btn-icon-sm btn-success-sm"
@@ -596,7 +596,7 @@ const TestAnalysis = () => {
                                 <div style={{ fontSize: '11px', color: '#6b7280' }}>{new Date(segment.end_time).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</div>
                               </div>
                             </td>
-                            <td>
+                            <td className="sticky-actions">
                               <div className="segment-actions">
                                 <button
                                   className="btn-icon-sm btn-primary-sm"
@@ -649,7 +649,7 @@ const TestAnalysis = () => {
                             />
                           </div>
                         </td>
-                        <td>
+                        <td className="sticky-actions">
                           <div className="segment-actions">
                             <button
                               className="btn-icon-sm btn-success-sm"

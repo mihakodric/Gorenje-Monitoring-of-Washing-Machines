@@ -352,7 +352,7 @@ const Sensors = () => {
                       )}
                     </div>
                   </th>
-                  <th>Actions</th>
+                  <th className="sticky-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -406,7 +406,7 @@ const Sensors = () => {
                           }
                         </div>
                       </td>
-                      <td>
+                      <td className="sticky-actions">
                         <div className="action-buttons" style={{ position: 'relative' }}>
                           {sensor.sensor_is_active && (
                             <div

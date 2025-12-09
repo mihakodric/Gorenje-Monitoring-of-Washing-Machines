@@ -201,8 +201,8 @@ const TestOverview = () => {
 
   const fetchAndCacheSensor = useCallback(async (sensor, mode = 'aggregated', colorStartIndex = 0) => {
     const response = mode === 'raw' 
-      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 10000, last_minutes: 5 })
-      : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 10000 });
+      ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 50000, last_minutes: 3 })
+      : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 50000 });
     const measurements = response.data || [];
     const traces = buildTracesFromMeasurements(sensor, measurements, colorStartIndex, mode);
     setSensorMeasurements(prev => ({ ...prev, [`${sensor.id}_${mode}`]: measurements }));

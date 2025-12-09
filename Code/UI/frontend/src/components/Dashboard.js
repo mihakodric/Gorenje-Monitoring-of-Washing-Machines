@@ -117,12 +117,13 @@ const Dashboard = () => {
                   },
                   textinfo: 'label+value',
                   textposition: 'auto',
-                  hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+                  hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>',
+                  hole: 0.0,
+                  domain: { x: [0.05, 0.95], y: [0.05, 0.95] }
                 }]}
                 layout={{
-                  showlegend: true,
-                  legend: { orientation: 'h', y: -0.1 },
-                  margin: { t: 20, b: 40, l: 20, r: 20 },
+                  showlegend: false,
+                  margin: { t: 20, b: 20, l: 20, r: 20 },
                   height: 300
                 }}
                 config={{
@@ -155,12 +156,13 @@ const Dashboard = () => {
                   },
                   textinfo: 'label+value',
                   textposition: 'auto',
-                  hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+                  hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>',
+                  hole: 0.0,
+                  domain: { x: [0.05, 0.95], y: [0.05, 0.95] }
                 }]}
                 layout={{
-                  showlegend: true,
-                  legend: { orientation: 'h', y: -0.1 },
-                  margin: { t: 20, b: 40, l: 20, r: 20 },
+                  showlegend: false,
+                  margin: { t: 20, b: 20, l: 20, r: 20 },
                   height: 300
                 }}
                 config={{
@@ -195,12 +197,13 @@ const Dashboard = () => {
                 },
                 textinfo: 'label+value',
                 textposition: 'auto',
-                hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>'
+                hovertemplate: '<b>%{label}</b><br>Count: %{value}<extra></extra>',
+                hole: 0.0,
+                domain: { x: [0.05, 0.95], y: [0.05, 0.95] }
               }]}
               layout={{
-                showlegend: true,
-                legend: { orientation: 'h', y: -0.1 },
-                margin: { t: 20, b: 40, l: 20, r: 20 },
+                showlegend: false,
+                margin: { t: 20, b: 20, l: 20, r: 20 },
                 height: 300
               }}
               config={{

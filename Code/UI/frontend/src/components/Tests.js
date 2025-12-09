@@ -457,7 +457,7 @@ const Tests = () => {
                       </span>
                     )}
                   </th>
-                  <th>Actions</th>
+                  <th className="sticky-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -496,7 +496,7 @@ const Tests = () => {
                     <td>
                       <strong>{test.test_sensor_count || 0}</strong>
                     </td>
-                    <td>
+                    <td className="sticky-actions">
                       <div className="action-buttons">
                         <Link
                           to={`/tests/overview/${test.id}`}
