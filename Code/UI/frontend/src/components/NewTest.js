@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Laptop, Wifi, WifiOff, Crosshair, Eye } from 'lucide-react';
+import { Laptop, Wifi, WifiOff, Crosshair, Eye, Copy } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 
 const NewTest = () => {
@@ -11,6 +11,7 @@ const NewTest = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   
   // Available data
   const [machines, setMachines] = useState([]);
@@ -173,6 +174,42 @@ const NewTest = () => {
 
   const handleCancel = () => {
     navigate('/tests');
+  };
+
+  const handleDuplicate = async () => {
+    if (!isEditing || !testId) return;
+    
+    try {
+      setDuplicating(true);
+      
+      // Prepare sensor data from selected sensors
+      const sensorData = selectedSensors.map(s => ({
+        sensor_id: s.sensor_id,
+        sensor_location: s.sensor_location
+      }));
+
+      // Create new test with " - Copy" appended to name
+      const payload = {
+        test: {
+          test_name: testForm.test_name + ' - Copy',
+          test_description: testForm.test_description,
+          test_notes: testForm.test_notes
+        },
+        machine_id: selectedMachine?.id,
+        sensors: sensorData
+      };
+
+      const response = await testsAPI.createWithRelations(payload);
+      const newTestId = response.data.id;
+      
+      // Navigate to edit the newly created duplicate test
+      navigate(`/tests/edit/${newTestId}`);
+    } catch (error) {
+      console.error('Error duplicating test:', error);
+      alert(`Error duplicating test: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setDuplicating(false);
+    }
   };
 
   // Filter functions
@@ -425,14 +462,25 @@ const NewTest = () => {
         <h1>{isEditing ? 'Edit Test' : 'Create New Test'}</h1>
         <div className="btn-group">
           {isEditing && (
-            <button 
-              className="btn btn-secondary btn-icon" 
-              onClick={() => navigate(`/tests/overview/${testId}`)}
-              title="View Test Overview"
-            >
-              <Eye size={16} />
-              Overview
-            </button>
+            <>
+              <button 
+                className="btn btn-secondary btn-icon" 
+                onClick={() => navigate(`/tests/overview/${testId}`)}
+                title="View Test Overview"
+              >
+                <Eye size={16} />
+                Overview
+              </button>
+              <button 
+                className="btn btn-secondary btn-icon" 
+                onClick={handleDuplicate}
+                disabled={duplicating || saving || autoSaving}
+                title="Duplicate Test"
+              >
+                <Copy size={16} />
+                {duplicating ? 'Duplicating...' : 'Duplicate'}
+              </button>
+            </>
           )}
           <button className="btn btn-secondary" onClick={handleCancel}>
             Cancel
