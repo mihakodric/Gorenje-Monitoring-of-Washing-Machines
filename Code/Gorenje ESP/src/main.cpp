@@ -76,7 +76,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/water_flow/config.json",
-            "waterflow_1"
+            "waterflow_2"
         );
     #endif
 
