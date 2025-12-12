@@ -60,7 +60,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/temperature/config.json",
-            "temp_1"
+            "temp_2"
         );
     #endif
 
