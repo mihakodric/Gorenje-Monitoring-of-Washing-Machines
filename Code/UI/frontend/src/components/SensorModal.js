@@ -196,9 +196,16 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
     }
   };
 
+  const handleOverlayMouseDown = (e) => {
+    // Only close if mousedown started directly on the overlay
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onMouseDown={handleOverlayMouseDown}>
+      <div className="modal">
         <div className="modal-header">
           <h2 className="modal-title">
             {sensor ? 'Edit Sensor' : 'Add New Sensor'}
