@@ -42,6 +42,7 @@ const TestOverview = () => {
   const [sensorMeasurements, setSensorMeasurements] = useState({});
   const [dataMode, setDataMode] = useState('aggregated'); // 'aggregated' or 'raw'
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [aggregationType, setAggregationType] = useState('max_abs_value');
   
   // Chart ref for zoom controls
   const chartRef = useRef(null);
@@ -154,7 +155,7 @@ const TestOverview = () => {
     }
   };
 
-  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0, mode = 'aggregated') => {
+  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0, mode = 'aggregated', aggType = 'max_abs_value') => {
     const sensorColors = [
       '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
       '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
@@ -170,7 +171,7 @@ const TestOverview = () => {
     Object.keys(channelGroups).sort().forEach(channel => {
       const channelData = channelGroups[channel].sort((a, b) => new Date(a.measurement_timestamp) - new Date(b.measurement_timestamp));
       const times = channelData.map(m => new Date(m.measurement_timestamp));
-      const values = channelData.map(m => parseFloat(mode === 'raw' ? m.measurement_value : m.avg_value));
+      const values = channelData.map(m => parseFloat(mode === 'raw' ? m.measurement_value : (m[aggType] || m.avg_value)));
       const traceName = channel === 'main' || channel === 'null'
         ? `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'})`
         : `${sensor.sensor_name} - ${channel.toUpperCase()} (${sensor.sensor_location || 'N/A'})`;
@@ -199,15 +200,35 @@ const TestOverview = () => {
     return traces;
   }, []);
 
+  // Rebuild plot data when aggregationType changes
+  useEffect(() => {
+    if (selectedSensorIds.size > 0 && dataMode === 'aggregated' && Object.keys(sensorMeasurements).length > 0) {
+      const selectedSensors = testSensors.filter(s => selectedSensorIds.has(s.id));
+      const allTraces = [];
+      
+      selectedSensors.forEach((sensor, i) => {
+        const cacheKey = `${sensor.id}_${dataMode}`;
+        if (sensorMeasurements[cacheKey]) {
+          const traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], i, dataMode, aggregationType);
+          allTraces.push(...traces);
+        }
+      });
+      
+      if (allTraces.length > 0) {
+        setPlotData(allTraces);
+      }
+    }
+  }, [aggregationType, dataMode, selectedSensorIds, sensorMeasurements, testSensors, buildTracesFromMeasurements]);
+
   const fetchAndCacheSensor = useCallback(async (sensor, mode = 'aggregated', colorStartIndex = 0) => {
     const response = mode === 'raw' 
       ? await measurementsAPI.getSensorDataRaw(sensor.id, { limit: 50000, last_minutes: 3 })
       : await measurementsAPI.getSensorDataAvg(sensor.id, { limit: 50000 });
     const measurements = response.data || [];
-    const traces = buildTracesFromMeasurements(sensor, measurements, colorStartIndex, mode);
+    const traces = buildTracesFromMeasurements(sensor, measurements, colorStartIndex, mode, aggregationType);
     setSensorMeasurements(prev => ({ ...prev, [`${sensor.id}_${mode}`]: measurements }));
     return traces; // Return traces instead of updating state here
-  }, [buildTracesFromMeasurements]);
+  }, [buildTracesFromMeasurements, aggregationType]);
 
   // Handle sensor toggle with current data mode
   const handleSensorToggle = async (sensorId, event) => {
@@ -286,7 +307,7 @@ const TestOverview = () => {
           if (!sensorMeasurements[cacheKey]) {
             traces = await fetchAndCacheSensor(sensor, newMode, i);
           } else {
-            traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], i, newMode);
+            traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], i, newMode, aggregationType);
           }
           allTraces.push(...traces);
         }
@@ -687,6 +708,29 @@ const TestOverview = () => {
                   <div className="chart-container">
                     <div className="chart-controls">
                       <div className="chart-control-buttons">
+                        {dataMode === 'aggregated' && (
+                          <select
+                            className="form-control"
+                            value={aggregationType}
+                            onChange={(e) => setAggregationType(e.target.value)}
+                            style={{ 
+                              width: 'auto', 
+                              minWidth: '160px',
+                              height: '38px',
+                              padding: '6px 12px',
+                              fontSize: '14px',
+                              marginRight: '10px'
+                            }}
+                            title="Select aggregation type"
+                            disabled={chartLoading || isRefreshing}
+                          >
+                            <option value="avg_value">Average Value</option>
+                            <option value="max_abs_value">Max Absolute Value</option>
+                            <option value="min_abs_value">Min Absolute Value</option>
+                            <option value="max_value">Max Value</option>
+                            <option value="min_value">Min Value</option>
+                          </select>
+                        )}
                         <div 
                           className={`data-mode-toggle ${chartLoading || isRefreshing ? 'disabled' : ''}`}
                           style={{ marginRight: '10px' }}
@@ -729,6 +773,7 @@ const TestOverview = () => {
                       </div>
                     </div>
                     <Plot 
+                      key={`plot-${dataMode}-${aggregationType}`}
                       ref={chartRef}
                       data={plotData}
                       layout={plotLayout}

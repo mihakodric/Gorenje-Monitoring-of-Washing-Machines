@@ -36,9 +36,9 @@ void IRAM_ATTR onIRPulse() {
     static volatile uint32_t lastPulseMicros = 0;
     uint32_t now = micros();
 
-    // Ignore pulses closer than 100 ms
-    // 100 ms = 100000 microseconds
-    if (now - lastPulseMicros < 100000) {
+    // Ignore pulses closer than 40 ms
+    // 40 ms = 40000 microseconds
+    if (now - lastPulseMicros < 40000) {
         return;  // treat as same pulse
     }
 

@@ -45,11 +45,23 @@ const TestAnalysis = () => {
   // Store current x-axis range and selected segment for highlighting
   const xAxisRangeRef = useRef(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
+  
+  // Aggregation type for plotting
+  const [aggregationType, setAggregationType] = useState('max_abs_value');
 
   useEffect(() => {
     loadTestData();
     loadSegments();
   }, [testId]);
+
+  // Force plot update when aggregation type changes
+  useEffect(() => {
+    // Only trigger if we have sensor data loaded
+    if (Object.keys(sensorData).length > 0) {
+      // Force re-render by updating a dummy state or just rely on React's re-render
+      // Since aggregationType is used in buildTracesForSensor, changing it will automatically update the plot
+    }
+  }, [aggregationType]);
 
   const loadTestData = async () => {
     try {
@@ -289,7 +301,7 @@ const TestAnalysis = () => {
       );
 
       const times = channelData.map(m => new Date(m.measurement_timestamp));
-      const values = channelData.map(m => parseFloat(m.avg_value));
+      const values = channelData.map(m => parseFloat(m[aggregationType] || m.avg_value));
 
       const traceName = channel === 'main' || channel === 'null'
         ? sensor.sensor_name
@@ -517,16 +529,37 @@ const TestAnalysis = () => {
             <p className="page-subtitle">{test.test_name} • {testSensors.length} sensors</p>
           </div>
         </div>
-        <div className="header-right">
+        <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
           <button 
             className="btn btn-primary btn-icon"
             onClick={handleRefreshData}
             disabled={isRefreshing || loadingData}
             title="Refresh Data"
+            style={{ whiteSpace: 'nowrap' }}
           >
             <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
+          <select
+            className="form-control"
+            value={aggregationType}
+            onChange={(e) => setAggregationType(e.target.value)}
+            style={{ 
+              width: 'auto', 
+              minWidth: '160px',
+              height: '38px',
+              padding: '6px 12px',
+              fontSize: '14px',
+              flexShrink: 0
+            }}
+            title="Select aggregation type"
+          >
+            <option value="avg_value">Average Value</option>
+            <option value="max_abs_value">Max Absolute Value</option>
+            <option value="min_abs_value">Min Absolute Value</option>
+            <option value="max_value">Max Value</option>
+            <option value="min_value">Min Value</option>
+          </select>
         </div>
       </div>
 
