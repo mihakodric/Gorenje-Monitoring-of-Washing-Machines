@@ -91,4 +91,7 @@ private:
     // ----------------- Current test/run tracking -----------------
     int currentTestId = -1;   // ID of currently running test
     int currentRunId  = -1;   // ID of currently running test run
+
+    // ----------------- Deferred config-publish flag -----------------
+    bool mustPublishConfig = false;
 };

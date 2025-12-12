@@ -33,6 +33,16 @@ static uint64_t getPreciseTimestampMillis() {
 
 // -------------------- Pulse Interrupt Handler --------------------
 void IRAM_ATTR onIRPulse() {
+    static volatile uint32_t lastPulseMicros = 0;
+    uint32_t now = micros();
+
+    // Ignore pulses closer than 100 ms
+    // 100 ms = 100000 microseconds
+    if (now - lastPulseMicros < 100000) {
+        return;  // treat as same pulse
+    }
+
+    lastPulseMicros = now;
     pulseCount++;
 }
 
@@ -80,7 +90,7 @@ void setupInfraredSensor(MQTTHandler* handler) {
 
     // -------- Sensor Init --------
     pinMode(IR_PIN, INPUT);   // Grove module actively drives HIGH/LOW
-    attachInterrupt(digitalPinToInterrupt(IR_PIN), onIRPulse, FALLING);
+    attachInterrupt(digitalPinToInterrupt(IR_PIN), onIRPulse, RISING);
 
     Serial.println("IR RPM sensor initialized on GPIO22 (SCL as GPIO)");
 }

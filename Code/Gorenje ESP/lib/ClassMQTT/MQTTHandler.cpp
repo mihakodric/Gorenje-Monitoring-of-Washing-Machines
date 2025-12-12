@@ -104,25 +104,19 @@ void MQTTHandler::reconnect() {
     if (client.connected()) return;
 
     unsigned long now = millis();
-    if (now - lastAttempt < 500) {
-        return;  // retry only every 500ms
-    }
-    lastAttempt = now;
+    if (now - lastAttempt < 500) return;
 
+    lastAttempt = now;
     ledCtrl->blinkConnect();
-    ledCtrl->loop();
 
     Serial.println("Connecting to MQTT...");
     if (client.connect(deviceName.c_str())) {
         Serial.println("MQTT connected.");
         client.subscribe(topicCmd.c_str());
-
-        bool ok = publishCurrentConfig("boot");   // AUTO-SEND
-        if (ok) {
-            Serial.println("Published current config on boot.");
-        }
-
         ledCtrl->stop();
+
+        // FLAG: publish later
+        mustPublishConfig = true;
     }
 }
 
@@ -333,17 +327,32 @@ bool MQTTHandler::publishCurrentConfig(const char* source) {
 
 // ---------------------- Main loop ----------------------
 void MQTTHandler::loop() {
-    if (!client.connected())
+    // 1. Maintain MQTT connection
+    if (!client.connected()) {
         reconnect();
+        return;             // ← Prevent double-calling client.loop() while reconnecting
+    }
 
+    // 2. Process MQTT traffic
     client.loop();
-    ledCtrl->loop(); // Update LED state
 
+    // 3. If we owe the broker a config publish, do it only AFTER loop() is stable
+    if (mustPublishConfig && client.connected()) {
+        if (publishCurrentConfig("boot")) {
+            mustPublishConfig = false;
+        }
+    }
+
+    // 4. Update LED
+    ledCtrl->loop();
+
+    // 5. Heartbeat
     if (millis() - lastHeartbeat > heartbeatInterval) {
         lastHeartbeat = millis();
         sendHeartbeat();
     }
 }
+
 
 // ---------------------- LED wrappers ----------------------
 void MQTTHandler::blinkIdentify(uint8_t cycles) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
-import { ArrowLeft, Plus, Edit, Save, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Save, X, Trash2, RefreshCw } from 'lucide-react';
 import { testsAPI, testRelationsAPI, measurementsAPI, testSegmentsAPI } from '../api';
 import '../styles/test-analysis.css';
 
@@ -33,6 +33,7 @@ const TestAnalysis = () => {
   const [error, setError] = useState(null);
   const [sensorData, setSensorData] = useState({});
   const [loadingData, setLoadingData] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Segment state
   const [segments, setSegments] = useState([]);
@@ -113,6 +114,31 @@ const TestAnalysis = () => {
     }
   };
 
+  const handleRefreshData = async () => {
+    try {
+      setIsRefreshing(true);
+      
+      // Reload sensor data for all sensors
+      const dataPromises = testSensors.map(sensor => 
+        measurementsAPI.getSensorDataAvg(sensor.id, { limit: 10000 })
+          .then(response => ({ sensorId: sensor.id, data: response.data }))
+      );
+      
+      const results = await Promise.all(dataPromises);
+      const dataMap = {};
+      results.forEach(result => {
+        dataMap[result.sensorId] = result.data;
+      });
+      setSensorData(dataMap);
+      
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      alert('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleAddSegment = async () => {
     try {
       await testSegmentsAPI.create({
@@ -131,11 +157,23 @@ const TestAnalysis = () => {
   };
 
   const handleEditSegment = (segment) => {
+    // Format as YYYY-MM-DDTHH:mm:ss in local timezone
+    const formatLocalDateTime = (dateString) => {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+    };
+    
     setEditingSegmentId(segment.id);
     setEditedSegment({
       segment_name: segment.segment_name,
-      start_time: new Date(segment.start_time).toISOString().slice(0, 19),
-      end_time: new Date(segment.end_time).toISOString().slice(0, 19)
+      start_time: formatLocalDateTime(segment.start_time),
+      end_time: formatLocalDateTime(segment.end_time)
     });
   };
 
@@ -478,6 +516,17 @@ const TestAnalysis = () => {
             <h1 className="page-title">Test Analysis</h1>
             <p className="page-subtitle">{test.test_name} • {testSensors.length} sensors</p>
           </div>
+        </div>
+        <div className="header-right">
+          <button 
+            className="btn btn-primary btn-icon"
+            onClick={handleRefreshData}
+            disabled={isRefreshing || loadingData}
+            title="Refresh Data"
+          >
+            <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
       </div>
 

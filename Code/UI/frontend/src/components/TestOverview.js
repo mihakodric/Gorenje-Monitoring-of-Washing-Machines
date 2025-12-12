@@ -231,17 +231,10 @@ const TestOverview = () => {
           newSelectedIds.add(sensorId);
           const sensor = testSensors.find(s => s.id === sensorId);
           if (sensor) {
-            const cacheKey = `${sensorId}_${dataMode}`;
             // Calculate color index based on how many sensors are already selected
             const colorIndex = Array.from(newSelectedIds).indexOf(sensorId);
-            let traces;
-            // Only fetch if not cached
-            if (!sensorMeasurements[cacheKey]) {
-              traces = await fetchAndCacheSensor(sensor, dataMode, colorIndex);
-            } else {
-              // Build traces from cached measurements
-              traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], colorIndex, dataMode);
-            }
+            // Always fetch fresh data from database
+            const traces = await fetchAndCacheSensor(sensor, dataMode, colorIndex);
             setPlotData(prev => [...prev, ...traces]);
           }
         }
@@ -256,13 +249,8 @@ const TestOverview = () => {
           newSelectedIds = new Set([sensorId]);
           const sensor = testSensors.find(s => s.id === sensorId);
           if (sensor) {
-            const cacheKey = `${sensorId}_${dataMode}`;
-            let traces;
-            if (!sensorMeasurements[cacheKey]) {
-              traces = await fetchAndCacheSensor(sensor, dataMode, 0);
-            } else {
-              traces = buildTracesFromMeasurements(sensor, sensorMeasurements[cacheKey], 0, dataMode);
-            }
+            // Always fetch fresh data from database
+            const traces = await fetchAndCacheSensor(sensor, dataMode, 0);
             setPlotData(traces);
           }
         }
