@@ -28,22 +28,22 @@ async def create_default_data():
         {
             "sensor_type_name": "Accelerometer",
             "sensor_type_unit": "g",
-            "sensor_type_description": "Measures vibration and movement acceleration"
+            "sensor_type_description": "Measures vibration"
         },
         {
             "sensor_type_name": "Temperature Sensor", 
             "sensor_type_unit": "°C",
-            "sensor_type_description": "Measures temperature of water or ambient"
+            "sensor_type_description": "Measures temperature"
         },
         {
             "sensor_type_name": "Distance Sensor",
-            "sensor_type_unit": "cm", 
-            "sensor_type_description": "Measures distance or water level"
+            "sensor_type_unit": "mm", 
+            "sensor_type_description": "Measures distance"
         },
         {
             "sensor_type_name": "Current Sensor",
             "sensor_type_unit": "A",
-            "sensor_type_description": "Measures electrical current consumption"
+            "sensor_type_description": "Measures electrical current"
         },
         {
             "sensor_type_name": "Flow Sensor",
@@ -52,8 +52,8 @@ async def create_default_data():
         },
         {
             "sensor_type_name": "Infrared Sensor",
-            "sensor_type_unit": "",
-            "sensor_type_description": "Detects presence or position using infrared"
+            "sensor_type_unit": "RPM",
+            "sensor_type_description": "Tachometer for drum rotation speed"
         }
     ]
     
@@ -96,12 +96,12 @@ async def create_default_data():
     # Default machines
     default_machines = [
         {
-            "machine_name": "machine1",
+            "machine_name": "WM23",
             "machine_description": "Test Washing Machine 1", 
             "machine_type_id": 1
         },
         {
-            "machine_name": "machine2",
+            "machine_name": "WM26",
             "machine_description": "Test Washing Machine 2",
             "machine_type_id": 1  
         }
@@ -120,37 +120,37 @@ async def create_default_data():
             "sensor_mqtt_topic": "acc_1",
             "sensor_type_id": sensor_type_mapping.get("Accelerometer", 1),
             "sensor_name": "Accelerometer 1", 
-            "sensor_description": "Main washing machine accelerometer"
+            "sensor_description": "3-axis vibration sensor"
         },
         {
             "sensor_mqtt_topic": "temp_1",
             "sensor_type_id": sensor_type_mapping.get("Temperature Sensor", 2),
             "sensor_name": "Temperature Sensor 1",
-            "sensor_description": "Water temperature sensor"
+            "sensor_description": "Distance and ambient temperature sensor"
         },
         {
             "sensor_mqtt_topic": "dist_1", 
             "sensor_type_id": sensor_type_mapping.get("Distance Sensor", 3),
             "sensor_name": "Distance Sensor 1",
-            "sensor_description": "Water level measurement"
+            "sensor_description": "Distance measurement"
         },
         {
             "sensor_mqtt_topic": "current_1",
             "sensor_type_id": sensor_type_mapping.get("Current Sensor", 4), 
             "sensor_name": "Current Sensor 1",
-            "sensor_description": "Motor current measurement"
+            "sensor_description": "Electrical current measurement"
         },
         {
             "sensor_mqtt_topic": "flow_1",
             "sensor_type_id": sensor_type_mapping.get("Flow Sensor", 5),
-            "sensor_name": "Flow Sensor 1", 
-            "sensor_description": "Water flow measurement"
+            "sensor_name": "Flow Sensor IN", 
+            "sensor_description": "Water flow measurement IN"
         },
         {
             "sensor_mqtt_topic": "infra_1",
             "sensor_type_id": sensor_type_mapping.get("Infrared Sensor", 6),
-            "sensor_name": "Infrared Sensor 1",
-            "sensor_description": "Door position sensor"
+            "sensor_name": "Tachometer Sensor 1",
+            "sensor_description": "Drum rotation speed measurement"
         }
     ]
     
@@ -215,7 +215,7 @@ async def lifespan(app: FastAPI):
         if 'db_pool' in locals():
             await db_pool.close()
             print("✅ Database connection pool closed")
-                
+        
     except Exception as e:
         print(f"⚠️  Shutdown error: {e}")
     

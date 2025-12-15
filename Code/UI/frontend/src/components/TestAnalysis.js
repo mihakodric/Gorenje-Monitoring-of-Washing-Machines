@@ -3,25 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
 import { ArrowLeft, Plus, Edit, Save, X, Trash2, RefreshCw } from 'lucide-react';
 import { testsAPI, testRelationsAPI, measurementsAPI, testSegmentsAPI } from '../api';
+import { SENSOR_COLORS, SEGMENT_COLORS, SEGMENT_TRANSPARENCY_FILL, SEGMENT_TRANSPARENCY_BORDER, hexToRgba } from '../constants/colors';
 import '../styles/test-analysis.css';
-
-// Sensor color palette - shared across all visualizations
-const SENSOR_COLORS = [
-  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-  '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-];
-
-// Segment color palette - used for shaded areas on plots
-const SEGMENT_TRANSPARENCY_FILL = 0.10;
-const SEGMENT_TRANSPARENCY_BORDER = 0.7;
-const SEGMENT_COLORS = [
-  `rgba(59, 130, 246, ${SEGMENT_TRANSPARENCY_FILL})`,   // blue
-  `rgba(239, 68, 68, ${SEGMENT_TRANSPARENCY_FILL})`,    // red
-  `rgba(16, 185, 129, ${SEGMENT_TRANSPARENCY_FILL})`,   // green
-  `rgba(245, 158, 11, ${SEGMENT_TRANSPARENCY_FILL})`,   // orange
-  `rgba(139, 92, 246, ${SEGMENT_TRANSPARENCY_FILL})`,   // purple
-  `rgba(236, 72, 153, ${SEGMENT_TRANSPARENCY_FILL})`,   // pink
-];
 
 const TestAnalysis = () => {
   const { testId } = useParams();
@@ -47,7 +30,7 @@ const TestAnalysis = () => {
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
   
   // Aggregation type for plotting
-  const [aggregationType, setAggregationType] = useState('max_abs_value');
+  const [aggregationType, setAggregationType] = useState('absolute'); // 'absolute' or 'regular'
 
   useEffect(() => {
     loadTestData();
@@ -301,23 +284,82 @@ const TestAnalysis = () => {
       );
 
       const times = channelData.map(m => new Date(m.measurement_timestamp));
-      const values = channelData.map(m => parseFloat(m[aggregationType] || m.avg_value));
-
-      const traceName = channel === 'main' || channel === 'null'
+      
+      const baseTraceName = channel === 'main' || channel === 'null'
         ? sensor.sensor_name
         : `${sensor.sensor_name} - ${channel.toUpperCase()}`;
-
+      
+      const color = SENSOR_COLORS[colorIndex % SENSOR_COLORS.length];
+      const suffix = aggregationType === 'absolute' ? '_abs_value' : '_value';
+      
+      const minValues = channelData.map(m => parseFloat(m[`min${suffix}`]));
+      const maxValues = channelData.map(m => parseFloat(m[`max${suffix}`]));
+      const avgValues = channelData.map(m => parseFloat(m[`avg${suffix}`]));
+      
+      // Shaded area between min and max
       traces.push({
-        x: times,
-        y: values,
+        x: [...times, ...times.slice().reverse()],
+        y: [...maxValues, ...minValues.slice().reverse()],
+        fill: 'toself',
+        fillcolor: hexToRgba(color, 0.3),
         type: 'scattergl',
-        mode: 'lines+markers',
-        name: traceName,
-        line: { color: SENSOR_COLORS[colorIndex % SENSOR_COLORS.length], width: 2 },
-        marker: { color: SENSOR_COLORS[colorIndex % SENSOR_COLORS.length], size: 3 },
+        mode: 'none',
+        name: `${baseTraceName} Range`,
         xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
         yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
-        hovertemplate: `<b>${traceName}</b><br>` +
+        showlegend: false,
+        hoverinfo: 'skip',
+        connectgaps: false
+      });
+      
+      // Max line
+      traces.push({
+        x: times,
+        y: maxValues,
+        type: 'scattergl',
+        mode: 'lines',
+        name: `${baseTraceName} Max`,
+        line: { color: color, width: 1, dash: 'dot' },
+        xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
+        yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
+        hovertemplate: `<b>Max</b><br>` +
+          `Time: %{x}<br>` +
+          `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+          `<extra></extra>`,
+        connectgaps: false,
+        showlegend: false
+      });
+      
+      // Min line
+      traces.push({
+        x: times,
+        y: minValues,
+        type: 'scattergl',
+        mode: 'lines',
+        name: `${baseTraceName} Min`,
+        line: { color: color, width: 1, dash: 'dot' },
+        xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
+        yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
+        hovertemplate: `<b>Min</b><br>` +
+          `Time: %{x}<br>` +
+          `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+          `<extra></extra>`,
+        connectgaps: false,
+        showlegend: false
+      });
+      
+      // Average line (bold)
+      traces.push({
+        x: times,
+        y: avgValues,
+        type: 'scattergl',
+        mode: 'lines+markers',
+        name: `${baseTraceName} Avg`,
+        line: { color: color, width: 2 },
+        marker: { color: color, size: 3 },
+        xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
+        yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
+        hovertemplate: `<b>Average</b><br>` +
           `Time: %{x}<br>` +
           `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
           `<extra></extra>`,
@@ -554,11 +596,8 @@ const TestAnalysis = () => {
             }}
             title="Select aggregation type"
           >
-            <option value="avg_value">Average Value</option>
-            <option value="max_abs_value">Max Absolute Value</option>
-            <option value="min_abs_value">Min Absolute Value</option>
-            <option value="max_value">Max Value</option>
-            <option value="min_value">Min Value</option>
+            <option value="absolute">Absolute Values</option>
+            <option value="regular">Regular Values</option>
           </select>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
+import { SENSOR_COLORS, hexToRgba } from '../constants/colors';
 import { 
   ArrowLeft, 
   Play, 
@@ -42,7 +43,7 @@ const TestOverview = () => {
   const [sensorMeasurements, setSensorMeasurements] = useState({});
   const [dataMode, setDataMode] = useState('aggregated'); // 'aggregated' or 'raw'
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [aggregationType, setAggregationType] = useState('max_abs_value');
+  const [aggregationType, setAggregationType] = useState('absolute'); // 'absolute' or 'regular'
   
   // Chart ref for zoom controls
   const chartRef = useRef(null);
@@ -155,11 +156,7 @@ const TestOverview = () => {
     }
   };
 
-  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0, mode = 'aggregated', aggType = 'max_abs_value') => {
-    const sensorColors = [
-      '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
-      '#f97316', '#06b6d4', '#84cc16', '#ec4899', '#6366f1'
-    ];
+  const buildTracesFromMeasurements = useCallback((sensor, measurements, colorStartIndex = 0, mode = 'aggregated', aggType = 'absolute') => {
     const channelGroups = {};
     measurements.forEach(m => {
       const channel = m.measurement_channel || 'main';
@@ -171,30 +168,105 @@ const TestOverview = () => {
     Object.keys(channelGroups).sort().forEach(channel => {
       const channelData = channelGroups[channel].sort((a, b) => new Date(a.measurement_timestamp) - new Date(b.measurement_timestamp));
       const times = channelData.map(m => new Date(m.measurement_timestamp));
-      const values = channelData.map(m => parseFloat(mode === 'raw' ? m.measurement_value : (m[aggType] || m.avg_value)));
-      const traceName = channel === 'main' || channel === 'null'
+      
+      const baseTraceName = channel === 'main' || channel === 'null'
         ? `${sensor.sensor_name} (${sensor.sensor_location || 'N/A'})`
         : `${sensor.sensor_name} - ${channel.toUpperCase()} (${sensor.sensor_location || 'N/A'})`;
-      const trace = {
-        x: times,
-        y: values,
-        type: 'scattergl',
-        mode: mode === 'raw' ? 'lines' : 'lines+markers',
-        name: traceName,
-        sensorId: sensor.id,
-        line: { color: sensorColors[colorIndex % sensorColors.length], width: mode === 'raw' ? 1 : 2 },
-        hovertemplate: `<b>%{fullData.name}</b><br>` +
-          `Time: %{x}<br>` +
-          `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
-          `<extra></extra>`,
-        connectgaps: false
-      };
       
-      // Only add marker if not in raw mode
-      if (mode !== 'raw') {
-        trace.marker = { color: sensorColors[colorIndex % sensorColors.length], size: 4 };
+      const color = SENSOR_COLORS[colorIndex % SENSOR_COLORS.length];
+      
+      if (mode === 'raw') {
+        // Raw mode: single trace
+        const values = channelData.map(m => parseFloat(m.measurement_value));
+        traces.push({
+          x: times,
+          y: values,
+          type: 'scattergl',
+          mode: 'lines',
+          name: baseTraceName,
+          sensorId: sensor.id,
+          line: { color: color, width: 1 },
+          hovertemplate: `<b>%{fullData.name}</b><br>` +
+            `Time: %{x}<br>` +
+            `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+            `<extra></extra>`,
+          connectgaps: false
+        });
+      } else {
+        // Aggregated mode: min, max, avg with shading
+        const suffix = aggType === 'absolute' ? '_abs_value' : '_value';
+        const minValues = channelData.map(m => parseFloat(m[`min${suffix}`]));
+        const maxValues = channelData.map(m => parseFloat(m[`max${suffix}`]));
+        const avgValues = channelData.map(m => parseFloat(m[`avg${suffix}`]));
+        
+        // Shaded area between min and max
+        traces.push({
+          x: [...times, ...times.slice().reverse()],
+          y: [...maxValues, ...minValues.slice().reverse()],
+          fill: 'toself',
+          fillcolor: hexToRgba(color, 0.3),
+          type: 'scattergl',
+          mode: 'none',
+          name: `${baseTraceName} Range`,
+          sensorId: sensor.id,
+          showlegend: true,
+          hoverinfo: 'skip',
+          connectgaps: false
+        });
+        
+        // Max line
+        traces.push({
+          x: times,
+          y: maxValues,
+          type: 'scattergl',
+          mode: 'lines',
+          name: `${baseTraceName} Max`,
+          sensorId: sensor.id,
+          line: { color: color, width: 1, dash: 'dot' },
+          hovertemplate: `<b>Max</b><br>` +
+            `Time: %{x}<br>` +
+            `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+            `<extra></extra>`,
+          connectgaps: false,
+          showlegend: false
+        });
+        
+        // Min line
+        traces.push({
+          x: times,
+          y: minValues,
+          type: 'scattergl',
+          mode: 'lines',
+          name: `${baseTraceName} Min`,
+          sensorId: sensor.id,
+          line: { color: color, width: 1, dash: 'dot' },
+          hovertemplate: `<b>Min</b><br>` +
+            `Time: %{x}<br>` +
+            `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+            `<extra></extra>`,
+          connectgaps: false,
+          showlegend: false
+        });
+        
+        // Average line (bold)
+        traces.push({
+          x: times,
+          y: avgValues,
+          type: 'scattergl',
+          mode: 'lines+markers',
+          name: `${baseTraceName} Avg`,
+          sensorId: sensor.id,
+          line: { color: color, width: 2 },
+          marker: { color: color, size: 4 },
+          hovertemplate: `<b>Average</b><br>` +
+            `Time: %{x}<br>` +
+            `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
+            `<extra></extra>`,
+          connectgaps: false,
+          showlegend: true
+        });
       }
-      traces.push(trace);
+      
       colorIndex++;
     });
     return traces;
@@ -724,11 +796,8 @@ const TestOverview = () => {
                             title="Select aggregation type"
                             disabled={chartLoading || isRefreshing}
                           >
-                            <option value="avg_value">Average Value</option>
-                            <option value="max_abs_value">Max Absolute Value</option>
-                            <option value="min_abs_value">Min Absolute Value</option>
-                            <option value="max_value">Max Value</option>
-                            <option value="min_value">Min Value</option>
+                            <option value="absolute">Absolute Values</option>
+                            <option value="regular">Regular Values</option>
                           </select>
                         )}
                         <div 
