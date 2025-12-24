@@ -17,6 +17,12 @@ from .sensor_types import SensorType, SensorTypeCreate, SensorTypeUpdate, Sensor
 from .sensors import Sensor, SensorCreate, SensorUpdate, SensorBase
 from .machines import Machine, MachineCreate, MachineUpdate, MachineBase
 from .machine_types import MachineType, MachineTypeCreate, MachineTypeUpdate, MachineTypeBase
+from .machine_type_sensor_templates import (
+    MachineTypeSensorTemplate, 
+    MachineTypeSensorTemplateCreate, 
+    MachineTypeSensorTemplateUpdate,
+    MachineTypeSensorTemplateWithDetails
+)
 from .tests import Test, TestCreate, TestUpdate, TestBase
 from .test_relations import TestRelation, TestRelationCreate, TestRelationAllDetails
 from .measurements import MeasurementAveraged, MeasurementRaw
@@ -34,6 +40,10 @@ __all__ = [
     
     # Machine Types
     "MachineType", "MachineTypeCreate", "MachineTypeUpdate", "MachineTypeBase",
+    
+    # Machine Type Sensor Templates
+    "MachineTypeSensorTemplate", "MachineTypeSensorTemplateCreate", 
+    "MachineTypeSensorTemplateUpdate", "MachineTypeSensorTemplateWithDetails",
     
     # Tests
     "Test", "TestCreate", "TestUpdate", "TestBase",

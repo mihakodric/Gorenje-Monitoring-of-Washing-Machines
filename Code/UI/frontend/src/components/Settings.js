@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { sensorTypesAPI, machineTypesAPI} from '../api';
 import { Settings as SettingsIcon, Plus, Edit, Trash2, Save, X, Zap, AlertTriangle } from 'lucide-react';
 
 const Settings = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('sensors');
   const [sensorTypes, setSensorTypes] = useState([]);
   const [machineTypes, setMachineTypes] = useState([]);
@@ -17,13 +19,13 @@ const Settings = () => {
     description: ''
   });
 
-  // Machine Type states
-  const [showMachineTypeModal, setShowMachineTypeModal] = useState(false);
-  const [editingMachineType, setEditingMachineType] = useState(null);
-  const [machineTypeForm, setMachineTypeForm] = useState({
-    display_name: '',
-    description: ''
-  });
+  // Machine Type states - no longer needed since we navigate to separate page
+  // const [showMachineTypeModal, setShowMachineTypeModal] = useState(false);
+  // const [editingMachineType, setEditingMachineType] = useState(null);
+  // const [machineTypeForm, setMachineTypeForm] = useState({
+  //   display_name: '',
+  //   description: ''
+  // });
 
   useEffect(() => {
     loadSettings();
@@ -104,38 +106,13 @@ const Settings = () => {
     }
   };
 
-  // Machine Type handlers
+  // Machine Type handlers - updated to navigate to separate page
   const handleAddMachineType = () => {
-    setEditingMachineType(null);
-    setMachineTypeForm({
-      machine_type_name: '',
-      machine_type_description: '',
-    });
-    setShowMachineTypeModal(true);
+    navigate('/machine-types/new');
   };
 
   const handleEditMachineType = (machineType) => {
-    setEditingMachineType(machineType);
-    setMachineTypeForm({
-      machine_type_name: machineType.machine_type_name,
-      machine_type_description: machineType.machine_type_description || '',
-    });
-    setShowMachineTypeModal(true);
-  };
-
-  const handleSaveMachineType = async () => {
-    try {
-      if (editingMachineType) {
-        await machineTypesAPI.update(editingMachineType.id, machineTypeForm);
-      } else {
-        await machineTypesAPI.create(machineTypeForm);
-      }
-      loadSettings();
-      setShowMachineTypeModal(false);
-    } catch (error) {
-      console.error('Error saving machine type:', error);
-      alert('Error saving machine type');
-    }
+    navigate(`/machine-types/edit/${machineType.id}`);
   };
 
   const handleDeleteMachineType = async (typeId) => {
@@ -368,88 +345,6 @@ const Settings = () => {
                 </button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Machine Type Modal */}
-      {showMachineTypeModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '30px',
-            width: '90%',
-            maxWidth: '500px',
-            maxHeight: '90%',
-            overflow: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3>{editingMachineType ? 'Edit Machine Type' : 'Add Machine Type'}</h3>
-              <button
-                onClick={() => setShowMachineTypeModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Display Name *
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={machineTypeForm.machine_type_name}
-                  onChange={(e) => setMachineTypeForm({...machineTypeForm, machine_type_name: e.target.value})}
-                  placeholder="e.g., Front Load Washer, Top Load Washer"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
-                  Description
-                </label>
-                <textarea
-                  className="form-control"
-                  value={machineTypeForm.machine_type_description}
-                  onChange={(e) => setMachineTypeForm({...machineTypeForm, machine_type_description: e.target.value})}
-                  rows="4"
-                  placeholder="Describe the characteristics and features of this machine type"
-                />
-              </div>
-
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowMachineTypeModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleSaveMachineType}
-                disabled={!machineTypeForm.machine_type_name}
-              >
-                <Save size={16} />
-                Save Machine Type
-              </button>
-            </div>
           </div>
         </div>
       )}

@@ -14,6 +14,7 @@ from app.routers import (
     sensor_types,
     machines, 
     machine_types,
+    machine_type_sensor_templates,
     tests,
     test_relations,
     test_segments,
@@ -74,6 +75,12 @@ def create_app() -> FastAPI:
         machine_types.router,
         prefix="/api/machine-types",
         tags=["Machine Types"]
+    )
+    
+    app.include_router(
+        machine_type_sensor_templates.router,
+        prefix="/api/machine-types",
+        tags=["Machine Type Sensor Templates"]
     )
     
     app.include_router(

@@ -8,7 +8,7 @@ This package contains database connection management and all database operation 
 db_pool = None
 
 # Import all modules and their functions
-from . import sensors, sensor_types, machines, machine_types, measurements, mqtt, tests, test_relations, test_segments
+from . import sensors, sensor_types, machines, machine_types, machine_type_sensor_templates, measurements, mqtt, tests, test_relations, test_segments
 
 # Import specific functions to maintain compatibility
 from .sensors import (
@@ -53,6 +53,17 @@ from .machine_types import (
     delete_machine_type,
 )
 
+from .machine_type_sensor_templates import (
+    # Machine type sensor templates
+    get_templates_by_machine_type,
+    get_template_by_id,
+    create_template,
+    update_template,
+    delete_template,
+    delete_templates_by_machine_type,
+    bulk_update_template_orders,
+)
+
 from .tests import (
     get_all_tests,
     get_test_by_id,
@@ -93,6 +104,7 @@ def set_db_pool(pool):
     sensor_types.set_db_pool(pool)
     machines.set_db_pool(pool)
     machine_types.set_db_pool(pool)
+    machine_type_sensor_templates.set_db_pool(pool)
     measurements.set_db_pool(pool)
     mqtt.set_db_pool(pool)
     tests.set_db_pool(pool)
@@ -108,7 +120,8 @@ __all__ = [
     'sensors',
     'sensor_types',
     'machines',
-    'machine_types', 
+    'machine_types',
+    'machine_type_sensor_templates',
     'measurements',
     'mqtt',
     'tests',
@@ -141,6 +154,13 @@ __all__ = [
     'delete_machine_type',
     'get_machines_by_machine_type',
     'get_tests_for_machine_id',
+    'get_templates_by_machine_type',
+    'get_template_by_id',
+    'create_template',
+    'update_template',
+    'delete_template',
+    'delete_templates_by_machine_type',
+    'bulk_update_template_orders',
     
     # Tests functions
     'get_all_tests',

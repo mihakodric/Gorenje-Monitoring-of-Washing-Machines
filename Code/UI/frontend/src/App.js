@@ -9,6 +9,7 @@ import TestOverview from './components/TestOverview';
 import TestAnalysis from './components/TestAnalysis';
 import Machines from './components/Machines';
 import Settings from './components/Settings';
+import MachineTypeForm from './components/MachineTypeForm';
 import './App.css';
 import './styles/index.css';
 
@@ -45,6 +46,8 @@ function App() {
             <Route path="/tests/analysis/:testId" element={<TestAnalysis />} />
             <Route path="/machines" element={<Machines/>} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/machine-types/new" element={<MachineTypeForm />} />
+            <Route path="/machine-types/edit/:id" element={<MachineTypeForm />} />
           </Routes>
         </div>
       </div>

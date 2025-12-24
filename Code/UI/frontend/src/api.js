@@ -50,6 +50,13 @@ export const machineTypesAPI = {
   create: (machineType) => api.post(machineTypesAPIprefix, machineType),
   update: (id, machineType) => api.put(`${machineTypesAPIprefix}/${id}`, machineType),
   delete: (id) => api.delete(`${machineTypesAPIprefix}/${id}`),
+  
+  // Sensor Templates for Machine Types
+  getTemplates: (machineTypeId) => api.get(`${machineTypesAPIprefix}/${machineTypeId}/templates`),
+  createTemplate: (machineTypeId, template) => api.post(`${machineTypesAPIprefix}/${machineTypeId}/templates`, template),
+  updateTemplate: (templateId, template) => api.put(`${machineTypesAPIprefix}/templates/${templateId}`, template),
+  deleteTemplate: (templateId) => api.delete(`${machineTypesAPIprefix}/templates/${templateId}`),
+  reorderTemplates: (machineTypeId, orderUpdates) => api.post(`${machineTypesAPIprefix}/${machineTypeId}/templates/reorder`, orderUpdates),
 };
 
 // Tests API
