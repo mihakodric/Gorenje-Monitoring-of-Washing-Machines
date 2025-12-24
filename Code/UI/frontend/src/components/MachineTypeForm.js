@@ -305,7 +305,7 @@ const MachineTypeForm = () => {
 
         <form onSubmit={handleSubmit}>
           <div style={{ padding: '30px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', maxWidth: '700px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
               
               {/* Machine Type Name */}
               <div>
