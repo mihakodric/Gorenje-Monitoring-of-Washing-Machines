@@ -1,46 +1,89 @@
 NAVODILA ZA NAMESTITEV IN POSODABLJANJE (WINDOWS)
-
 MAPA: deploy/windows
 
-1. PRVI ZAGON
-   ---------------------------------------------------------------
-   a) Kopiraj datoteko `.env.example` v `.env`.
-   
-   b) Odpri odprto datoteko `.env` in nastavi:
-      APP_VERSION=... (začetna verzija, npr. v1.0.0)
-      POSTGRES_... (gesla za bazo - če je potrebno spremeniti)
-      IMAGE_REPO=mihakodric/Gorenje-Monitoring-of-Washing-Machines (če je drugačno, popravi)
+================================================================
 
-   c) Prijavi se v GitHub Container Registry (če so image-i zasebni):
-      Odpri PowerShell in vpiši:
-      docker login ghcr.io -u <TVOJ_GITHUB_USERNAME>
-      (vpiši Personal Access Token kot geslo)
+PRVI ZAGON
 
-   d) Zaženi aplikacijo:
-      Dvoklikni `update.ps1`.
+a) Kopiranje konfiguracijske datoteke
+Kopiraj datoteko .env.example in jo preimenuj v .env.
 
-2. POSODOBITEV (UPDATE)
-   ---------------------------------------------------------------
-   Če želiš posodobiti na novo verzijo (npr. v1.2.3):
-   Dvoklikni `update-to-version.ps1` in vpiši tag (npr. v1.2.3).
-   
-   To bo:
-   - Posodobilo .env datoteko.
-   - Poneslo nove image-e.
-   - Ponovno zagnalo servise.
+b) Nastavitev konfiguracije
+Odpri datoteko .env in preveri oziroma nastavi naslednje vrednosti:
 
-   Opomba: Če .env že ima pravo verzijo, lahko uporabiš samo `update.ps1`.
+APP_VERSION=...
+Začetna verzija aplikacije (npr. v1.0.0)
 
-3. ROLLBACK (VRAČANJE VERZIJE)
-   ---------------------------------------------------------------
-   Če nova verzija nagaja, uporabi `rollback.ps1`.
-   Vpiši staro verzijo (npr. v1.2.2) in potrdi.
+POSTGRES_...
+Gesla in nastavitve za bazo podatkov
+(spremeni samo, če je to potrebno)
 
-4. LOGI (PREGLED DELOVANJA)
-   ---------------------------------------------------------------
-   Za pregled logov zaženi `logs.ps1`.
+IMAGE_REPO=mihakodric/Gorenje-Monitoring-of-Washing-Machines
+Če uporabljaš drug Docker image repozitorij, to vrednost ustrezno popravi.
 
-POMEMBNO:
-- Baza se hrani v Docker volumnu `timescaledb_data`.
-- Konfiguracija Mosquitto je v mapi `mosquitto/config`.
-- Ne briši te mape, če želiš ohraniti konfiguracijo deploya.
+c) Prijava v GitHub Container Registry (samo če so Docker image-i zasebni)
+Odpri PowerShell in zaženi naslednji ukaz:
+
+docker login ghcr.io -u <TVOJ_GITHUB_USERNAME>
+
+Kot geslo vpiši svoj Personal Access Token za GitHub.
+
+d) Zagon aplikacije
+Za zagon aplikacije dvoklikni datoteko:
+
+update.ps1
+
+S tem se bodo prenesli Docker image-i in zagnali vsi servisi.
+
+================================================================
+
+POSODABLJANJE (UPDATE)
+
+Če želiš aplikacijo posodobiti na novo verzijo (npr. v1.2.3):
+
+Dvoklikni datoteko update-to-version.ps1
+
+Ob pozivu vpiši oznako verzije (npr. v1.2.3)
+
+Skripta bo:
+
+posodobila verzijo v datoteki .env,
+
+prenesla nove Docker image-e,
+
+ponovno zagnala vse servise.
+
+Opomba:
+Če je v datoteki .env že nastavljena želena verzija, lahko za posodobitev uporabiš samo update.ps1.
+
+================================================================
+
+ROLLBACK (VRAČANJE NA PREJŠNJO VERZIJO)
+
+Če nova verzija ne deluje pravilno:
+
+Dvoklikni rollback.ps1
+
+Vpiši oznako stare verzije (npr. v1.2.2) in potrdi
+
+Sistem se bo vrnil na izbrano prejšnjo verzijo aplikacije.
+
+================================================================
+
+LOGI (PREGLED DELOVANJA)
+
+Za pregled dnevniških zapisov (logov) zaženi:
+
+logs.ps1
+
+================================================================
+
+POMEMBNO
+
+Podatkovna baza se shranjuje v Docker volumenu:
+timescaledb_data
+
+Konfiguracija MQTT strežnika Mosquitto se nahaja v mapi:
+mosquitto/config
+
+Te mape ne briši, če želiš ohraniti podatke in konfiguracijo obstoječega deploya.
