@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy your backend code
 COPY . .
+COPY schemas /app/schemas
 
 # Create necessary directories
 RUN mkdir -p /app/data

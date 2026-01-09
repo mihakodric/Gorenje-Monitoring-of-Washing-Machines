@@ -30,7 +30,7 @@ const Machines = () => {
 
     let machineData = [];
     let machineTypesData = [];
-  
+
     try {
       setLoading(true);
       const results = await Promise.allSettled([
@@ -43,7 +43,7 @@ const Machines = () => {
 
       setMachines(machineData);
       setMachineTypes(machineTypesData);
-      } catch (error) {
+    } catch (error) {
       console.error("Error loading machines:", error);
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ const Machines = () => {
         String(machine.machine_description || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       // Machine type filter
-      const matchesMachineType = machineTypeFilter === "all" || 
+      const matchesMachineType = machineTypeFilter === "all" ||
         machine.machine_type_id?.toString() === machineTypeFilter;
 
       return matchesSearch && matchesMachineType;
@@ -187,142 +187,142 @@ const Machines = () => {
         <div className="card-body">
           {/* Filters */}
           <div className="filter-section">
-          {/* Search */}
-          <div className="form-group">
-            <div className="search-container">
-              <Search size={18} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Search machines..."
+            {/* Search */}
+            <div className="form-group">
+              <div className="search-container">
+                <Search size={18} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search machines..."
+                  className="form-control"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Machine Type Filter */}
+            <div className="form-group">
+              <select
                 className="form-control"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+                value={machineTypeFilter}
+                onChange={(e) => setMachineTypeFilter(e.target.value)}
+              >
+                <option value="all">All Machine Types</option>
+                {machineTypes.map((type) => (
+                  <option key={type.id} value={type.id.toString()}>
+                    {type.machine_type_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Clear Filters */}
+            {(searchTerm || machineTypeFilter !== "all") && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={clearFilters}
+              >
+                <X size={14} />
+                Clear
+              </button>
+            )}
+
+            {/* Results count */}
+            <div className="filter-count">
+              Showing {filteredMachines.length} of {machines.length} machines
             </div>
           </div>
 
-          {/* Machine Type Filter */}
-          <div className="form-group">
-            <select
-              className="form-control"
-              value={machineTypeFilter}
-              onChange={(e) => setMachineTypeFilter(e.target.value)}
-            >
-              <option value="all">All Machine Types</option>
-              {machineTypes.map((type) => (
-                <option key={type.id} value={type.id.toString()}>
-                  {type.machine_type_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear Filters */}
-          {(searchTerm || machineTypeFilter !== "all") && (
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={clearFilters}
-            >
-              <X size={14} />
-              Clear
-            </button>
-          )}
-
-          {/* Results count */}
-          <div className="filter-count">
-            Showing {filteredMachines.length} of {machines.length} machines
-          </div>
-          </div>
-
           {machines.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon">🏭</div>
-            <h3>No Machines Found</h3>
-            <p>Get started by adding your first machine.</p>
-            <button className="btn btn-primary" onClick={handleAddMachine}>
-              <Plus size={18} />
-              Add Your First Machine
-            </button>
-          </div>
-        ) : filteredMachines.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon">🔍</div>
-            <h3>No Matching Machines</h3>
-            <p>No machines match your current filters. Try adjusting your search criteria.</p>
-            <button className="btn btn-secondary" onClick={clearFilters}>
-              <X size={18} />
-              Clear All Filters
-            </button>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table table-striped">
-              <thead>
-                <tr>
-                  <th
-                    className="sortable"
-                    onClick={() => handleSort("name")}
-                  >
-                    <div className="sort-header">
-                      Machine Details
-                      {sortField === "name" && (
-                        <span className="sort-indicator">
-                          {sortDirection === "asc" ? "↑" : "↓"}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  <th>Machine Type</th>
-                  <th className="sticky-actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMachines.map((machine) => (
-                  <tr key={machine.id}>
-                    <td>
-                      <div className="machine-card">
-                        <div className="machine-icon">
-                          <Laptop size={20} />
-                        </div>
-                        <div className="machine-content">
-                          <div className="machine-name">
-                            {machine.machine_name}
-                          </div>
-                          <div className="machine-description">
-                            {machine.machine_description || "No description"}
-                          </div>
-                        </div>
+            <div className="table-empty">
+              <div className="table-empty-icon">🏭</div>
+              <h3>No Machines Found</h3>
+              <p>Get started by adding your first machine.</p>
+              <button className="btn btn-primary" onClick={handleAddMachine}>
+                <Plus size={18} />
+                Add Your First Machine
+              </button>
+            </div>
+          ) : filteredMachines.length === 0 ? (
+            <div className="table-empty">
+              <div className="table-empty-icon">🔍</div>
+              <h3>No Matching Machines</h3>
+              <p>No machines match your current filters. Try adjusting your search criteria.</p>
+              <button className="btn btn-secondary" onClick={clearFilters}>
+                <X size={18} />
+                Clear All Filters
+              </button>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped">
+                <thead>
+                  <tr>
+                    <th
+                      className="sortable"
+                      onClick={() => handleSort("name")}
+                    >
+                      <div className="sort-header">
+                        Machine Details
+                        {sortField === "name" && (
+                          <span className="sort-indicator">
+                            {sortDirection === "asc" ? "↑" : "↓"}
+                          </span>
+                        )}
                       </div>
-                    </td>
-                    <td>
-                      <span className="badge">
-                        {getMachineTypeName(machine.machine_type_id)}
-                      </span>
-                    </td>
-                    <td className="sticky-actions">
-                      <div className="action-buttons">
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleEditMachine(machine)}
-                          title="Edit machine"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDeleteMachine(machine.id)}
-                          title="Delete machine"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
+                    </th>
+                    <th>Machine Type</th>
+                    <th className="sticky-actions">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {filteredMachines.map((machine) => (
+                    <tr key={machine.id}>
+                      <td>
+                        <div className="machine-card">
+                          <div className="machine-icon">
+                            <Laptop size={20} />
+                          </div>
+                          <div className="machine-content">
+                            <div className="machine-name">
+                              {machine.machine_name}
+                            </div>
+                            <div className="machine-description">
+                              {machine.machine_description || "No description"}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge">
+                          {getMachineTypeName(machine.machine_type_id)}
+                        </span>
+                      </td>
+                      <td className="sticky-actions">
+                        <div className="action-buttons">
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEditMachine(machine)}
+                            title="Edit machine"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteMachine(machine.id)}
+                            title="Delete machine"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

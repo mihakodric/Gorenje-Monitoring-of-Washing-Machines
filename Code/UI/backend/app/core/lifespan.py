@@ -17,6 +17,7 @@ from database import (
     get_all_machines, create_machine,
     create_sensor
 )
+from app.core.db_init import init_db
 from app.mqtt_client import connect_mqtt, disconnect_mqtt
 
 
@@ -183,6 +184,9 @@ async def lifespan(app: FastAPI):
         # Set pool for all database modules
         set_db_pool(db_pool)
         print("✅ Database connection pool established")
+        
+        # Initialize database schema
+        await init_db(db_pool)
         
         # Create default data
         print("📝 Creating default data...")
