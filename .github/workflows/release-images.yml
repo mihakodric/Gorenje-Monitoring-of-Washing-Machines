@@ -82,6 +82,7 @@ jobs:
           cp deploy/windows/update.ps1 gorenje-deploy/
           cp deploy/windows/rollback.ps1 gorenje-deploy/
           cp deploy/windows/logs.ps1 gorenje-deploy/
+          cp -r deploy/windows/mosquitto gorenje-deploy/
           
           # Zip the folder
           zip -r windows-deploy-bundle.zip gorenje-deploy

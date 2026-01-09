@@ -171,15 +171,27 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting Gorenje Washing Machine Monitoring API...")
     
     try:
-        # Create database connection pool
+        # Create database connection pool with retry logic
         database_url = os.getenv('DATABASE_URL', 'postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db')
         print(f"📊 Connecting to database: {database_url}")
-        db_pool = await asyncpg.create_pool(
-            database_url,
-            min_size=5,
-            max_size=20,
-            command_timeout=60
-        )
+        
+        db_pool = None
+        retries = 10
+        import asyncio
+        for i in range(retries):
+            try:
+                db_pool = await asyncpg.create_pool(
+                    database_url,
+                    min_size=5,
+                    max_size=20,
+                    command_timeout=60
+                )
+                break
+            except Exception as e:
+                if i == retries - 1:
+                    raise e
+                print(f"⏳ Database not ready yet ({e}). Retrying in 2s... ({i+1}/{retries})")
+                await asyncio.sleep(2)
         
         # Set pool for all database modules
         set_db_pool(db_pool)
