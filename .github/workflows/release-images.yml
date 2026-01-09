@@ -59,3 +59,36 @@ jobs:
           file: ./Code/UI/mqtt_worker/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-mqtt-worker:${{ github.ref_name }}
+
+  create-release:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare Release Bundle
+        run: |
+          # Create a clean directory for the bundle
+          mkdir gorenje-deploy
+          
+          # Copy only the necessary files for the customer
+          cp deploy/windows/compose.yaml gorenje-deploy/
+          cp deploy/windows/.env.example gorenje-deploy/
+          cp deploy/windows/README.txt gorenje-deploy/
+          cp deploy/windows/update-to-version.ps1 gorenje-deploy/
+          cp deploy/windows/update.ps1 gorenje-deploy/
+          cp deploy/windows/rollback.ps1 gorenje-deploy/
+          cp deploy/windows/logs.ps1 gorenje-deploy/
+          
+          # Zip the folder
+          zip -r windows-deploy-bundle.zip gorenje-deploy
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: windows-deploy-bundle.zip
+          generate_release_notes: true
+          make_latest: true
