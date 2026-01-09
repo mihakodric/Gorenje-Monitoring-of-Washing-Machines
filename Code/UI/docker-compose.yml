@@ -3,9 +3,9 @@ services:
     image: timescale/timescaledb:latest-pg17
     container_name: timescaledb
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: long_term_monitoring_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -29,7 +29,7 @@ services:
     build: ./mqtt_worker
     container_name: mqtt-worker
     environment:
-      DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}
       MQTT_BROKER: mosquitto 
       MQTT_PORT: 1883
       FLUSH_INTERVAL_SEC: 10
@@ -44,7 +44,7 @@ services:
     build: ./backend
     container_name: backend
     environment:
-      DATABASE_URL: postgresql://admin:admin123@timescaledb:5432/long_term_monitoring_db
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}
     depends_on:
       - timescaledb
     ports:
@@ -66,7 +66,6 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - HOST=0.0.0.0
-      # - REACT_APP_API_URL=http://192.168.0.19:8000
       - REACT_APP_API_URL=http://${HOST_IP}:8000
     depends_on:
       - backend
