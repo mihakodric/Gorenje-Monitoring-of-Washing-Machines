@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ./schemas/:/docker-entrypoint-initdb.d/:ro
+
     restart: always
 
   mosquitto:
@@ -30,7 +30,7 @@ services:
     container_name: mqtt-worker
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}
-      MQTT_BROKER: mosquitto 
+      MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
       FLUSH_INTERVAL_SEC: 10
       BINDING_REFRESH_SEC: 5
@@ -70,7 +70,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
 
 volumes:
   timescale_data:

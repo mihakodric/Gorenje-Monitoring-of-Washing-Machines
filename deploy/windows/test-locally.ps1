@@ -16,7 +16,6 @@ Write-Host "Building images locally with tag: $TestVersion..." -ForegroundColor 
 Write-Host "Building Frontend..."
 docker build -t ghcr.io/$RepoName-frontend:$TestVersion `
     -f Code/UI/frontend/Dockerfile.prod `
-    --build-arg REACT_APP_API_URL=/api `
     Code/UI/frontend
 
 # Build Backend

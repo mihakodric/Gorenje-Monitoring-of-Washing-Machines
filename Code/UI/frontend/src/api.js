@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { version } from 'react';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -50,7 +50,7 @@ export const machineTypesAPI = {
   create: (machineType) => api.post(machineTypesAPIprefix, machineType),
   update: (id, machineType) => api.put(`${machineTypesAPIprefix}/${id}`, machineType),
   delete: (id) => api.delete(`${machineTypesAPIprefix}/${id}`),
-  
+
   // Sensor Templates for Machine Types
   getTemplates: (machineTypeId) => api.get(`${machineTypesAPIprefix}/${machineTypeId}/templates`),
   createTemplate: (machineTypeId, template) => api.post(`${machineTypesAPIprefix}/${machineTypeId}/templates`, template),
@@ -88,7 +88,7 @@ export const testsAPI = {
   createWithRelations: async (payload) => {
     // Create test with machine_id included, filtering out null/undefined values
     const testData = {};
-    
+
     // Add test fields, filtering out null/undefined/empty values
     Object.keys(payload.test).forEach(key => {
       const value = payload.test[key];
@@ -96,19 +96,19 @@ export const testsAPI = {
         testData[key] = value;
       }
     });
-    
+
     // Add machine_id
     testData.machine_id = payload.machine_id;
-    
+
     // Validate required fields
     if (!testData.test_name) {
       throw new Error('Test name is required');
     }
-    
+
     console.log('Creating test with data:', testData); // Debug log
     const testResponse = await api.post(testsAPIprefix, testData);
     const testId = testResponse.data.id;
-    
+
     if (payload.sensors && payload.sensors.length > 0) {
       const relations = payload.sensors.map(sensor => ({
         test_id: testId,
@@ -117,7 +117,7 @@ export const testsAPI = {
       }));
       await testRelationsAPI.create(relations);
     }
-    
+
     return testResponse;
   },
 
@@ -126,10 +126,10 @@ export const testsAPI = {
     if (payload.machine_id !== undefined) {
       await api.put(`${testsAPIprefix}/${testId}`, { machine_id: payload.machine_id });
     }
-    
+
     // Delete existing relations
     await testRelationsAPI.deleteAllByTestId(testId);
-    
+
     // Add new relations
     if (payload.sensors && payload.sensors.length > 0) {
       const relations = payload.sensors.map(sensor => ({
@@ -160,9 +160,9 @@ export const testRelationsAPI = {
 // Measurements API
 const measurementsAPIprefix = '/api/measurements';
 export const measurementsAPI = {
-  getSensorDataAvg: (testRelationId, params = {}) => 
+  getSensorDataAvg: (testRelationId, params = {}) =>
     api.get(`${measurementsAPIprefix}/avg/${testRelationId}`, { params }),
-  getSensorDataRaw: (testRelationId, params = {}) => 
+  getSensorDataRaw: (testRelationId, params = {}) =>
     api.get(`${measurementsAPIprefix}/raw/${testRelationId}`, { params }),
 };
 
