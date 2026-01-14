@@ -151,6 +151,11 @@ async def start_test_endpoint(test_id: int):
                     # Get set of connected sensor types (location doesn't matter)
                     connected_sensor_types = set(rel.get('sensor_type_id') for rel in relations)
                     
+                    # DEBUG: Print what we have
+                    print(f"DEBUG: Connected sensor types: {connected_sensor_types}")
+                    print(f"DEBUG: Required templates: {[(t.get('sensor_type_id'), t.get('sensor_type_name')) for t in required_templates]}")
+                    print(f"DEBUG: Relations data: {[(rel.get('sensor_type_id'), rel.get('sensor_name')) for rel in relations]}")
+                    
                     # Find missing required sensors
                     missing_required = []
                     for template in required_templates:
