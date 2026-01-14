@@ -148,28 +148,18 @@ async def start_test_endpoint(test_id: int):
                 required_templates = [t for t in templates if t.get('is_required', False)]
                 
                 if required_templates:
-                    # Create a set of (sensor_type_id, location) tuples for connected sensors
-                    connected_sensors = set()
-                    for rel in relations:
-                        sensor_type_id = rel.get('sensor_type_id')
-                        sensor_location = (rel.get('sensor_location') or '').strip().lower()
-                        connected_sensors.add((sensor_type_id, sensor_location))
+                    # Get set of connected sensor types (location doesn't matter)
+                    connected_sensor_types = set(rel.get('sensor_type_id') for rel in relations)
                     
                     # Find missing required sensors
                     missing_required = []
                     for template in required_templates:
                         template_sensor_type_id = template.get('sensor_type_id')
-                        template_location = (template.get('location') or '').strip().lower()
                         
-                        # Check if we have a sensor with matching type AND location
-                        sensor_found = (template_sensor_type_id, template_location) in connected_sensors
-                        
-                        if not sensor_found:
+                        # Only check if sensor type exists, ignore location
+                        if template_sensor_type_id not in connected_sensor_types:
                             sensor_type_name = template.get('sensor_type_name', 'Unknown')
-                            if template_location:
-                                missing_required.append(f"{sensor_type_name} (location: {template_location})")
-                            else:
-                                missing_required.append(sensor_type_name)
+                            missing_required.append(sensor_type_name)
                     
                     if missing_required:
                         raise HTTPException(
