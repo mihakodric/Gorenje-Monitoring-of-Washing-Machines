@@ -1243,7 +1243,7 @@ const NewTest = () => {
             </>
           ) : selectedMachine ? (
             <>
-              {/* No templates - show simple list */}
+              {/* No templates - show simple list with ability to add sensors manually */}
               <p style={{ color: '#6b7280', marginBottom: '15px' }}>
                 No sensor template defined for this machine type. Add sensors manually.
               </p>
@@ -1314,14 +1314,37 @@ const NewTest = () => {
                 </div>
               )}
               
-              <button
-                type="button"
-                onClick={() => handleOpenSensorModal(null, null)}
-                className="btn btn-secondary"
-                style={{ marginTop: '10px' }}
-              >
-                <Plus size={16} /> Add Sensor
-              </button>
+              {/* Add sensor controls - both existing and new */}
+              <div style={{ marginTop: '15px', display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
+                    Add Existing Sensor:
+                  </label>
+                  <select
+                    className="form-control"
+                    onChange={(e) => {
+                      handleSelectOtherSensor(e.target.value);
+                      e.target.value = ''; // Reset dropdown
+                    }}
+                    value=""
+                  >
+                    <option value="">Select a sensor...</option>
+                    {getAvailableOtherSensors().map(sensor => (
+                      <option key={sensor.id} value={sensor.id}>
+                        {sensor.sensor_name} ({getSensorTypeName(sensor.sensor_type_id)}) {!sensor.sensor_is_online && '- Offline'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenSensorModal(null, null)}
+                  className="btn btn-secondary"
+                  title="Create a new sensor"
+                >
+                  <Plus size={16} /> New Sensor
+                </button>
+              </div>
             </>
           ) : (
             <div className="table-empty">

@@ -24,6 +24,8 @@ from database import (
     start_test,
     stop_test,
     get_test_relations,
+    get_machine_by_id,
+    get_templates_by_machine_type,
 )
 
 from app.mqtt_client import publish_cmd
@@ -107,15 +109,67 @@ async def delete_test_endpoint(test_id: int):
 
 @router.post("/{test_id}/start", response_model=dict)
 async def start_test_endpoint(test_id: int):
-
+    """
+    Start a test and notify all sensors.
+    Validates that all required sensors from the machine type template are present and online.
+    """
+    # Get test details
+    test = await get_test_by_id(test_id)
+    if not test:
+        raise HTTPException(404, "Test not found")
+    
+    # Get test relations (sensors connected to this test)
     relations = await get_test_relations(test_id)
     if not relations:
         raise HTTPException(400, "No sensors connected")
 
+    # Validate all sensors are online
+    offline_sensors = []
     for rel in relations:
         if not rel.get("sensor_is_online", False):
-            raise HTTPException(400, f"Sensor '{rel.get('sensor_name')}' is offline")
+            offline_sensors.append(rel.get('sensor_name'))
+    
+    if offline_sensors:
+        raise HTTPException(
+            400, 
+            f"Cannot start test: The following sensors are offline: {', '.join(offline_sensors)}"
+        )
+    
+    # Check machine type template requirements
+    machine_id = test.get('machine_id')
+    if machine_id:
+        machine = await get_machine_by_id(machine_id)
+        if machine and machine.get('machine_type_id'):
+            # Get templates for this machine type
+            templates = await get_templates_by_machine_type(machine['machine_type_id'])
+            
+            if templates:
+                # Check if all required sensors are present
+                required_templates = [t for t in templates if t.get('is_required', False)]
+                
+                if required_templates:
+                    # Get sensor_type_ids of connected sensors
+                    connected_sensor_type_ids = set(rel.get('sensor_type_id') for rel in relations)
+                    
+                    # Find missing required sensors
+                    missing_required = []
+                    for template in required_templates:
+                        template_sensor_type_id = template.get('sensor_type_id')
+                        if template_sensor_type_id not in connected_sensor_type_ids:
+                            sensor_type_name = template.get('sensor_type_name', 'Unknown')
+                            location = template.get('location', '')
+                            if location:
+                                missing_required.append(f"{sensor_type_name} (location: {location})")
+                            else:
+                                missing_required.append(sensor_type_name)
+                    
+                    if missing_required:
+                        raise HTTPException(
+                            400,
+                            f"Cannot start test: Missing required sensors: {', '.join(missing_required)}"
+                        )
         
+    # All validations passed, start the test
     run_id = await start_test(test_id)
     if not run_id:
         raise HTTPException(

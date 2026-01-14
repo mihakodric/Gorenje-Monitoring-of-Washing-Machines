@@ -348,11 +348,24 @@
 @media (max-width: 1200px) {
   .analysis-layout {
     grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
   }
 
   .segments-section {
     position: static;
     max-height: none;
+    min-height: 500px;
+    height: auto;
+  }
+
+  .segments-section .card {
+    height: auto;
+    min-height: 500px;
+  }
+
+  .segments-table-container {
+    min-height: 350px;
   }
 
   .sensor-plot-row {
