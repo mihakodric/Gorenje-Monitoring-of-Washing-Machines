@@ -170,6 +170,12 @@ export const measurementsAPI = {
       start_time: startTime,
       end_time: endTime
     }),
+  exportMeasurements: (params) =>
+    api.post(`${measurementsAPIprefix}/export`, params),
+  getExportStatus: (jobId) =>
+    api.get(`${measurementsAPIprefix}/export/status/${jobId}`),
+  downloadExport: (jobId) =>
+    api.get(`${measurementsAPIprefix}/export/download/${jobId}`, { responseType: 'blob' }),
 };
 
 // Test Segments API

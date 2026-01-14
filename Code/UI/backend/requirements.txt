@@ -3,6 +3,7 @@ uvicorn
 asyncpg
 paho-mqtt
 pandas
+pyarrow
 python-multipart
 pydantic
 python-dotenv

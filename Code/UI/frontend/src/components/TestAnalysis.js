@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
-import { ArrowLeft, Plus, Edit, Save, X, Trash2, RefreshCw, Scissors } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Save, X, Trash2, RefreshCw, Scissors, Download } from 'lucide-react';
 import { testsAPI, testRelationsAPI, measurementsAPI, testSegmentsAPI } from '../api';
 import { SENSOR_COLORS, SEGMENT_COLORS, SEGMENT_TRANSPARENCY_FILL, SEGMENT_TRANSPARENCY_BORDER, hexToRgba } from '../constants/colors';
 import '../styles/test-analysis.css';
@@ -30,6 +30,14 @@ const TestAnalysis = () => {
   const [cropStart, setCropStart] = useState('');
   const [cropEnd, setCropEnd] = useState('');
   const [cropping, setCropping] = useState(false);
+  
+  // Export state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportDataType, setExportDataType] = useState('aggregated');
+  const [exportTimeRange, setExportTimeRange] = useState('whole');
+  const [exportSegmentId, setExportSegmentId] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null); // { filename, progress, status }
   
   // Store current x-axis range and selected segment for highlighting
   const xAxisRangeRef = useRef(null);
@@ -254,6 +262,112 @@ const TestAnalysis = () => {
       alert(`❌ Failed to crop measurements:\n${error.response?.data?.detail || error.message}`);
     } finally {
       setCropping(false);
+    }
+  };
+
+  const handleExport = async () => {
+    if (exportTimeRange === 'segment' && !exportSegmentId) {
+      alert('Please select a segment to export');
+      return;
+    }
+    
+    try {
+      setExporting(true);
+      
+      const params = {
+        test_id: parseInt(testId),
+        data_type: exportDataType,
+        time_range: exportTimeRange,
+      };
+      
+      if (exportTimeRange === 'segment') {
+        params.segment_id = parseInt(exportSegmentId);
+      }
+      
+      // Create filename for display
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const segmentName = exportTimeRange === 'segment' 
+        ? `_${segments.find(s => s.id === parseInt(exportSegmentId))?.segment_name || 'segment'}` 
+        : '';
+      const filename = `test_${testId}_${exportDataType}${segmentName}_${timestamp}.parquet`;
+      
+      // Start export job
+      const response = await measurementsAPI.exportMeasurements(params);
+      const jobId = response.data.job_id;
+      
+      // Close modal and show progress notification
+      setShowExportModal(false);
+      setExporting(false);
+      setExportProgress({ filename, progress: 0, status: 'queued' });
+      
+      // Poll for completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await measurementsAPI.getExportStatus(jobId);
+          const status = statusResponse.data;
+          
+          setExportProgress({
+            filename,
+            progress: status.progress || 0,
+            status: status.status
+          });
+          
+          if (status.status === 'completed') {
+            clearInterval(pollInterval);
+            
+            // Download the file
+            const downloadResponse = await measurementsAPI.downloadExport(jobId);
+            const blob = new Blob([downloadResponse.data], { type: 'application/octet-stream' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            // Keep notification visible for 3 seconds after completion
+            setTimeout(() => {
+              setExportProgress(null);
+            }, 3000);
+            
+          } else if (status.status === 'failed') {
+            clearInterval(pollInterval);
+            setExportProgress({
+              filename,
+              progress: 0,
+              status: 'failed',
+              error: status.error
+            });
+            
+            // Auto-hide failed notification after 5 seconds
+            setTimeout(() => {
+              setExportProgress(null);
+            }, 5000);
+          }
+          // If status is 'queued' or 'processing', keep polling
+        } catch (error) {
+          console.error('Error checking export status:', error);
+          clearInterval(pollInterval);
+          setExportProgress({
+            filename,
+            progress: 0,
+            status: 'failed',
+            error: error.message
+          });
+          
+          setTimeout(() => {
+            setExportProgress(null);
+          }, 5000);
+        }
+      }, 2000); // Poll every 2 seconds
+      
+    } catch (error) {
+      console.error('Error starting export:', error);
+      alert(`❌ Failed to start export:\n${error.response?.data?.detail || error.message}`);
+      setExporting(false);
     }
   };
 
@@ -504,15 +618,19 @@ const TestAnalysis = () => {
     const gap = 0.01; // Small gap between subplots
     const actualRowHeight = rowHeight - gap;
 
-    // Calculate height: minimum per sensor, but fit to available space
-    const minHeightPerSensor = 80;
-    const minTotalHeight = numSensors * minHeightPerSensor;
+    // Calculate height: give each sensor reasonable space
+    const minHeightPerSensor = 120; // Minimum height per sensor for good visibility
+    const maxHeightPerSensor = 250; // Maximum height per sensor to show more sensors at once
     
     // Available viewport height (subtract header, margins, and padding)
     const availableHeight = window.innerHeight - 170;
     
-    // Use the larger of: minimum required height or available height
-    const plotHeight = Math.max(minTotalHeight, availableHeight);
+    // Calculate ideal height per sensor based on available space
+    const idealHeightPerSensor = availableHeight / numSensors;
+    
+    // Use constrained height per sensor: at least min, at most max, prefer ideal
+    const heightPerSensor = Math.max(minHeightPerSensor, Math.min(maxHeightPerSensor, idealHeightPerSensor));
+    const plotHeight = numSensors * heightPerSensor;
 
     const layout = {
       grid: { rows: numSensors, columns: 1, pattern: 'independent' },
@@ -833,6 +951,16 @@ const TestAnalysis = () => {
                 <RefreshCw size={14} className={isRefreshing ? 'spinning' : ''} />
                 Refresh
               </button>
+              <button 
+                className="btn btn-success btn-icon"
+                onClick={() => setShowExportModal(true)}
+                disabled={isRefreshing || loadingData || Object.keys(sensorData).length === 0}
+                title="Export Data"
+                style={{ whiteSpace: 'nowrap', flexShrink: 0, margin: 0 }}
+              >
+                <Download size={14} />
+                Export
+              </button>
             </>
           )}
           <select
@@ -858,7 +986,7 @@ const TestAnalysis = () => {
       {/* Main Layout: 2/3 plots, 1/3 segment definition */}
       <div className="analysis-layout">
         {/* Left side - Sensor plots */}
-        <div className="plots-section">
+        <div className="plots-section" style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: 'calc(100vh - 170px)' }}>
           {loadingData ? (
             <div className="loading-message">
               <div className="spinner"></div>
@@ -1059,6 +1187,328 @@ const TestAnalysis = () => {
           </div>
         </div>
       </div>
+
+      {/* Export Progress Notification */}
+      {exportProgress && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          backgroundColor: 'white',
+          border: `2px solid ${exportProgress.status === 'completed' ? '#10b981' : exportProgress.status === 'failed' ? '#ef4444' : '#3b82f6'}`,
+          borderRadius: '12px',
+          padding: '16px',
+          minWidth: '350px',
+          maxWidth: '500px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          zIndex: 9999,
+          animation: 'slideInLeft 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <Download size={20} color={exportProgress.status === 'completed' ? '#10b981' : exportProgress.status === 'failed' ? '#ef4444' : '#3b82f6'} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: '600', fontSize: '14px', color: '#1f2937', marginBottom: '4px' }}>
+                {exportProgress.status === 'completed' ? '✅ Export Complete' : 
+                 exportProgress.status === 'failed' ? '❌ Export Failed' : 
+                 exportProgress.status === 'processing' ? '⚙️ Exporting...' : '⏳ Export Queued'}
+              </div>
+              <div style={{ fontSize: '12px', color: '#6b7280', wordBreak: 'break-all' }}>
+                {exportProgress.filename}
+              </div>
+            </div>
+            <button
+              onClick={() => setExportProgress(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '4px',
+                color: '#9ca3af',
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: '6px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              title="Dismiss"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          
+          {exportProgress.status !== 'failed' && (
+            <div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${exportProgress.progress}%`,
+                  height: '100%',
+                  backgroundColor: exportProgress.status === 'completed' ? '#10b981' : '#3b82f6',
+                  transition: 'width 0.3s ease',
+                  borderRadius: '4px'
+                }} />
+              </div>
+              <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', textAlign: 'right', fontWeight: '500' }}>
+                {exportProgress.progress}%
+              </div>
+            </div>
+          )}
+          
+          {exportProgress.error && (
+            <div style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px', padding: '8px', backgroundColor: '#fef2f2', borderRadius: '6px' }}>
+              {exportProgress.error}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Export Data</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowExportModal(false)}
+                disabled={exporting}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '12px', fontSize: '14px', fontWeight: '600', color: '#1f2937', letterSpacing: '0.01em' }}>Data Type</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    border: `2px solid ${exportDataType === 'aggregated' ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: exportDataType === 'aggregated' ? '#eff6ff' : 'white',
+                    transition: 'all 0.2s ease',
+                    ':hover': { borderColor: '#3b82f6' }
+                  }}>
+                    <input
+                      type="radio"
+                      name="dataType"
+                      value="aggregated"
+                      checked={exportDataType === 'aggregated'}
+                      onChange={(e) => setExportDataType(e.target.value)}
+                      disabled={exporting}
+                      style={{ marginRight: '12px', width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>Aggregated (10s intervals)</span>
+                  </label>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    border: `2px solid ${exportDataType === 'raw' ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: exportDataType === 'raw' ? '#eff6ff' : 'white',
+                    transition: 'all 0.2s ease'
+                  }}>
+                    <input
+                      type="radio"
+                      name="dataType"
+                      value="raw"
+                      checked={exportDataType === 'raw'}
+                      onChange={(e) => {
+                        setExportDataType(e.target.value);
+                        // Auto-switch to segment when raw is selected
+                        if (e.target.value === 'raw' && exportTimeRange === 'whole') {
+                          setExportTimeRange('segment');
+                        }
+                      }}
+                      disabled={exporting}
+                      style={{ marginRight: '12px', width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>Raw</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '12px', fontSize: '14px', fontWeight: '600', color: '#1f2937', letterSpacing: '0.01em' }}>Time Range</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    border: `2px solid ${exportTimeRange === 'whole' && exportDataType !== 'raw' ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: exportDataType === 'raw' ? 'not-allowed' : 'pointer',
+                    backgroundColor: exportTimeRange === 'whole' && exportDataType !== 'raw' ? '#eff6ff' : exportDataType === 'raw' ? '#f9fafb' : 'white',
+                    opacity: exportDataType === 'raw' ? 0.6 : 1,
+                    transition: 'all 0.2s ease'
+                  }}>
+                    <input
+                      type="radio"
+                      name="timeRange"
+                      value="whole"
+                      checked={exportTimeRange === 'whole'}
+                      onChange={(e) => setExportTimeRange(e.target.value)}
+                      disabled={exporting || exportDataType === 'raw'}
+                      style={{ marginRight: '12px', width: '18px', height: '18px', cursor: exportDataType === 'raw' ? 'not-allowed' : 'pointer', accentColor: '#3b82f6' }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>Whole Test</span>
+                      {exportDataType === 'raw' && (
+                        <span style={{ fontSize: '11px', color: '#6b7280', fontStyle: 'italic' }}>Not available for raw data</span>
+                      )}
+                    </div>
+                  </label>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    border: `2px solid ${exportTimeRange === 'segment' ? '#3b82f6' : '#e5e7eb'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    backgroundColor: exportTimeRange === 'segment' ? '#eff6ff' : 'white',
+                    transition: 'all 0.2s ease'
+                  }}>
+                    <input
+                      type="radio"
+                      name="timeRange"
+                      value="segment"
+                      checked={exportTimeRange === 'segment'}
+                      onChange={(e) => setExportTimeRange(e.target.value)}
+                      disabled={exporting}
+                      style={{ marginRight: '12px', width: '18px', height: '18px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#1f2937' }}>Specific Segment</span>
+                  </label>
+                </div>
+                {exportDataType === 'raw' && (
+                  <div style={{ 
+                    marginTop: '12px', 
+                    padding: '12px 14px', 
+                    backgroundColor: '#fef2f2', 
+                    border: '1px solid #fecaca',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '16px', lineHeight: '1' }}>⚠️</span>
+                    <p style={{ fontSize: '12px', color: '#dc2626', margin: 0, lineHeight: '1.5' }}>
+                      Raw data exports can be very large. Please select a specific segment to avoid timeout errors.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {exportTimeRange === 'segment' && (
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '14px', fontWeight: '600', color: '#1f2937', letterSpacing: '0.01em' }}>Select Segment</label>
+                  <select
+                    value={exportSegmentId}
+                    onChange={(e) => setExportSegmentId(e.target.value)}
+                    disabled={exporting}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      fontSize: '14px',
+                      color: '#1f2937',
+                      backgroundColor: 'white',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      outline: 'none'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                    onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+                  >
+                    <option value="" style={{ color: '#9ca3af' }}>-- Select Segment --</option>
+                    {segments.map(segment => (
+                      <option key={segment.id} value={segment.id} style={{ color: '#1f2937' }}>
+                        {segment.segment_name} ({new Date(segment.start_time).toLocaleString()} - {new Date(segment.end_time).toLocaleString()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ padding: '20px 24px', gap: '12px', borderTop: '1px solid #e5e7eb' }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                disabled={exporting}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#6b7280',
+                  backgroundColor: 'white',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  minWidth: '100px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f9fafb';
+                  e.currentTarget.style.borderColor = '#d1d5db';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                style={{
+                  padding: '10px 24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: 'white',
+                  backgroundColor: exporting ? '#9ca3af' : '#10b981',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: exporting ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  minWidth: '120px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={(e) => {
+                  if (!exporting) e.currentTarget.style.backgroundColor = '#059669';
+                }}
+                onMouseOut={(e) => {
+                  if (!exporting) e.currentTarget.style.backgroundColor = '#10b981';
+                }}
+              >
+                {exporting ? (
+                  <>
+                    <span>Exporting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    <span>Export</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

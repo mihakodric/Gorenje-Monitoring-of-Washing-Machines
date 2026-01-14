@@ -501,6 +501,7 @@
 .sensors-panel {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
   min-width: 0;
 }
@@ -673,6 +674,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -698,7 +700,7 @@
 .sensors-scroll-container {
   flex: 1;
   overflow-y: auto;
-  max-height: 500px;
+  max-height: 100%;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
 }
