@@ -24,7 +24,8 @@ async def get_test_relations(test_id: int) -> List[Dict]:
         rows = await conn.fetch("""
             SELECT 
                 tr.*, 
-                s.sensor_name, 
+                s.sensor_name,
+                s.sensor_type_id,
                 s.sensor_mqtt_topic,
                 s.sensor_is_online, 
                 s.sensor_created_at, 
