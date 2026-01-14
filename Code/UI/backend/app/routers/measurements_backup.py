@@ -14,7 +14,6 @@ class CropRequest(BaseModel):
     start_time: datetime
     end_time: datetime
 
-
 @router.get("/avg/{test_relation_id}", response_model=List[MeasurementAveraged])
 async def get_sensor_measurements_avg(
     test_relation_id: int,
@@ -66,7 +65,6 @@ async def get_sensor_measurements_avg(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching measurements: {str(e)}")
     
-
 @router.get("/raw/{test_relation_id}", response_model=List[MeasurementRaw])
 async def get_sensor_measurements_raw(
     test_relation_id: int,
@@ -107,38 +105,3 @@ async def get_sensor_measurements_raw(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching raw measurements: {str(e)}")
-
-
-@router.post("/crop", response_model=dict)
-async def crop_measurements(crop_request: CropRequest):
-    """
-    Crop (permanently delete) measurements outside the specified time range for a test.
-    Deletes data from both raw measurements and aggregated tables.
-    
-    ⚠️ WARNING: This operation is permanent and cannot be undone!
-    """
-    try:
-        if crop_request.start_time >= crop_request.end_time:
-            raise HTTPException(
-                status_code=400,
-                detail="Start time must be before end time"
-            )
-        
-        result = await measurements_db.crop_measurements_by_test(
-            test_id=crop_request.test_id,
-            start_time=crop_request.start_time,
-            end_time=crop_request.end_time
-        )
-        
-        return {
-            "message": "Measurements cropped successfully",
-            "raw_deleted": result["raw_deleted"],
-            "avg_deleted": result["avg_deleted"],
-            "total_deleted": result["raw_deleted"] + result["avg_deleted"]
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error cropping measurements: {str(e)}"
-        )

@@ -204,12 +204,12 @@ const TestOverview = () => {
           x: [...times, ...times.slice().reverse()],
           y: [...maxValues, ...minValues.slice().reverse()],
           fill: 'toself',
-          fillcolor: hexToRgba(color, 0.3),
+          fillcolor: hexToRgba(color, 0.1),
           type: 'scattergl',
           mode: 'none',
           name: `${baseTraceName} Range`,
           sensorId: sensor.id,
-          showlegend: true,
+          showlegend: false,
           hoverinfo: 'skip',
           connectgaps: false
         });
@@ -222,7 +222,7 @@ const TestOverview = () => {
           mode: 'lines',
           name: `${baseTraceName} Max`,
           sensorId: sensor.id,
-          line: { color: color, width: 1, dash: 'dot' },
+          line: { color: color, width: 0.5},
           hovertemplate: `<b>Max</b><br>` +
             `Time: %{x}<br>` +
             `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
@@ -239,7 +239,7 @@ const TestOverview = () => {
           mode: 'lines',
           name: `${baseTraceName} Min`,
           sensorId: sensor.id,
-          line: { color: color, width: 1, dash: 'dot' },
+          line: { color: color, width: 0.5},
           hovertemplate: `<b>Min</b><br>` +
             `Time: %{x}<br>` +
             `Value: %{y:.3f}${sensor.sensor_type_unit || ''}<br>` +
@@ -763,6 +763,68 @@ const TestOverview = () => {
                     </p>
                   </div>
                 </div>
+                {selectedSensorIds.size > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
+                    {dataMode === 'aggregated' && (
+                      <select
+                        className="form-control"
+                        value={aggregationType}
+                        onChange={(e) => setAggregationType(e.target.value)}
+                        style={{ 
+                          width: '130px',
+                          height: '36px',
+                          padding: '6px 8px',
+                          fontSize: '12px',
+                          flexShrink: 0
+                        }}
+                        title="Select aggregation type"
+                        disabled={chartLoading || isRefreshing}
+                      >
+                        <option value="absolute">Absolute</option>
+                        <option value="regular">Regular</option>
+                      </select>
+                    )}
+                    <div 
+                      className={`data-mode-toggle ${chartLoading || isRefreshing ? 'disabled' : ''}`}
+                      style={{ width: '130px', height: '36px', fontSize: '11px', flexShrink: 0 }}
+                    >
+                      <div className="toggle-background" style={{
+                        transform: dataMode === 'aggregated' ? 'translateX(0)' : 'translateX(100%)'
+                      }} />
+                      <div 
+                        className={`toggle-option ${dataMode === 'aggregated' ? 'active' : ''}`}
+                        onClick={() => !chartLoading && !isRefreshing && handleDataModeChange('aggregated')}
+                        style={{ fontSize: '10px' }}
+                      >
+                        📊 Agg
+                      </div>
+                      <div 
+                        className={`toggle-option ${dataMode === 'raw' ? 'active' : ''}`}
+                        onClick={() => !chartLoading && !isRefreshing && handleDataModeChange('raw')}
+                        style={{ fontSize: '10px' }}
+                      >
+                        📈 Raw
+                      </div>
+                    </div>
+                    <button 
+                      className="btn btn-success btn-sm"
+                      onClick={handleRefresh}
+                      disabled={selectedSensorIds.size === 0 || isRefreshing || chartLoading}
+                      title="Refresh chart data"
+                      style={{ width: '90px', height: '36px', fontSize: '12px', padding: '6px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}
+                    >
+                      🔄 Refresh
+                    </button>
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={resetZoom}
+                      title="Reset Zoom"
+                      style={{ width: '100px', height: '36px', fontSize: '12px', padding: '6px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}
+                    >
+                      ↺ Reset Zoom
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="card-body chart-container-wrapper">
                 {selectedSensorIds.size === 0 ? (
@@ -778,69 +840,6 @@ const TestOverview = () => {
                   </div>
                 ) : (
                   <div className="chart-container">
-                    <div className="chart-controls">
-                      <div className="chart-control-buttons">
-                        {dataMode === 'aggregated' && (
-                          <select
-                            className="form-control"
-                            value={aggregationType}
-                            onChange={(e) => setAggregationType(e.target.value)}
-                            style={{ 
-                              width: 'auto', 
-                              minWidth: '160px',
-                              height: '38px',
-                              padding: '6px 12px',
-                              fontSize: '14px',
-                              marginRight: '10px'
-                            }}
-                            title="Select aggregation type"
-                            disabled={chartLoading || isRefreshing}
-                          >
-                            <option value="absolute">Absolute Values</option>
-                            <option value="regular">Regular Values</option>
-                          </select>
-                        )}
-                        <div 
-                          className={`data-mode-toggle ${chartLoading || isRefreshing ? 'disabled' : ''}`}
-                          style={{ marginRight: '10px' }}
-                        >
-                          <div className="toggle-background" style={{
-                            transform: dataMode === 'aggregated' ? 'translateX(0)' : 'translateX(100%)'
-                          }} />
-                          <div 
-                            className={`toggle-option ${dataMode === 'aggregated' ? 'active' : ''}`}
-                            onClick={() => !chartLoading && !isRefreshing && handleDataModeChange('aggregated')}
-                          >
-                            📊 Aggregated
-                          </div>
-                          <div 
-                            className={`toggle-option ${dataMode === 'raw' ? 'active' : ''}`}
-                            onClick={() => !chartLoading && !isRefreshing && handleDataModeChange('raw')}
-                          >
-                            📈 Raw
-                          </div>
-                        </div>
-                        <button 
-                          className="btn btn-success btn-sm"
-                          onClick={handleRefresh}
-                          disabled={selectedSensorIds.size === 0 || isRefreshing || chartLoading}
-                          title="Refresh chart data"
-                          style={{ marginRight: '10px' }}
-                        >
-                          🔄 Refresh
-                        </button>
-                        <button 
-                          className="btn btn-secondary btn-sm"
-                          onClick={resetZoom}
-                          title="Reset Zoom"
-                        >
-                          ↺ Reset Zoom
-                        </button>
-                      </div>
-                      <div className="chart-instructions">
-                        <small>💡 Use toolbar to zoom/pan • Drag to select area • Double-click to reset zoom • Ctrl+0 to reset</small>
-                      </div>
-                    </div>
                     <Plot 
                       key={`plot-${dataMode}-${aggregationType}`}
                       ref={chartRef}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
-import { ArrowLeft, Plus, Edit, Save, X, Trash2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Save, X, Trash2, RefreshCw, Scissors } from 'lucide-react';
 import { testsAPI, testRelationsAPI, measurementsAPI, testSegmentsAPI } from '../api';
 import { SENSOR_COLORS, SEGMENT_COLORS, SEGMENT_TRANSPARENCY_FILL, SEGMENT_TRANSPARENCY_BORDER, hexToRgba } from '../constants/colors';
 import '../styles/test-analysis.css';
@@ -24,6 +24,12 @@ const TestAnalysis = () => {
   const [editedSegment, setEditedSegment] = useState({});
   const [isAddingSegment, setIsAddingSegment] = useState(false);
   const [newSegment, setNewSegment] = useState({ segment_name: '', start_time: '', end_time: '' });
+  
+  // Crop state
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropStart, setCropStart] = useState('');
+  const [cropEnd, setCropEnd] = useState('');
+  const [cropping, setCropping] = useState(false);
   
   // Store current x-axis range and selected segment for highlighting
   const xAxisRangeRef = useRef(null);
@@ -131,6 +137,123 @@ const TestAnalysis = () => {
       alert('Failed to refresh data');
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleStartCrop = () => {
+    // Calculate the earliest and latest timestamps from all sensor data
+    let earliestTime = null;
+    let latestTime = null;
+    
+    Object.values(sensorData).forEach(data => {
+      if (data && data.length > 0) {
+        data.forEach(point => {
+          const timestamp = new Date(point.measurement_timestamp);
+          if (!earliestTime || timestamp < earliestTime) {
+            earliestTime = timestamp;
+          }
+          if (!latestTime || timestamp > latestTime) {
+            latestTime = timestamp;
+          }
+        });
+      }
+    });
+    
+    if (earliestTime && latestTime) {
+      // Format for datetime-local input (YYYY-MM-DDTHH:mm:ss)
+      const formatForInput = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+      };
+      
+      setCropStart(formatForInput(earliestTime));
+      setCropEnd(formatForInput(latestTime));
+      setIsCropping(true);
+    } else {
+      alert('No data available to crop');
+    }
+  };
+
+  const handleCancelCrop = () => {
+    setIsCropping(false);
+    setCropStart('');
+    setCropEnd('');
+  };
+
+  const handleConfirmCrop = async () => {
+    if (!cropStart || !cropEnd) {
+      alert('Please select both start and end times');
+      return;
+    }
+    
+    const startTime = new Date(cropStart);
+    const endTime = new Date(cropEnd);
+    
+    if (startTime >= endTime) {
+      alert('Start time must be before end time');
+      return;
+    }
+    
+    // Count how many measurements will be deleted
+    let totalMeasurements = 0;
+    let measurementsToDelete = 0;
+    
+    Object.values(sensorData).forEach(data => {
+      if (data && data.length > 0) {
+        totalMeasurements += data.length;
+        data.forEach(point => {
+          const timestamp = new Date(point.measurement_timestamp);
+          if (timestamp < startTime || timestamp > endTime) {
+            measurementsToDelete++;
+          }
+        });
+      }
+    });
+    
+    const confirmMessage = 
+      `⚠️ WARNING: This will permanently delete ${measurementsToDelete} measurements outside the range:\n\n` +
+      `Start: ${startTime.toLocaleString()}\n` +
+      `End: ${endTime.toLocaleString()}\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Do you want to proceed?`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      setCropping(true);
+      
+      const response = await measurementsAPI.cropMeasurements(
+        parseInt(testId),
+        startTime.toISOString(),
+        endTime.toISOString()
+      );
+      
+      alert(
+        `✅ Crop successful!\n\n` +
+        `Deleted:\n` +
+        `- ${response.data.raw_deleted} raw measurements\n` +
+        `- ${response.data.avg_deleted} aggregated measurements\n` +
+        `- Total: ${response.data.total_deleted} measurements`
+      );
+      
+      // Reload data
+      setIsCropping(false);
+      setCropStart('');
+      setCropEnd('');
+      await handleRefreshData();
+      
+    } catch (error) {
+      console.error('Error cropping measurements:', error);
+      alert(`❌ Failed to crop measurements:\n${error.response?.data?.detail || error.message}`);
+    } finally {
+      setCropping(false);
     }
   };
 
@@ -301,7 +424,7 @@ const TestAnalysis = () => {
         x: [...times, ...times.slice().reverse()],
         y: [...maxValues, ...minValues.slice().reverse()],
         fill: 'toself',
-        fillcolor: hexToRgba(color, 0.3),
+        fillcolor: hexToRgba(color, 0.1),
         type: 'scattergl',
         mode: 'none',
         name: `${baseTraceName} Range`,
@@ -319,7 +442,7 @@ const TestAnalysis = () => {
         type: 'scattergl',
         mode: 'lines',
         name: `${baseTraceName} Max`,
-        line: { color: color, width: 1, dash: 'dot' },
+        line: { color: color, width: 0.5 },
         xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
         yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
         hovertemplate: `<b>Max</b><br>` +
@@ -337,7 +460,7 @@ const TestAnalysis = () => {
         type: 'scattergl',
         mode: 'lines',
         name: `${baseTraceName} Min`,
-        line: { color: color, width: 1, dash: 'dot' },
+        line: { color: color, width: 0.5},
         xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
         yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
         hovertemplate: `<b>Min</b><br>` +
@@ -511,6 +634,84 @@ const TestAnalysis = () => {
       });
     });
 
+    // Add crop boundary lines if in cropping mode
+    if (isCropping && cropStart && cropEnd) {
+      const cropStartTime = new Date(cropStart).getTime();
+      const cropEndTime = new Date(cropEnd).getTime();
+      
+      testSensors.forEach((sensor, sensorIndex) => {
+        const xAxisRef = sensorIndex === 0 ? 'x' : `x${sensorIndex + 1}`;
+        const yAxisRef = sensorIndex === 0 ? 'y' : `y${sensorIndex + 1}`;
+        
+        // Start line (green)
+        layout.shapes.push({
+          type: 'line',
+          xref: xAxisRef,
+          yref: yAxisRef + ' domain',
+          x0: cropStartTime,
+          x1: cropStartTime,
+          y0: 0,
+          y1: 1,
+          line: {
+            color: '#10b981',
+            width: 3,
+            dash: 'dot'
+          },
+          layer: 'above'
+        });
+        
+        // End line (red)
+        layout.shapes.push({
+          type: 'line',
+          xref: xAxisRef,
+          yref: yAxisRef + ' domain',
+          x0: cropEndTime,
+          x1: cropEndTime,
+          y0: 0,
+          y1: 1,
+          line: {
+            color: '#ef4444',
+            width: 3,
+            dash: 'dot'
+          },
+          layer: 'above'
+        });
+      });
+      
+      // Add annotations for crop boundaries on the first subplot
+      layout.annotations.push({
+        text: 'Crop Start',
+        xref: 'x',
+        yref: 'paper',
+        x: cropStartTime,
+        y: 1.02,
+        xanchor: 'center',
+        yanchor: 'bottom',
+        showarrow: false,
+        font: { size: 11, color: '#10b981', weight: 'bold' },
+        bgcolor: 'rgba(255, 255, 255, 0.95)',
+        bordercolor: '#10b981',
+        borderwidth: 2,
+        borderpad: 3
+      });
+      
+      layout.annotations.push({
+        text: 'Crop End',
+        xref: 'x',
+        yref: 'paper',
+        x: cropEndTime,
+        y: 1.02,
+        xanchor: 'center',
+        yanchor: 'bottom',
+        showarrow: false,
+        font: { size: 11, color: '#ef4444', weight: 'bold' },
+        bgcolor: 'rgba(255, 255, 255, 0.95)',
+        bordercolor: '#ef4444',
+        borderwidth: 2,
+        borderpad: 3
+      });
+    }
+
     return layout;
   };
 
@@ -561,7 +762,7 @@ const TestAnalysis = () => {
   return (
     <div className="container analysis-container">
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ flexDirection: 'row', alignItems: 'center' }}>
         <div className="header-left">
           <button onClick={() => navigate(`/tests/overview/${testId}`)} className="btn btn-secondary btn-icon">
             <ArrowLeft size={18} />
@@ -571,33 +772,85 @@ const TestAnalysis = () => {
             <p className="page-subtitle">{test.test_name} • {testSensors.length} sensors</p>
           </div>
         </div>
-        <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
-          <button 
-            className="btn btn-primary btn-icon"
-            onClick={handleRefreshData}
-            disabled={isRefreshing || loadingData}
-            title="Refresh Data"
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
-          </button>
+        <div className="header-right" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', flexWrap: 'nowrap', flexShrink: 0 }}>
+          {isCropping ? (
+            <>
+              <label style={{ fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap', margin: 0 }}>Start:</label>
+              <input
+                type="datetime-local"
+                step="1"
+                className="form-control"
+                value={cropStart}
+                onChange={(e) => setCropStart(e.target.value)}
+                style={{ width: '180px', height: '38px', fontSize: '12px', flexShrink: 0, margin: 0 }}
+              />
+              <label style={{ fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap', margin: 0 }}>End:</label>
+              <input
+                type="datetime-local"
+                step="1"
+                className="form-control"
+                value={cropEnd}
+                onChange={(e) => setCropEnd(e.target.value)}
+                style={{ width: '180px', height: '38px', fontSize: '12px', flexShrink: 0, margin: 0 }}
+              />
+              <button 
+                className="btn btn-danger btn-icon"
+                onClick={handleConfirmCrop}
+                disabled={cropping || !cropStart || !cropEnd}
+                style={{ whiteSpace: 'nowrap', flexShrink: 0, margin: 0 }}
+              >
+                <Scissors size={14} />
+                {cropping ? 'Cropping...' : 'Crop'}
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={handleCancelCrop}
+                disabled={cropping}
+                style={{ whiteSpace: 'nowrap', flexShrink: 0, margin: 0 }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                className="btn btn-secondary btn-icon"
+                onClick={handleStartCrop}
+                disabled={isRefreshing || loadingData || Object.keys(sensorData).length === 0}
+                title="Crop Data"
+                style={{ whiteSpace: 'nowrap', flexShrink: 0, margin: 0 }}
+              >
+                <Scissors size={14} />
+                Crop
+              </button>
+              <button 
+                className="btn btn-primary btn-icon"
+                onClick={handleRefreshData}
+                disabled={isRefreshing || loadingData}
+                title="Refresh Data"
+                style={{ whiteSpace: 'nowrap', flexShrink: 0, margin: 0 }}
+              >
+                <RefreshCw size={14} className={isRefreshing ? 'spinning' : ''} />
+                Refresh
+              </button>
+            </>
+          )}
           <select
             className="form-control"
             value={aggregationType}
             onChange={(e) => setAggregationType(e.target.value)}
             style={{ 
-              width: 'auto', 
-              minWidth: '160px',
+              width: '150px',
               height: '38px',
-              padding: '6px 12px',
-              fontSize: '14px',
-              flexShrink: 0
+              padding: '6px 10px',
+              fontSize: '13px',
+              flexShrink: 0,
+              margin: 0
             }}
             title="Select aggregation type"
           >
-            <option value="absolute">Absolute Values</option>
-            <option value="regular">Regular Values</option>
+            <option value="absolute">Absolute</option>
+            <option value="regular">Regular</option>
           </select>
         </div>
       </div>

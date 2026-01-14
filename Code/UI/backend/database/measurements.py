@@ -183,3 +183,51 @@ async def insert_measurements(measurements: List[Dict]) -> bool:
             await conn.executemany(query, data)
 
     return True
+
+
+async def crop_measurements_by_test(
+    test_id: int,
+    start_time: datetime,
+    end_time: datetime
+) -> Dict[str, int]:
+    """
+    Delete all measurements outside the specified time range for a test.
+    Deletes from both raw measurements and aggregated tables.
+    
+    Returns dict with counts of deleted rows from each table.
+    """
+    async with get_db_pool().acquire() as conn:
+        async with conn.transaction():
+            # Get all test_relation_ids for this test
+            relation_ids = await conn.fetch("""
+                SELECT id FROM metadata.test_relations
+                WHERE test_id = $1
+            """, test_id)
+            
+            if not relation_ids:
+                return {"raw_deleted": 0, "avg_deleted": 0}
+            
+            relation_id_list = [row['id'] for row in relation_ids]
+            
+            # Delete from raw measurements table (outside the range)
+            raw_deleted = await conn.execute("""
+                DELETE FROM timeseries.measurements
+                WHERE test_relation_id = ANY($1::int[])
+                  AND (measurement_timestamp < $2 OR measurement_timestamp > $3)
+            """, relation_id_list, start_time, end_time)
+            
+            # Delete from aggregated table (outside the range)
+            avg_deleted = await conn.execute("""
+                DELETE FROM timeseries.measurements_avg_10s
+                WHERE test_relation_id = ANY($1::int[])
+                  AND (bucket < $2 OR bucket > $3)
+            """, relation_id_list, start_time, end_time)
+            
+            # Parse the DELETE command results to get row counts
+            raw_count = int(raw_deleted.split()[-1]) if raw_deleted else 0
+            avg_count = int(avg_deleted.split()[-1]) if avg_deleted else 0
+            
+            return {
+                "raw_deleted": raw_count,
+                "avg_deleted": avg_count
+            }

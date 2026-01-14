@@ -164,6 +164,12 @@ export const measurementsAPI = {
     api.get(`${measurementsAPIprefix}/avg/${testRelationId}`, { params }),
   getSensorDataRaw: (testRelationId, params = {}) =>
     api.get(`${measurementsAPIprefix}/raw/${testRelationId}`, { params }),
+  cropMeasurements: (testId, startTime, endTime) =>
+    api.post(`${measurementsAPIprefix}/crop`, {
+      test_id: testId,
+      start_time: startTime,
+      end_time: endTime
+    }),
 };
 
 // Test Segments API
