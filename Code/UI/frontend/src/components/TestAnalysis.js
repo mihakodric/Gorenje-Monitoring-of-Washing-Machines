@@ -89,13 +89,21 @@ const TestAnalysis = () => {
         groupedSensors[type].sort((a, b) => a.sensor_name.localeCompare(b.sensor_name))
       );
 
+      console.log('📡 Loading data for sensors:', sortedSensors.map(s => ({ id: s.id, name: s.sensor_name })));
       setTestSensors(sortedSensors);
 
       // Load aggregated data for all sensors
       setLoadingData(true);
       const dataPromises = sortedSensors.map(sensor => 
         measurementsAPI.getSensorDataAvg(sensor.id, { limit: 10000 })
-          .then(response => ({ sensorId: sensor.id, data: response.data }))
+          .then(response => {
+            console.log(`  📊 Sensor ${sensor.id} (${sensor.sensor_name}): ${response.data.length} measurements`);
+            return { sensorId: sensor.id, data: response.data };
+          })
+          .catch(error => {
+            console.error(`  ❌ Failed to load data for sensor ${sensor.id} (${sensor.sensor_name}):`, error);
+            return { sensorId: sensor.id, data: [] };
+          })
       );
       
       const results = await Promise.all(dataPromises);
@@ -103,6 +111,8 @@ const TestAnalysis = () => {
       results.forEach(result => {
         dataMap[result.sensorId] = result.data;
       });
+      console.log('✅ Total sensors with data:', Object.keys(dataMap).length);
+      console.log('📊 Data summary:', Object.entries(dataMap).map(([id, data]) => ({ sensorId: id, measurements: data.length })));
       setSensorData(dataMap);
       
     } catch (error) {
@@ -504,6 +514,24 @@ const TestAnalysis = () => {
   };
 
   const buildTracesForSensor = (sensor, measurements, subplotIndex) => {
+    const traces = [];
+    
+    // If no measurements, add an empty dummy trace to ensure the subplot is rendered
+    if (measurements.length === 0) {
+      traces.push({
+        x: [],
+        y: [],
+        type: 'scattergl',
+        mode: 'markers',
+        name: sensor.sensor_name,
+        xaxis: subplotIndex === 0 ? 'x' : `x${subplotIndex + 1}`,
+        yaxis: subplotIndex === 0 ? 'y' : `y${subplotIndex + 1}`,
+        showlegend: false,
+        hoverinfo: 'skip'
+      });
+      return traces;
+    }
+    
     // Group by channel
     const channelGroups = {};
     measurements.forEach(m => {
@@ -512,7 +540,6 @@ const TestAnalysis = () => {
       channelGroups[channel].push(m);
     });
 
-    const traces = [];
     let colorIndex = 0;
 
     Object.keys(channelGroups).sort().forEach(channel => {
@@ -612,32 +639,44 @@ const TestAnalysis = () => {
 
   const buildSubplotLayout = () => {
     const numSensors = testSensors.length;
+    console.log('🔍 BuildSubplotLayout - Number of sensors:', numSensors);
     if (numSensors === 0) return {};
 
-    const rowHeight = 1 / numSensors;
-    const gap = 0.01; // Small gap between subplots
-    const actualRowHeight = rowHeight - gap;
-
-    // Calculate height: give each sensor reasonable space
-    const minHeightPerSensor = 120; // Minimum height per sensor for good visibility
-    const maxHeightPerSensor = 250; // Maximum height per sensor to show more sensors at once
+    // Set a fixed minimum height per sensor to ensure readability
+    const minHeightPerSensor = 200; // Minimum height per sensor for good visibility
+    const preferredHeightPerSensor = 250; // Preferred height when space allows
     
     // Available viewport height (subtract header, margins, and padding)
     const availableHeight = window.innerHeight - 170;
     
-    // Calculate ideal height per sensor based on available space
-    const idealHeightPerSensor = availableHeight / numSensors;
+    // Calculate if we can fit all sensors without scrolling
+    const totalPreferredHeight = numSensors * preferredHeightPerSensor;
     
-    // Use constrained height per sensor: at least min, at most max, prefer ideal
-    const heightPerSensor = Math.max(minHeightPerSensor, Math.min(maxHeightPerSensor, idealHeightPerSensor));
+    // Use preferred height if it fits, otherwise use minimum (enables scrolling)
+    const heightPerSensor = totalPreferredHeight <= availableHeight 
+      ? preferredHeightPerSensor 
+      : minHeightPerSensor;
+    
     const plotHeight = numSensors * heightPerSensor;
 
+    // Calculate subplot positioning
+    const gap = 0.01; // Small gap between subplots as fraction of total height
+    const totalGaps = gap * (numSensors - 1); // Total gap space
+    const availableSpace = 1 - totalGaps; // Space for actual plots
+    const subplotHeight = availableSpace / numSensors; // Height per subplot in domain coordinates
+
+    console.log('📏 Layout calculations:', { 
+      plotHeight, 
+      heightPerSensor, 
+      subplotHeight, 
+      availableSpace,
+      totalGaps
+    });
+
     const layout = {
-      grid: { rows: numSensors, columns: 1, pattern: 'independent' },
       hovermode: 'closest',
       showlegend: false, // Disable global legend, use annotations instead
       margin: { l: 60, r: 20, t: 20, b: 60 },
-      autosize: true,
       height: plotHeight,
       annotations: [],
       shapes: [],
@@ -647,8 +686,16 @@ const TestAnalysis = () => {
     // Create axes for each subplot
     testSensors.forEach((sensor, index) => {
       const isLast = index === numSensors - 1;
-      const yPosition = 1 - (index * rowHeight);
-      const domain = [yPosition - actualRowHeight, yPosition];
+      // Calculate y position from top (0 is bottom, 1 is top)
+      const yTop = 1 - (index * (subplotHeight + gap));
+      const yBottom = yTop - subplotHeight;
+      const domain = [yBottom, yTop];
+
+      console.log(`📊 Sensor ${index} (${sensor.sensor_name}):`, {
+        xAxis: index === 0 ? 'xaxis' : `xaxis${index + 1}`,
+        yAxis: index === 0 ? 'yaxis' : `yaxis${index + 1}`,
+        domain: domain
+      });
 
       const xAxisKey = index === 0 ? 'xaxis' : `xaxis${index + 1}`;
       const yAxisKey = index === 0 ? 'yaxis' : `yaxis${index + 1}`;
@@ -695,26 +742,27 @@ const TestAnalysis = () => {
         channelGroups[channel].push(m);
       });
       
-      const channelLegends = Object.keys(channelGroups).sort().map((channel, colorIndex) => {
-        const color = SENSOR_COLORS[colorIndex % SENSOR_COLORS.length];
-        if (channel === 'main' || channel === 'null') {
-            // skip main channel in legend
-            return '';
-        } else {
+      const channelLegends = Object.keys(channelGroups).sort()
+        .filter(channel => channel !== 'main' && channel !== 'null') // Filter out main/null first
+        .map((channel, colorIndex) => {
+          const color = SENSOR_COLORS[colorIndex % SENSOR_COLORS.length];
           return `<span style="color:${color};">●</span> ${channel.toUpperCase()}`;
-        }
-      }).join('  ');
+        })
+        .filter(legend => legend !== '') // Remove any empty strings
+        .join('  ');
 
-      const legendText = `<b>${sensor.sensor_name}</b> • ${sensor.sensor_location || 'N/A'} • ${channelLegends}`;
+      const legendText = channelLegends 
+        ? `<b>${sensor.sensor_name}</b> • ${sensor.sensor_location || 'N/A'} • ${channelLegends}`
+        : `<b>${sensor.sensor_name}</b> • ${sensor.sensor_location || 'N/A'}`;
 
       layout.annotations.push({
         text: legendText,
         xref: 'paper',
         yref: index === 0 ? 'y domain' : `y${index + 1} domain`,
         x: 0.5,
-        y: 0.98,
+        y: 1.0,
         xanchor: 'center',
-        yanchor: 'top',
+        yanchor: 'bottom',
         showarrow: false,
         font: { size: 10, color: '#1f2937' },
         bgcolor: 'rgba(255, 255, 255, 0.9)',
@@ -830,16 +878,26 @@ const TestAnalysis = () => {
       });
     }
 
+    console.log('✅ Final layout object:', {
+      totalAxes: Object.keys(layout).filter(k => k.startsWith('xaxis') || k.startsWith('yaxis')).length,
+      annotationsCount: layout.annotations.length,
+      shapesCount: layout.shapes.length,
+      height: layout.height
+    });
+
     return layout;
   };
 
   const buildAllTraces = () => {
+    console.log('🎨 BuildAllTraces - Building traces for', testSensors.length, 'sensors');
     const allTraces = [];
     testSensors.forEach((sensor, index) => {
       const measurements = sensorData[sensor.id] || [];
       const traces = buildTracesForSensor(sensor, measurements, index);
+      console.log(`  Sensor ${index} (${sensor.sensor_name}): ${traces.length} traces`);
       allTraces.push(...traces);
     });
+    console.log('✅ Total traces built:', allTraces.length);
     return allTraces;
   };
 
@@ -986,7 +1044,7 @@ const TestAnalysis = () => {
       {/* Main Layout: 2/3 plots, 1/3 segment definition */}
       <div className="analysis-layout">
         {/* Left side - Sensor plots */}
-        <div className="plots-section" style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: 'calc(100vh - 170px)' }}>
+        <div className="plots-section" style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: 'calc(100vh - 170px)', height: 'calc(100vh - 170px)' }}>
           {loadingData ? (
             <div className="loading-message">
               <div className="spinner"></div>
@@ -997,12 +1055,13 @@ const TestAnalysis = () => {
               <p>No sensors configured for this test</p>
             </div>
           ) : (
-            <div className="subplot-container">
+            <div className="subplot-container" style={{ width: '100%', display: 'block' }}>
               <Plot
                 data={buildAllTraces()}
                 layout={buildSubplotLayout()}
                 config={plotConfig}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: '100%' }}
+                useResizeHandler={true}
                 onRelayout={handlePlotRelayout}
               />
             </div>
