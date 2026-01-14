@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { sensorsAPI, sensorTypesAPI } from '../api';
-import { X, RefreshCw } from 'lucide-react';
+import { X, RefreshCw, Crosshair } from 'lucide-react';
+import { identifySensor } from '../utils/sensorUtils';
 
 const SensorModal = ({ sensor, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -110,6 +111,8 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
     }
   };
 
+  const handleIdentifySensor = () => identifySensor(sensor);
+
   const detectSettingType = (value) => {
     if (Number.isInteger(value)) return 'int';
     if (typeof value === 'number') return 'float';
@@ -210,9 +213,28 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
           <h2 className="modal-title">
             {sensor ? 'Edit Sensor' : 'Add New Sensor'}
           </h2>
-          <button className="modal-close" onClick={onClose}>
-            <X size={24} />
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {sensor && (
+              <button
+                type="button"
+                onClick={handleIdentifySensor}
+                disabled={!sensor.sensor_is_online || isActive}
+                className="btn btn-primary btn-sm"
+                title={
+                  isActive 
+                    ? "Cannot identify - sensor is recording" 
+                    : (sensor.sensor_is_online ? "Identify sensor (blink LED)" : "Sensor offline")
+                }
+                style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+              >
+                <Crosshair size={14} />
+                Identify
+              </button>
+            )}
+            <button className="modal-close" onClick={onClose}>
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit}>

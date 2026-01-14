@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { sensorsAPI, sensorTypesAPI } from '../api';
 import { Plus, Edit, Trash2, Activity, Zap, Thermometer, Eye, Droplets, Gauge, Search, Filter, X, Wifi, Target, MapPin, Crosshair, Radio } from 'lucide-react';
 import SensorModal from './SensorModal';
+import { identifySensor } from '../utils/sensorUtils';
 
 const Sensors = () => {
   const [sensors, setSensors] = useState([]);
@@ -136,16 +137,7 @@ const Sensors = () => {
     loadSensorsAndSensorTypes();
   };
 
-  const handleIdentifySensor = async (sensor) => {
-    try {
-      console.log(`Identifying sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
-      await sensorsAPI.identify(sensor.sensor_mqtt_topic);
-      alert(`✅ Identify command sent to sensor:\n${sensor.sensor_name}\n\nThe sensor LED should blink now.`);
-    } catch (error) {
-      console.error('Error sending identify command:', error);
-      alert(`❌ Failed to send identify command:\n${error.response?.data?.detail || error.message}`);
-    }
-  };
+  const handleIdentifySensor = (sensor) => identifySensor(sensor);
 
   const getSensorBadgeStyle = (sensorType) => {
     const color = '#10b981'; // Default to green
