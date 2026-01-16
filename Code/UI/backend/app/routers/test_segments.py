@@ -10,7 +10,7 @@ from database import test_segments as segments_db
 router = APIRouter()
 
 
-@router.post("/", response_model=TestSegment)
+@router.post("", response_model=TestSegment)
 async def create_segment(segment: TestSegmentCreate):
     """Create a new test segment."""
     try:
