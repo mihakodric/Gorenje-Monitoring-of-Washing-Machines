@@ -39,6 +39,15 @@ void MQTTHandler::loadConfigs() {
         deserializeJson(doc, f1);
         brokerIP = doc["mqtt_server"] | "";
         brokerPort = doc["mqtt_port"] | 1883;
+        
+        // Load NTP settings (use broker IP as NTP server if not specified)
+        ntpServer = doc["ntp_server"].as<String>();
+        if (ntpServer.isEmpty()) {
+            ntpServer = brokerIP;  // Default to same server as MQTT broker
+        }
+        gmtOffsetSec = doc["gmt_offset_sec"] | 3600;
+        daylightOffsetSec = doc["daylight_offset_sec"] | 3600;
+        
         f1.close();
         Serial.println("Loaded common config.");
     } else {

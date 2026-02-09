@@ -34,6 +34,11 @@ public:
         onConfigChanged = cb;
     }
 
+    // NTP configuration getters
+    String getNtpServer() const { return ntpServer; }
+    long getGmtOffsetSec() const { return gmtOffsetSec; }
+    long getDaylightOffsetSec() const { return daylightOffsetSec; }
+
     // LED blink helpers
     void blinkIdentify(uint8_t cycles = 10);
     void blinkConnect();
@@ -63,6 +68,11 @@ private:
     PubSubClient client;
     String brokerIP;
     int brokerPort;
+
+    // ----------------- NTP settings -----------------
+    String ntpServer;
+    long gmtOffsetSec = 3600;
+    long daylightOffsetSec = 3600;
 
     // ----------------- Topics -----------------
     String deviceName;

@@ -25,6 +25,13 @@ services:
       - mosquitto_log:/mosquitto/log
     restart: unless-stopped
 
+  ntp:
+    image: cturra/ntp:latest
+    container_name: ntp-server
+    ports:
+      - "123:123/udp"
+    restart: unless-stopped
+
   mqtt-worker:
     image: ghcr.io/${IMAGE_REPO}-mqtt-worker:${APP_VERSION}
     container_name: mqtt-worker

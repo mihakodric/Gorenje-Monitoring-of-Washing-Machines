@@ -82,12 +82,21 @@ void setup() {
 
     mqttClient->begin();
 
-    // --- Configure NTP time ---
-    configTime(3600, 3600, "pool.ntp.org", "time.google.com");
+    // --- Configure NTP time from local server ---
+    String ntpServer = mqttClient->getNtpServer();
+    long gmtOffset = mqttClient->getGmtOffsetSec();
+    long daylightOffset = mqttClient->getDaylightOffsetSec();
+    
+    Serial.printf("Configuring NTP: server=%s, GMT offset=%ld, DST offset=%ld\n", 
+                  ntpServer.c_str(), gmtOffset, daylightOffset);
+    
+    configTime(gmtOffset, daylightOffset, ntpServer.c_str());
 
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) {
-        Serial.println("Failed to obtain time from NTP");
+        Serial.println("Failed to obtain time from NTP server");
+    } else {
+        Serial.println("Time synchronized successfully");
     }
 
     // --- Setup sensor ---

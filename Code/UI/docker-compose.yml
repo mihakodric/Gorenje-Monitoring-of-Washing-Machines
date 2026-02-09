@@ -25,6 +25,13 @@ services:
       - ./mosquitto/log:/mosquitto/log
     restart: always
 
+  ntp:
+    image: cturra/ntp:latest
+    container_name: ntp-server
+    ports:
+      - "123:123/udp"
+    restart: always
+
   mqtt-worker:
     build: ./mqtt_worker
     container_name: mqtt-worker
