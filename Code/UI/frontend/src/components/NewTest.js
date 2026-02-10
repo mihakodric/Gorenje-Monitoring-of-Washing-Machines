@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Laptop, Wifi, WifiOff, Crosshair, Eye, Copy, Plus, Trash2 } from 'lucide-react';
 import { testsAPI, sensorsAPI, machinesAPI, machineTypesAPI, sensorTypesAPI, testRelationsAPI } from '../api';
 import SensorModal from './SensorModal';
+import { toast } from '../utils/toast';
 
 const NewTest = () => {
   const navigate = useNavigate();
@@ -469,10 +470,10 @@ const NewTest = () => {
     try {
       console.log(`Identifying sensor: ${sensor.sensor_name} (${sensor.sensor_mqtt_topic}/cmd/identify)`);
       await sensorsAPI.identify(sensor.sensor_mqtt_topic);
-      alert(`✅ Identify command sent to sensor:\n${sensor.sensor_name}\n\nThe sensor LED should blink now.`);
+      toast.success(`Identify command sent to sensor: ${sensor.sensor_name}. LED should blink now.`, 4000);
     } catch (error) {
       console.error('Error sending identify command:', error);
-      alert(`❌ Failed to send identify command:\n${error.response?.data?.detail || error.message}`);
+      toast.error(`Failed to send identify command: ${error.response?.data?.detail || error.message}`, 5000);
     }
   };
 
