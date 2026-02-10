@@ -1,8 +1,9 @@
 {  
-  "wifi_ssid": "TP-Link_B0E0", 
-  "wifi_password": "89846834", 
-  "mqtt_server": "192.168.0.19",
+  "wifi_ssid": "FS-GUEST", 
+  "wifi_password": "pCPUMv21LN", 
+  "mqtt_server": "10.15.114.93",
   "mqtt_port": 1883,
+  "ntp_server": "10.15.114.93",
   "gmt_offset_sec": 3600,       
   "daylight_offset_sec": 3600  
 }

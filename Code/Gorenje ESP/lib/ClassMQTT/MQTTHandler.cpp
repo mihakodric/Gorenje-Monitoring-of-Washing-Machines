@@ -41,8 +41,10 @@ void MQTTHandler::loadConfigs() {
         brokerPort = doc["mqtt_port"] | 1883;
         
         // Load NTP settings (use broker IP as NTP server if not specified)
-        ntpServer = doc["ntp_server"].as<String>();
-        if (ntpServer.isEmpty()) {
+        const char* ntpFromConfig = doc["ntp_server"] | "";
+        if (ntpFromConfig && strlen(ntpFromConfig) > 0) {
+            ntpServer = String(ntpFromConfig);
+        } else {
             ntpServer = brokerIP;  // Default to same server as MQTT broker
         }
         gmtOffsetSec = doc["gmt_offset_sec"] | 3600;
@@ -50,6 +52,7 @@ void MQTTHandler::loadConfigs() {
         
         f1.close();
         Serial.println("Loaded common config.");
+        Serial.printf("NTP will use: %s\n", ntpServer.c_str());
     } else {
         Serial.println("Failed to load common config!");
     }
