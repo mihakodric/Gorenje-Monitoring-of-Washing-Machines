@@ -121,7 +121,21 @@ const Sensors = () => {
         loadSensorsAndSensorTypes();
       } catch (error) {
         console.error('Error deleting sensor:', error);
-        alert('Error deleting sensor. Please try again.');
+        console.error('Error response:', error.response);
+        console.error('Error response data:', error.response?.data);
+        
+        // Try to extract the error message from different possible locations
+        let errorMessage = 'Error deleting sensor. Please try again.';
+        
+        if (error.response?.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        alert(errorMessage);
       }
     }
   };

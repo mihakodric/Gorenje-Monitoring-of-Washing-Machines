@@ -67,9 +67,10 @@ async def delete_sensor_type_endpoint(type_id: int):
     # check if sensor_type is used by any sensors
     related_sensors = await get_sensors_by_sensor_type(type_id)
     if related_sensors:
+        sensor_names = ', '.join([sensor['sensor_name'] for sensor in related_sensors])
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete sensor type - it is in use by existing sensors: {[sensor['sensor_name'] for sensor in related_sensors]}",
+            detail=f"Cannot delete sensor type - it is in use by existing sensors: {sensor_names}",
         )
 
     success = await delete_sensor_type(type_id)

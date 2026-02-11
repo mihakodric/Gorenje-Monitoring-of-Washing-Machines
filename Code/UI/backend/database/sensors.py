@@ -201,11 +201,12 @@ async def get_tests_for_sensor(sensor_id: int):
             return []
 
         # get test name and ids
-        rows = await conn.fetch(
-            "SELECT id, test_name FROM metadata.tests WHERE id IN ($1)",
-            *[row["test_id"] for row in rows]
+        test_ids = [row["test_id"] for row in rows]
+        test_rows = await conn.fetch(
+            "SELECT id as test_id, test_name FROM metadata.tests WHERE id = ANY($1)",
+            test_ids
         )
-        return [dict(row) for row in rows]
+        return [dict(row) for row in test_rows]
 
 
 async def mark_sensor_offline(timeout_seconds: int = 60) -> int:

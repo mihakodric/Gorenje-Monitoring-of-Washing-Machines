@@ -95,13 +95,21 @@ const Settings = () => {
         loadSettings();
       } catch (error) {
         console.error('Error deleting sensor type:', error);
+        console.error('Error response:', error.response);
+        console.error('Error response data:', error.response?.data);
         
-        // Check if error contains specific message about sensors in use
-        if (error.response && error.response.data && error.response.data.detail) {
-          alert(error.response.data.detail);
-        } else {
-          alert('Error deleting sensor type. Please try again.');
+        // Try to extract the error message from different possible locations
+        let errorMessage = 'Error deleting sensor type. Please try again.';
+        
+        if (error.response?.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
         }
+        
+        alert(errorMessage);
       }
     }
   };
@@ -122,7 +130,21 @@ const Settings = () => {
         loadSettings();
       } catch (error) {
         console.error('Error deleting machine type:', error);
-        alert('Error deleting machine type');
+        console.error('Error response:', error.response);
+        console.error('Error response data:', error.response?.data);
+        
+        // Try to extract the error message from different possible locations
+        let errorMessage = 'Error deleting machine type. Please try again.';
+        
+        if (error.response?.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        alert(errorMessage);
       }
     }
   };

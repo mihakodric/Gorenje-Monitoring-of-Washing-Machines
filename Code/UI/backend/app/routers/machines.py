@@ -62,7 +62,14 @@ async def update_machine_endpoint(machine_id: int, machine: MachineUpdate):
 @router.delete("/{machine_id}", response_model=dict)
 async def delete_machine_endpoint(machine_id: int):
     """Delete a washing machine if it has no active test relations."""
+    # Check for existing test relations
     relations = await get_tests_for_machine_id(machine_id)
+    if relations:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete machine with existing tests. This machine is linked to: {', '.join([str(r['id'])+' - '+r['test_name'] for r in relations])}"
+        )
+    
     success = await delete_machine(machine_id)
     if not success:
         raise HTTPException(status_code=404, detail="Washing Machine not found")

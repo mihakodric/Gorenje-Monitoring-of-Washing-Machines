@@ -69,9 +69,10 @@ async def delete_machine_type_endpoint(type_id: int):
     # Check if machine type is in use by any machines
     related_machines = await get_machines_by_machine_type(type_id)
     if related_machines:
+        machine_names = ', '.join([machine['machine_name'] for machine in related_machines])
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete machine type - it is in use by existing machines: {[machine['machine_name'] for machine in related_machines]}",
+            detail=f"Cannot delete machine type - it is in use by existing machines: {machine_names}",
         )
     success = await delete_machine_type(type_id)
     if not success:
