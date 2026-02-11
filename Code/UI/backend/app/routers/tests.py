@@ -209,12 +209,8 @@ async def stop_test_endpoint(test_id: int):
             detail="Cannot stop test: no sensors connected"
         )
 
-    for rel in relations:
-        if not rel.get("sensor_is_online", False):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot stop test: sensor '{rel.get('sensor_name')}' is offline"
-            )
+    # Allow stopping test even if some sensors are offline
+    # Offline sensors simply won't receive the stop command
 
     # ✅ Atomically stop test + close run
     closed_run_id = await stop_test(test_id)
@@ -227,7 +223,11 @@ async def stop_test_endpoint(test_id: int):
     print(f"Test {test_id} stopped in DB, notifying sensors...")
 
     # ✅ Notify devices only AFTER DB is consistent
-    for rel in relations:
+    # Only send stop commands to online sensors
+    online_sensors = [rel for rel in relations if rel.get("sensor_is_online", False)]
+    offline_sensors = [rel for rel in relations if not rel.get("sensor_is_online", False)]
+    
+    for rel in online_sensors:
         sensor_topic = rel["sensor_mqtt_topic"]
         cmd_topic = f"sensors/{sensor_topic}/cmd"
 
@@ -239,8 +239,11 @@ async def stop_test_endpoint(test_id: int):
 
         publish_cmd(topic=cmd_topic, payload=payload)
         print(f"Sent stop command to sensor topic: {cmd_topic} with payload: {payload}")    
+    
+    if offline_sensors:
+        print(f"Skipped sending stop command to {len(offline_sensors)} offline sensor(s): {[s['sensor_name'] for s in offline_sensors]}")
 
-    print(f"Test {test_id} stop notifications sent to sensors.")
+    print(f"Test {test_id} stop notifications sent to {len(online_sensors)} online sensor(s).")
 
     return {
         "message": f"Test {test_id} stopped",

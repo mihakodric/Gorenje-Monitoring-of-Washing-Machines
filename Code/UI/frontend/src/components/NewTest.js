@@ -117,7 +117,7 @@ const NewTest = () => {
         }
       }
       
-      // Set selected sensors with locations AND test_relation_id
+      // Set selected sensors with locations, test_relation_id, AND measurement info
       if (testRelationsData && testRelationsData.length > 0) {
         const selectedSensorsData = testRelationsData.map(relation => {
           const sensor = sensors.find(s => s.id === relation.sensor_id);
@@ -125,7 +125,9 @@ const NewTest = () => {
             test_relation_id: relation.id, // Keep the existing relation ID
             sensor_id: relation.sensor_id,
             sensor_location: relation.sensor_location || '',
-            sensor: sensor
+            sensor: sensor,
+            has_measurements: relation.sensor_has_data || false, // Track if sensor has data
+            measurement_count: relation.measurement_count || 0
           };
         });
         setSelectedSensors(selectedSensorsData);
@@ -840,7 +842,9 @@ const NewTest = () => {
                 <button
                   type="button"
                   onClick={() => handleMachineSelect(null)}
+                  disabled={testStatus === 'running' || (isEditing && selectedSensors.length > 0)}
                   className="btn btn-secondary btn-sm"
+                  title={testStatus === 'running' ? 'Cannot change machine while test is running' : isEditing && selectedSensors.length > 0 ? 'Cannot change machine - test already has sensor data' : 'Remove'}
                 >
                   Remove
                 </button>
@@ -889,7 +893,9 @@ const NewTest = () => {
                             <button
                               type="button"
                               onClick={() => handleMachineSelect(machine)}
+                              disabled={testStatus === 'running' || (isEditing && selectedSensors.length > 0)}
                               className="btn btn-primary btn-sm"
+                              title={testStatus === 'running' ? 'Cannot change machine while test is running' : isEditing && selectedSensors.length > 0 ? 'Cannot change machine - test already has sensor data' : 'Select machine'}
                             >
                               Select
                             </button>
@@ -997,17 +1003,18 @@ const NewTest = () => {
                                           <button
                                             type="button"
                                             onClick={() => handleIdentifySensor(template.selectedSensor.sensor)}
-                                            disabled={!template.selectedSensor.sensor.sensor_is_online}
+                                            disabled={!template.selectedSensor.sensor.sensor_is_online || testStatus === 'running'}
                                             className="btn btn-primary btn-sm"
-                                            title="Identify sensor"
+                                            title={testStatus === 'running' ? 'Cannot identify while test is running' : 'Identify sensor'}
                                           >
                                             <Crosshair size={14} />
                                           </button>
                                           <button
                                             type="button"
                                             onClick={() => handleRemoveSensor(template.selectedSensor.sensor_id)}
+                                            disabled={testStatus === 'running' || template.selectedSensor.has_measurements}
                                             className="btn btn-danger btn-sm"
-                                            title="Remove"
+                                            title={template.selectedSensor.has_measurements ? 'Cannot remove sensor with measurements' : testStatus === 'running' ? 'Cannot remove sensor while test is running' : 'Remove'}
                                           >
                                             <Trash2 size={14} />
                                           </button>
@@ -1016,8 +1023,9 @@ const NewTest = () => {
                                         <button
                                           type="button"
                                           onClick={() => handleOpenSensorModal(template.sensor_type_id, idx)}
+                                          disabled={testStatus === 'running'}
                                           className="btn btn-secondary btn-sm"
-                                          title="Create new sensor"
+                                          title={testStatus === 'running' ? 'Cannot create sensor while test is running' : 'Create new sensor'}
                                         >
                                           <Plus size={14} /> New
                                         </button>
@@ -1099,17 +1107,18 @@ const NewTest = () => {
                                           <button
                                             type="button"
                                             onClick={() => handleIdentifySensor(template.selectedSensor.sensor)}
-                                            disabled={!template.selectedSensor.sensor.sensor_is_online}
+                                            disabled={!template.selectedSensor.sensor.sensor_is_online || testStatus === 'running'}
                                             className="btn btn-primary btn-sm"
-                                            title="Identify sensor"
+                                            title={testStatus === 'running' ? 'Cannot identify while test is running' : 'Identify sensor'}
                                           >
                                             <Crosshair size={14} />
                                           </button>
                                           <button
                                             type="button"
                                             onClick={() => handleRemoveSensor(template.selectedSensor.sensor_id)}
+                                            disabled={testStatus === 'running' || template.selectedSensor.has_measurements}
                                             className="btn btn-danger btn-sm"
-                                            title="Remove"
+                                            title={template.selectedSensor.has_measurements ? 'Cannot remove sensor with measurements' : testStatus === 'running' ? 'Cannot remove sensor while test is running' : 'Remove'}
                                           >
                                             <Trash2 size={14} />
                                           </button>
@@ -1118,8 +1127,9 @@ const NewTest = () => {
                                         <button
                                           type="button"
                                           onClick={() => handleOpenSensorModal(template.sensor_type_id, idx + required.length)}
+                                          disabled={testStatus === 'running'}
                                           className="btn btn-secondary btn-sm"
-                                          title="Create new sensor"
+                                          title={testStatus === 'running' ? 'Cannot create sensor while test is running' : 'Create new sensor'}
                                         >
                                           <Plus size={14} /> New
                                         </button>
@@ -1171,6 +1181,11 @@ const NewTest = () => {
                                         <WifiOff size={14} className="status-offline" />
                                       )}
                                       <strong>{item.sensor.sensor_name}</strong>
+                                      {item.has_measurements && (
+                                        <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: '500', marginLeft: '8px' }}>
+                                          (Has {item.measurement_count} measurements)
+                                        </span>
+                                      )}
                                     </div>
                                   </td>
                                   <td style={{ width: '20%', position: 'sticky', right: 0, background: 'white' }}>
@@ -1178,17 +1193,18 @@ const NewTest = () => {
                                       <button
                                         type="button"
                                         onClick={() => handleIdentifySensor(item.sensor)}
-                                        disabled={!item.sensor.sensor_is_online}
+                                        disabled={!item.sensor.sensor_is_online || testStatus === 'running'}
                                         className="btn btn-primary btn-sm"
-                                        title="Identify"
+                                        title={testStatus === 'running' ? 'Cannot identify while test is running' : 'Identify'}
                                       >
                                         <Crosshair size={14} />
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => handleRemoveSensor(item.sensor_id)}
+                                        disabled={testStatus === 'running' || item.has_measurements}
                                         className="btn btn-danger btn-sm"
-                                        title="Remove"
+                                        title={item.has_measurements ? 'Cannot remove sensor with measurements' : testStatus === 'running' ? 'Cannot remove sensor while test is running' : 'Remove'}
                                       >
                                         <Trash2 size={14} />
                                       </button>
@@ -1218,7 +1234,9 @@ const NewTest = () => {
                               handleSelectOtherSensor(e.target.value);
                               e.target.value = ''; // Reset dropdown
                             }}
+                            disabled={testStatus === 'running'}
                             value=""
+                            title={testStatus === 'running' ? 'Cannot add sensors while test is running' : ''}
                           >
                             <option value="">Select a sensor...</option>
                             {getAvailableOtherSensors().map(sensor => (
@@ -1280,6 +1298,11 @@ const NewTest = () => {
                                 <WifiOff size={14} className="status-offline" />
                               )}
                               <strong>{item.sensor.sensor_name}</strong>
+                              {item.has_measurements && (
+                                <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: '500', marginLeft: '8px' }}>
+                                  (Has {item.measurement_count} measurements)
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td style={{ width: '20%', position: 'sticky', right: 0, background: 'white' }}>
@@ -1287,17 +1310,18 @@ const NewTest = () => {
                               <button
                                 type="button"
                                 onClick={() => handleIdentifySensor(item.sensor)}
-                                disabled={!item.sensor.sensor_is_online}
+                                disabled={!item.sensor.sensor_is_online || testStatus === 'running'}
                                 className="btn btn-primary btn-sm"
-                                title="Identify"
+                                title={testStatus === 'running' ? 'Cannot identify while test is running' : 'Identify'}
                               >
                                 <Crosshair size={14} />
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveSensor(item.sensor_id)}
+                                disabled={testStatus === 'running' || item.has_measurements}
                                 className="btn btn-danger btn-sm"
-                                title="Remove"
+                                title={item.has_measurements ? 'Cannot remove sensor with measurements' : testStatus === 'running' ? 'Cannot remove sensor while test is running' : 'Remove'}
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -1327,7 +1351,9 @@ const NewTest = () => {
                       handleSelectOtherSensor(e.target.value);
                       e.target.value = ''; // Reset dropdown
                     }}
+                    disabled={testStatus === 'running'}
                     value=""
+                    title={testStatus === 'running' ? 'Cannot add sensors while test is running' : ''}
                   >
                     <option value="">Select a sensor...</option>
                     {getAvailableOtherSensors().map(sensor => (
@@ -1340,8 +1366,9 @@ const NewTest = () => {
                 <button
                   type="button"
                   onClick={() => handleOpenSensorModal(null, null)}
+                  disabled={testStatus === 'running'}
                   className="btn btn-secondary"
-                  title="Create a new sensor"
+                  title={testStatus === 'running' ? 'Cannot add sensors while test is running' : 'Create a new sensor'}
                 >
                   <Plus size={16} /> New Sensor
                 </button>
