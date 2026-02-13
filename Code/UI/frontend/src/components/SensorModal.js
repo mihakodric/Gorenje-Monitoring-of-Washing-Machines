@@ -114,12 +114,14 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
   const handleIdentifySensor = () => identifySensor(sensor);
 
   const detectSettingType = (value) => {
+    if (typeof value === 'boolean') return 'boolean';
     if (Number.isInteger(value)) return 'int';
     if (typeof value === 'number') return 'float';
     return 'text';
   };
 
   const parseSettingValue = (value, type) => {
+    if (type === 'boolean') return value === true || value === 'true';
     if (type === 'int') return parseInt(value, 10);
     if (type === 'float') return parseFloat(value);
     return value;
@@ -356,14 +358,31 @@ const SensorModal = ({ sensor, onClose, onSave }) => {
                         <label className="form-label" style={{ fontSize: '0.9em', marginBottom: '5px' }}>
                           {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </label>
-                        <input
-                          type="number"
-                          step={settingType === 'float' ? 'any' : '1'}
-                          value={value}
-                          onChange={(e) => handleSettingChange(key, parseSettingValue(e.target.value, settingType))}
-                          className="form-control"
-                          disabled={!sensor.sensor_is_online || isActive}
-                        />
+                        {settingType === 'boolean' ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <label className="toggle-switch">
+                              <input
+                                type="checkbox"
+                                checked={value}
+                                onChange={(e) => handleSettingChange(key, e.target.checked)}
+                                disabled={!sensor.sensor_is_online || isActive}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                            <span style={{ fontSize: '0.9em', color: '#6c757d' }}>
+                              {value ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </div>
+                        ) : (
+                          <input
+                            type="number"
+                            step={settingType === 'float' ? 'any' : '1'}
+                            value={value}
+                            onChange={(e) => handleSettingChange(key, parseSettingValue(e.target.value, settingType))}
+                            className="form-control"
+                            disabled={!sensor.sensor_is_online || isActive}
+                          />
+                        )}
                       </div>
                     );
                   })}

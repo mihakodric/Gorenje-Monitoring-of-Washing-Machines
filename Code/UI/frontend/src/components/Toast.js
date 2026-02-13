@@ -18,6 +18,9 @@ const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
         {type === 'info' && 'ℹ️'}
       </span>
       <span className="toast-message">{message}</span>
+      <button className="toast-close" onClick={onClose} aria-label="Close notification">
+        ×
+      </button>
     </div>
   );
 };

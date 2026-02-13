@@ -1,4 +1,11 @@
 // ======================= main.cpp =======================
+
+// Device configuration
+// CHANEGE THIS to a unique name for each device (e.g. "acc_1", "dist_2", etc.)
+// =========================================================
+const char* DEVICE_NAME = "dist_1";
+// =========================================================
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <LittleFS.h>
@@ -44,7 +51,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/accelerometer/config.json",
-            "acc_1"
+            DEVICE_NAME
         );
     #endif
 
@@ -52,7 +59,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/distance/config.json",
-            "dist_1"
+            DEVICE_NAME
         );
     #endif
 
@@ -60,7 +67,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/temperature/config.json",
-            "temp_2"
+            DEVICE_NAME
         );
     #endif
 
@@ -68,7 +75,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/infrared/config.json",
-            "infra_1"
+            DEVICE_NAME
         );
     #endif
 
@@ -76,7 +83,7 @@ void setup() {
         mqttClient = new MQTTHandler(
             "/common/config.json",
             "/water_flow/config.json",
-            "waterflow_2"
+            DEVICE_NAME
         );
     #endif
 
