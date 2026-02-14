@@ -28,9 +28,14 @@ services:
   ntp:
     image: cturra/ntp:latest
     container_name: ntp-server
+    volumes:
+      - ./ntp/chrony.conf:/etc/chrony/chrony.conf:ro
     ports:
       - "123:123/udp"
     restart: always
+    cap_add:
+      - SYS_TIME
+      - SYS_NICE
 
   mqtt-worker:
     build: ./mqtt_worker
